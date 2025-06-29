@@ -1,0 +1,155 @@
+
+{
+  "realm": "myschoolbuddies-realm",
+  "enabled": true,
+  "displayName": "My School Buddies",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>My School Buddies</span></div>",
+  "loginTheme": "keycloak",
+  "accountTheme": "keycloak",
+  "adminTheme": "keycloak",
+  "emailTheme": "keycloak",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "smtpServer": {
+    "host": "smtp.sendgrid.net",
+    "port": "587",
+    "from": "noreply@myschoolbuddies.com",
+    "fromDisplayName": "My School Buddies",
+    "ssl": "false",
+    "starttls": "true",
+    "auth": "true",
+    "user": "apikey",
+    "password": "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"
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "platform_admin",
+        "description": "Platform Administrator with full system access"
+      },
+      {
+        "name": "school_admin",
+        "description": "School Administrator managing school-specific resources"
+      },
+      {
+        "name": "teacher",
+        "description": "Teacher with access to assigned classes"
+      },
+      {
+        "name": "student",
+        "description": "Student with access to enrolled classes"
+      },
+      {
+        "name": "alumni",
+        "description": "Alumni with access to school community"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "frontend-client",
+      "name": "My School Buddies Frontend",
+      "description": "React frontend application client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "frontend-client-secret-2025",
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:3000/*",
+        "https://myschoolbuddies.com/*",
+        "https://*.myschoolbuddies.com/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "https://myschoolbuddies.com",
+        "https://*.myschoolbuddies.com"
+      ],
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:3000/*##https://myschoolbuddies.com/*"
+      }
+    },
+    {
+      "clientId": "backend-client",
+      "name": "My School Buddies Backend API",
+      "description": "Backend API client for server-to-server communication",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "backend-client-secret-2025",
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "school-access",
+      "description": "Access to school-specific resources",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "class-access",
+      "description": "Access to class-specific resources",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@myschoolbuddies.com",
+      "email": "admin@myschoolbuddies.com",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["platform_admin"],
+      "attributes": {
+        "school_id": [""],
+        "user_type": ["platform_admin"]
+      }
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": true
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false
+    }
+  ],
+  "attributes": {
+    "frontendUrl": "https://login.hostingmanager.in",
+    "adminUrl": "https://login.hostingmanager.in"
+  }
+}

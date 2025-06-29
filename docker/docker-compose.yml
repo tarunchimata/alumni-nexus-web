@@ -1,0 +1,92 @@
+
+version: '3.8'
+
+services:
+  # Frontend (React App)
+  frontend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_KEYCLOAK_URL=https://login.hostingmanager.in
+      - REACT_APP_KEYCLOAK_REALM=myschoolbuddies-realm
+      - REACT_APP_KEYCLOAK_CLIENT_ID=frontend-client
+    volumes:
+      - ../src:/app/src
+      - ../public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - myschoolbuddies-network
+
+  # Backend (Node.js/Express API)
+  backend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=pg.hostingmanager.in
+      - DB_PORT=5432
+      - DB_NAME=myschoolbuddies_budibase_db
+      - DB_USER=msbfinalroot
+      - DB_PASSWORD=vA5ZXB2Nb6M3P22GWZRch999
+      - KEYCLOAK_URL=https://login.hostingmanager.in
+      - KEYCLOAK_REALM=myschoolbuddies-realm
+      - KEYCLOAK_CLIENT_ID=backend-client
+      - KEYCLOAK_CLIENT_SECRET=backend-client-secret-2025
+      - SENDGRID_API_KEY=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
+      - SENDGRID_FROM_EMAIL=noreply@myschoolbuddies.com
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
+    networks:
+      - myschoolbuddies-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis (for session management and caching)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - myschoolbuddies-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Nginx (Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - myschoolbuddies-network
+
+volumes:
+  redis_data:
+
+networks:
+  myschoolbuddies-network:
+    driver: bridge
