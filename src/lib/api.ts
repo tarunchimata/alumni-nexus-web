@@ -1,6 +1,6 @@
 
 // API utilities and configuration
-// This file contains the base API configuration and common utilities
+import { getToken, updateToken } from './keycloak';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://api.myschoolbuddies.com' 
@@ -14,7 +14,14 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const token = localStorage.getItem('keycloak_token');
+    // Update token if needed
+    try {
+      await updateToken(30);
+    } catch (error) {
+      console.warn('Token update failed:', error);
+    }
+
+    const token = getToken();
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -74,6 +81,26 @@ export class ApiClient {
 
     return response.json();
   }
+
+  async uploadFile<T>(endpoint: string, file: File): Promise<T> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 export const apiClient = new ApiClient();
@@ -81,10 +108,6 @@ export const apiClient = new ApiClient();
 // API endpoints for different modules
 export const endpoints = {
   auth: {
-    login: '/api/auth/login',
-    register: '/api/auth/register',
-    logout: '/api/auth/logout',
-    refresh: '/api/auth/refresh',
     profile: '/api/auth/profile',
   },
   schools: {
@@ -114,9 +137,8 @@ export const endpoints = {
     conversation: '/api/messages/conversation/:id',
     groups: '/api/messages/groups',
   },
-  notifications: {
-    list: '/api/notifications',
-    markRead: '/api/notifications/:id/read',
-    preferences: '/api/notifications/preferences',
+  admin: {
+    stats: '/api/admin/stats',
+    health: '/api/admin/health',
   },
 };

@@ -1,0 +1,147 @@
+
+// My School Buddies Database Schema
+// Based on the existing PostgreSQL schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id             Int      @id @default(autoincrement())
+  name           String   @db.VarChar(255)
+  udiseCode      String   @unique @map("udise_code") @db.VarChar(50)
+  schoolType     SchoolType @map("school_type")
+  managementType ManagementType @map("management_type")
+  address        String
+  contactNumber  String?  @map("contact_number") @db.VarChar(20)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users          User[]
+  classes        Class[]
+
+  @@map("schools")
+}
+
+model User {
+  id               Int      @id @default(autoincrement())
+  keycloakId       String   @unique @map("keycloak_id") @db.VarChar(255)
+  email            String   @unique @db.VarChar(255)
+  firstName        String   @map("first_name") @db.VarChar(100)
+  lastName         String   @map("last_name") @db.VarChar(100)
+  role             UserRole
+  schoolId         Int?     @map("school_id")
+  phoneNumber      String?  @map("phone_number") @db.VarChar(20)
+  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
+  admissionYear    Int?     @map("admission_year")
+  graduationYear   Int?     @map("graduation_year")
+  profilePictureUrl String? @map("profile_picture_url")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school           School?  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  adminClasses     Class[]  @relation("ClassAdmin")
+  userClassGroups  UserClassGroup[]
+  sentMessages     Message[]
+  deletedMessages  Message[] @relation("MessageDeleter")
+
+  @@map("users")
+}
+
+model Class {
+  id           Int      @id @default(autoincrement())
+  schoolId     Int      @map("school_id")
+  name         String   @db.VarChar(100)
+  section      String?  @db.VarChar(10)
+  academicYear String   @map("academic_year") @db.VarChar(10)
+  classAdminId Int?     @map("class_admin_id")
+  description  String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school          School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classAdmin      User?  @relation("ClassAdmin", fields: [classAdminId], references: [id], onDelete: SetNull)
+  userClassGroups UserClassGroup[]
+  messages        Message[]
+
+  @@map("classes")
+}
+
+model UserClassGroup {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @map("user_id")
+  classId     Int           @map("class_id")
+  roleInClass ClassRole     @map("role_in_class")
+  joinedAt    DateTime      @default(now()) @map("joined_at")
+
+  // Relations
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class       Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+  @@map("user_class_groups")
+}
+
+model Message {
+  id            Int         @id @default(autoincrement())
+  classId       Int         @map("class_id")
+  senderId      Int         @map("sender_id")
+  messageText   String      @map("message_text")
+  messageType   MessageType @default(text) @map("message_type")
+  attachmentUrl String?     @map("attachment_url")
+  isDeleted     Boolean     @default(false) @map("is_deleted")
+  deletedBy     Int?        @map("deleted_by")
+  deletedAt     DateTime?   @map("deleted_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  class         Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  deleter       User?       @relation("MessageDeleter", fields: [deletedBy], references: [id])
+
+  @@map("messages")
+}
+
+// Enums
+enum SchoolType {
+  Primary @map("Primary")
+  Secondary @map("Secondary")
+  Higher_Secondary @map("Higher Secondary")
+}
+
+enum ManagementType {
+  Government @map("Government")
+  Private @map("Private")
+}
+
+enum UserRole {
+  platform_admin
+  school_admin
+  teacher
+  alumni
+  student
+}
+
+enum ClassRole {
+  teacher
+  student
+  alumni
+  admin
+}
+
+enum MessageType {
+  text
+  image
+  file
+}

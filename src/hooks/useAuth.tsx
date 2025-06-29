@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { initKeycloak, login as keycloakLogin, logout as keycloakLogout, register as keycloakRegister, getUserInfo, isAuthenticated, getToken } from "@/lib/keycloak";
 
 interface User {
   id: string;
@@ -13,11 +14,12 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: () => void;
   logout: () => void;
-  register: (userData: any) => Promise<void>;
+  register: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,101 +27,76 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for existing authentication on app start
-    checkAuthStatus();
+    initializeAuth();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const initializeAuth = async () => {
     try {
-      // This will integrate with Keycloak token validation
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        // Validate token with Keycloak and get user info
-        const userData = await validateToken(token);
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('auth_token');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const validateToken = async (token: string): Promise<User> => {
-    // Mock function - replace with actual Keycloak validation
-    return {
-      id: '1',
-      email: 'john.doe@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      role: 'student',
-      schoolId: 'school_1'
-    };
-  };
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // Integration point for Keycloak authentication
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      const { token, user: userData } = await response.json();
+      setIsLoading(true);
+      const authenticated = await initKeycloak();
       
-      localStorage.setItem('auth_token', token);
-      setUser(userData);
+      if (authenticated) {
+        const userInfo = getUserInfo();
+        const authToken = getToken();
+        
+        if (userInfo) {
+          // Fetch user profile from backend
+          const response = await fetch('/api/auth/profile', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+            },
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            setUser({
+              id: userData.id,
+              email: userData.email,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              role: userData.role,
+              schoolId: userData.school?.id,
+              avatar: userData.profilePictureUrl,
+            });
+          } else {
+            // Fallback to Keycloak user info
+            setUser({
+              id: userInfo.id,
+              email: userInfo.email,
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              role: userInfo.roles.includes('platform_admin') ? 'platform_admin' :
+                    userInfo.roles.includes('school_admin') ? 'school_admin' :
+                    userInfo.roles.includes('teacher') ? 'teacher' :
+                    userInfo.roles.includes('alumni') ? 'alumni' : 'student',
+            });
+          }
+        }
+        
+        setToken(authToken || null);
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      console.error('Auth initialization failed:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (userData: any) => {
-    setIsLoading(true);
-    try {
-      // Integration point for Keycloak user registration
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+  const login = () => {
+    keycloakLogin();
+  };
 
-      if (!response.ok) {
-        throw new Error('Registration failed');
-      }
-
-      const { token, user: newUser } = await response.json();
-      
-      localStorage.setItem('auth_token', token);
-      setUser(newUser);
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  const register = () => {
+    keycloakRegister();
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
+    keycloakLogout();
     setUser(null);
-    // This will also handle Keycloak logout
+    setToken(null);
   };
 
   const value = {
@@ -128,7 +105,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     register,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: isAuthenticated(),
+    token,
   };
 
   return (
