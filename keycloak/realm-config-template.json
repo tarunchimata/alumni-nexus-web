@@ -1,9 +1,9 @@
 
 {
-  "realm": "myschoolbuddies-realm",
+  "realm": "${KEYCLOAK_REALM_NAME}",
   "enabled": true,
-  "displayName": "My School Buddies",
-  "displayNameHtml": "<div class=\"kc-logo-text\"><span>My School Buddies</span></div>",
+  "displayName": "${KEYCLOAK_REALM_DISPLAY_NAME}",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>${KEYCLOAK_REALM_DISPLAY_NAME}</span></div>",
   "loginTheme": "keycloak",
   "accountTheme": "keycloak",
   "adminTheme": "keycloak",
@@ -24,38 +24,23 @@
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 30,
   "smtpServer": {
-    "host": "smtp.sendgrid.net",
-    "port": 587,
-    "from": "noreply@myschoolbuddies.com",
-    "fromDisplayName": "My School Buddies",
-    "ssl": "false",
-    "starttls": "true",
-    "auth": "true",
-    "user": "apikey",
-    "password": "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"
+    "host": "${KEYCLOAK_SMTP_HOST}",
+    "port": ${KEYCLOAK_SMTP_PORT},
+    "from": "${KEYCLOAK_SMTP_FROM}",
+    "fromDisplayName": "${KEYCLOAK_SMTP_FROM_DISPLAY_NAME}",
+    "ssl": "${KEYCLOAK_SMTP_SSL}",
+    "starttls": "${KEYCLOAK_SMTP_STARTTLS}",
+    "auth": "${KEYCLOAK_SMTP_AUTH}",
+    "user": "${KEYCLOAK_SMTP_USER}",
+    "password": "${KEYCLOAK_SMTP_PASSWORD}"
   },
   "roles": {
     "realm": [
-      {
-        "name": "platform_admin",
-        "description": "Platform Administrator with full system access"
-      },
-      {
-        "name": "school_admin",
-        "description": "School Administrator managing school-specific resources"
-      },
-      {
-        "name": "teacher",
-        "description": "Teacher with access to assigned classes"
-      },
-      {
-        "name": "student",
-        "description": "Student with access to enrolled classes"
-      },
-      {
-        "name": "alumni",
-        "description": "Alumni with access to school community"
-      }
+      { "name": "platform_admin", "description": "Platform Administrator with full system access" },
+      { "name": "school_admin", "description": "School Administrator managing school-specific resources" },
+      { "name": "teacher", "description": "Teacher with access to assigned classes" },
+      { "name": "student", "description": "Student with access to enrolled classes" },
+      { "name": "alumni", "description": "Alumni with access to school community" }
     ]
   },
   "clients": [
@@ -67,20 +52,10 @@
       "publicClient": true,
       "protocol": "openid-connect",
       "fullScopeAllowed": false,
-      "redirectUris": [
-        "http://localhost:8080/*",
-        "http://localhost:3000/*",
-        "https://myschoolbuddies.com/*",
-        "https://*.myschoolbuddies.com/*"
-      ],
-      "webOrigins": [
-        "http://localhost:8080",
-        "http://localhost:3000",
-        "https://myschoolbuddies.com",
-        "https://*.myschoolbuddies.com"
-      ],
+      "redirectUris": ${KEYCLOAK_FRONTEND_REDIRECT_URIS},
+      "webOrigins": ${KEYCLOAK_FRONTEND_WEB_ORIGINS},
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:3000/*##https://myschoolbuddies.com/*",
+        "post.logout.redirect.uris": "${KEYCLOAK_FRONTEND_POST_LOGOUT_URIS}",
         "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
@@ -92,7 +67,7 @@
       "description": "Backend confidential client for server-to-server communication",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "backend-client-secret-2025",
+      "secret": "${KEYCLOAK_BACKEND_CLIENT_SECRET}",
       "serviceAccountsEnabled": true,
       "publicClient": false,
       "protocol": "openid-connect",
@@ -118,22 +93,22 @@
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
-        "display.on.content.screen": "true"
+        "display.on.consent.screen": "true"
       }
     }
   ],
   "users": [
     {
-      "username": "admin@myschoolbuddies.com",
-      "email": "admin@myschoolbuddies.com",
-      "firstName": "Platform",
-      "lastName": "Admin",
+      "username": "${KEYCLOAK_ADMIN_USERNAME}",
+      "email": "${KEYCLOAK_ADMIN_EMAIL}",
+      "firstName": "${KEYCLOAK_ADMIN_FIRST_NAME}",
+      "lastName": "${KEYCLOAK_ADMIN_LAST_NAME}",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
         {
           "type": "password",
-          "value": "Admin@123",
+          "value": "${KEYCLOAK_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],
@@ -161,7 +136,7 @@
     }
   ],
   "attributes": {
-    "frontendUrl": "https://login.hostingmanager.in",
-    "adminUrl": "https://login.hostingmanager.in"
+    "frontendUrl": "${KEYCLOAK_FRONTEND_URL}",
+    "adminUrl": "${KEYCLOAK_ADMIN_URL}"
   }
 }

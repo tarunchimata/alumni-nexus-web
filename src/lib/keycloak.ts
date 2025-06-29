@@ -5,7 +5,7 @@ import Keycloak from 'keycloak-js';
 const keycloak = new Keycloak({
   url: 'https://login.hostingmanager.in',
   realm: 'myschoolbuddies-realm',
-  clientId: 'frontend-client',
+  clientId: 'myschoolbuddies-client',
 });
 
 // Keycloak configuration
