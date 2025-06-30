@@ -3,11 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import csurf from 'csurf';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
-import { keycloakMiddleware } from './middleware/keycloak';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -28,12 +29,17 @@ export const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
 });
 
-// Middleware
+// Security middleware
 app.use(helmet());
+
+// CORS configuration
 app.use(cors({
   origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
   credentials: true,
 }));
+
+// Cookie parser (replaces keycloak middleware)
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -43,11 +49,25 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Initialize Keycloak middleware
-app.use('/api', keycloakMiddleware);
+// CSRF protection for auth routes
+const csrfProtection = csurf({
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.COOKIE_SECURE === 'true',
+  },
+});
+
+// Auth-specific rate limiting
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 attempts per minute
+  message: 'Too many authentication attempts, please try again later.',
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -59,8 +79,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
+// API Routes with middleware
+app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);

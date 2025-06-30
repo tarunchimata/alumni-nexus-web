@@ -7,7 +7,6 @@ interface AuthGuardProps {
   requiredRole?: string;
 }
 
-// This will integrate with Keycloak for real authentication
 const AuthGuard = ({ children, requiredRole }: AuthGuardProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -15,16 +14,44 @@ const AuthGuard = ({ children, requiredRole }: AuthGuardProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock authentication check - replace with Keycloak integration
     const checkAuth = async () => {
       try {
-        // This will be replaced with Keycloak token validation
-        const token = localStorage.getItem('auth_token');
-        const role = localStorage.getItem('user_role');
-        
-        if (token) {
+        // Check authentication with backend using cookies
+        const response = await fetch('/api/auth/profile', {
+          method: 'GET',
+          credentials: 'include', // Important: include cookies
+        });
+
+        if (response.ok) {
+          const profile = await response.json();
           setIsAuthenticated(true);
-          setUserRole(role);
+          setUserRole(profile.user_type || profile.role);
+        } else if (response.status === 401) {
+          // Try to refresh token
+          const refreshResponse = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (refreshResponse.ok) {
+            // Retry profile fetch
+            const retryResponse = await fetch('/api/auth/profile', {
+              method: 'GET',
+              credentials: 'include',
+            });
+
+            if (retryResponse.ok) {
+              const profile = await retryResponse.json();
+              setIsAuthenticated(true);
+              setUserRole(profile.user_type || profile.role);
+            } else {
+              setIsAuthenticated(false);
+              navigate('/login');
+            }
+          } else {
+            setIsAuthenticated(false);
+            navigate('/login');
+          }
         } else {
           setIsAuthenticated(false);
           navigate('/login');
