@@ -7,7 +7,7 @@ import {
   refreshToken,
   revokeToken,
 } from '../services/keycloakAuth';
-import { sessionAuth } from '../middleware/sessionAuth';
+import { authenticateToken } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
@@ -59,10 +59,10 @@ router.post(
         })
         .json({ 
           message: 'User registered and logged in',
-          user: { id: userId, username, email, user_type }
+          user: { id: userId, username, email, user_type, roles: [user_type] }
         });
 
-      logger.info(`User registered: ${username}`);
+      logger.info(`User registered: ${username} with role: ${user_type}`);
     } catch (err) {
       logger.error('Registration failed:', err);
       res.status(500).json({ error: 'Registration failed' });
@@ -160,10 +160,21 @@ router.post('/refresh', async (req, res) => {
 });
 
 // GET /api/auth/profile
-router.get('/profile', sessionAuth, async (req, res) => {
+router.get('/profile', authenticateToken, async (req: any, res) => {
   try {
-    const profile = await keycloakAdminClient.getUserProfile(req.cookies.access_token);
-    res.json(profile);
+    const user = req.user;
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      roles: user.roles,
+      permissions: user.permissions,
+      schoolId: user.schoolId,
+      // Legacy compatibility
+      role: user.roles[0] || 'student',
+      user_type: user.roles[0] || 'student',
+    });
   } catch (err) {
     logger.error('Profile fetch failed:', err);
     res.status(401).json({ error: 'Failed to fetch profile' });

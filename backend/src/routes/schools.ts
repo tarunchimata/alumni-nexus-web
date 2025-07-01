@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
-import { AuthenticatedRequest, requireRole } from '../middleware/keycloak';
+import { AuthenticatedRequest, authenticateToken, requireRole, requirePermission } from '../middleware/auth';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import multer from 'multer';
@@ -11,12 +11,28 @@ import fs from 'fs';
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
 
-// Get all schools
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+// Get all schools - accessible by all authenticated users
 router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
     const { page = 1, limit = 10, search, schoolType, managementType } = req.query;
     
     const where: any = { isActive: true };
+    
+    // School admins and teachers can only see their own school
+    if (req.user && !req.user.roles.includes('platform_admin')) {
+      if (req.user.schoolId) {
+        where.id = req.user.schoolId;
+      } else {
+        // User has no school access
+        return res.json({
+          schools: [],
+          pagination: { page: 1, limit: 10, total: 0, pages: 0 },
+        });
+      }
+    }
     
     if (search) {
       where.OR = [
@@ -57,9 +73,9 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// Create school
+// Create school - only platform admins
 router.post('/',
-  requireRole(['platform_admin']),
+  requireRole('platform_admin'),
   [
     body('name').trim().isLength({ min: 2 }).withMessage('School name is required'),
     body('udiseCode').trim().isLength({ min: 1 }).withMessage('UDISE code is required'),
@@ -87,6 +103,7 @@ router.post('/',
         },
       });
 
+      logger.info(`School created by ${req.user!.email}: ${school.name}`);
       res.status(201).json(school);
     } catch (error) {
       logger.error('School creation error:', error);
@@ -95,9 +112,9 @@ router.post('/',
   }
 );
 
-// Bulk import schools from CSV
+// Bulk import schools from CSV - only platform admins
 router.post('/bulk',
-  requireRole(['platform_admin']),
+  requireRole('platform_admin'),
   upload.single('file'),
   async (req: AuthenticatedRequest, res) => {
     try {
@@ -139,6 +156,7 @@ router.post('/bulk',
             // Clean up uploaded file
             fs.unlinkSync(req.file!.path);
 
+            logger.info(`Bulk import completed by ${req.user!.email}: ${createdSchools.length} schools created`);
             res.json({
               success: true,
               created: createdSchools.length,

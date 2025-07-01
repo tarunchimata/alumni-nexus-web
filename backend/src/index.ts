@@ -38,7 +38,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// Cookie parser (replaces keycloak middleware)
+// Cookie parser
 app.use(cookieParser());
 
 // Rate limiting
@@ -76,6 +76,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0',
+    roles: ['platform_admin', 'school_admin', 'teacher', 'student', 'alumni'],
   });
 });
 
@@ -106,6 +107,7 @@ const startServer = async () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
+      logger.info('Role-based authorization enabled');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
