@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     initializeAuth();
@@ -36,10 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
-      const authenticated = await initKeycloak();
+      const authStatus = await initKeycloak();
       
-      if (authenticated) {
-        const userInfo = getUserInfo();
+      if (authStatus) {
+        const userInfo = await getUserInfo();
         const authToken = getToken();
         
         if (userInfo) {
@@ -68,18 +69,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               email: userInfo.email,
               firstName: userInfo.firstName,
               lastName: userInfo.lastName,
-              role: userInfo.roles.includes('platform_admin') ? 'platform_admin' :
-                    userInfo.roles.includes('school_admin') ? 'school_admin' :
-                    userInfo.roles.includes('teacher') ? 'teacher' :
-                    userInfo.roles.includes('alumni') ? 'alumni' : 'student',
+              role: userInfo.roles?.includes('platform_admin') ? 'platform_admin' :
+                    userInfo.roles?.includes('school_admin') ? 'school_admin' :
+                    userInfo.roles?.includes('teacher') ? 'teacher' :
+                    userInfo.roles?.includes('alumni') ? 'alumni' : 'student',
             });
           }
         }
         
         setToken(authToken || null);
+        setAuthenticated(true);
+      } else {
+        setAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth initialization failed:', error);
+      setAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     keycloakLogout();
     setUser(null);
     setToken(null);
+    setAuthenticated(false);
   };
 
   const value = {
@@ -105,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     register,
     isLoading,
-    isAuthenticated: isAuthenticated(),
+    isAuthenticated: authenticated,
     token,
   };
 
