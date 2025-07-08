@@ -9,11 +9,11 @@ const router = express.Router();
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
   try {
-    const { code, codeVerifier, redirectUri } = req.body;
+    const { code, code_verifier, redirectUri } = req.body;
 
-    if (!code || !codeVerifier || !redirectUri) {
+    if (!code || !code_verifier || !redirectUri) {
       return res.status(400).json({ 
-        error: 'Missing required parameters: code, codeVerifier, redirectUri' 
+        error: 'Missing required parameters: code, code_verifier, redirectUri' 
       });
     }
 
@@ -23,7 +23,7 @@ router.post('/token', async (req, res) => {
       client_id: process.env.KEYCLOAK_FRONTEND_CLIENT_ID!,
       code,
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
+      code_verifier: code_verifier,
     });
 
     // Add client secret if configured (for confidential clients)

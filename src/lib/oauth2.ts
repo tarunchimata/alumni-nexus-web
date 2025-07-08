@@ -109,7 +109,7 @@ class OAuth2Service {
       },
       body: JSON.stringify({
         code,
-        codeVerifier,
+        code_verifier: codeVerifier,
         redirectUri: this.redirectUri,
       }),
     });
