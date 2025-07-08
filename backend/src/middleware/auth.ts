@@ -15,22 +15,42 @@ export const authenticateToken = async (
   next: NextFunction
 ) => {
   try {
-    const accessToken = req.cookies.access_token;
-    
-    if (!accessToken) {
-      return res.status(401).json({ error: 'No access token provided' });
+    const useOAuth2 = process.env.USE_OAUTH2 === 'true';
+    let accessToken: string | undefined;
+    let decoded: any;
+
+    if (useOAuth2) {
+      // OAuth2 Bearer token authentication
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        accessToken = authHeader.substring(7);
+      }
+      
+      if (!accessToken) {
+        return res.status(401).json({ error: 'No access token provided' });
+      }
+
+      // Decode JWT token
+      decoded = jwt.decode(accessToken) as any;
+      if (!decoded) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    } else {
+      // Fallback to cookie-based authentication
+      accessToken = req.cookies.access_token;
+      
+      if (!accessToken) {
+        return res.status(401).json({ error: 'No access token provided' });
+      }
+
+      // Decode token to get user info
+      decoded = jwt.decode(accessToken) as any;
+      
+      if (!decoded) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
     }
 
-    // Decode token to get user info
-    const decoded = jwt.decode(accessToken) as any;
-    
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    // Get user profile from Keycloak
-    const userProfile = await keycloakAdminClient.getUserProfile(accessToken);
-    
     // Extract roles and permissions
     const roles = decoded.realm_access?.roles || [];
     const permissions = roles.flatMap((roleName: string) => {
@@ -41,12 +61,12 @@ export const authenticateToken = async (
     // Set authenticated user
     req.user = {
       id: decoded.sub,
-      email: userProfile.email || decoded.email,
-      firstName: userProfile.given_name || decoded.given_name,
-      lastName: userProfile.family_name || decoded.family_name,
+      email: decoded.email,
+      firstName: decoded.given_name,
+      lastName: decoded.family_name,
       roles,
       permissions,
-      schoolId: userProfile.school_id,
+      schoolId: decoded.school_id,
     };
 
     next();

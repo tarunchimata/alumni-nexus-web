@@ -1,0 +1,372 @@
+{
+  "info": {
+    "name": "My School Buddies - OAuth2 API",
+    "description": "OAuth2 + PKCE API endpoints for My School Buddies application",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "keycloakUrl",
+      "value": "https://login.hostingmanager.in",
+      "type": "string"
+    },
+    {
+      "key": "realm",
+      "value": "myschoolbuddies-realm",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "myschoolbuddies-client",
+      "type": "string"
+    },
+    {
+      "key": "redirectUri",
+      "value": "http://localhost:3000/oauth2/callback",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "OAuth2 Flow",
+      "item": [
+        {
+          "name": "1. Get Authorization URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/oauth2/authorize?client_id={{clientId}}&redirect_uri={{redirectUri}}&response_type=code&scope=openid profile email&state=test-state-123&code_challenge=test-challenge&code_challenge_method=S256",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "oauth2", "authorize"],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirectUri}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                },
+                {
+                  "key": "state",
+                  "value": "test-state-123"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "test-challenge"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256"
+                }
+              ]
+            },
+            "description": "Helper endpoint to build authorization URL with PKCE parameters"
+          }
+        },
+        {
+          "name": "2. Exchange Code for Tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"<AUTHORIZATION_CODE>\",\n  \"codeVerifier\": \"<PKCE_CODE_VERIFIER>\",\n  \"redirectUri\": \"{{redirectUri}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/oauth2/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "oauth2", "token"]
+            },
+            "description": "Exchange authorization code for access and refresh tokens"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.access_token);",
+                  "    pm.collectionVariables.set('refreshToken', response.refresh_token);",
+                  "    console.log('Tokens saved to collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Get User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/oauth2/userinfo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "oauth2", "userinfo"]
+            },
+            "description": "Get user profile information using access token"
+          }
+        },
+        {
+          "name": "4. Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/oauth2/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "oauth2", "refresh"]
+            },
+            "description": "Refresh access token using refresh token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.access_token);",
+                  "    if (response.refresh_token) {",
+                  "        pm.collectionVariables.set('refreshToken', response.refresh_token);",
+                  "    }",
+                  "    console.log('Refreshed tokens saved to collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/oauth2/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "oauth2", "logout"]
+            },
+            "description": "Logout user and revoke tokens"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('accessToken', '');",
+                  "    pm.collectionVariables.set('refreshToken', '');",
+                  "    console.log('Tokens cleared from collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Direct Keycloak API",
+      "item": [
+        {
+          "name": "Keycloak - Direct Login (Password Grant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "username",
+                  "value": "admin@myschoolbuddies.com"
+                },
+                {
+                  "key": "password",
+                  "value": "AdminChimatas@2025!"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Direct login using Resource Owner Password Credentials Grant (for testing only)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', response.access_token);",
+                  "    pm.collectionVariables.set('refreshToken', response.refresh_token);",
+                  "    console.log('Tokens from direct login saved');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Keycloak - Get User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/userinfo",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "userinfo"]
+            },
+            "description": "Get user info directly from Keycloak"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected Resources",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check backend health and configuration"
+          }
+        },
+        {
+          "name": "Protected Route Example",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/schools",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schools"]
+            },
+            "description": "Example of accessing a protected resource with Bearer token"
+          }
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set authorization header for protected requests",
+          "if (pm.request.url.toString().includes('/api/') && !pm.request.url.toString().includes('/api/oauth2/token')) {",
+          "    const token = pm.collectionVariables.get('accessToken');",
+          "    if (token) {",
+          "        pm.request.headers.add({",
+          "            key: 'Authorization',",
+          "            value: `Bearer ${token}`",
+          "        });",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ]
+}

@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Eye, EyeOff } from "lucide-react";
+import { Users, Eye, EyeOff, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -15,11 +17,17 @@ const Login = () => {
     rememberMe: false
   });
 
+  const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Integration point for Keycloak authentication
     console.log("Login attempt:", formData);
     // This will integrate with Keycloak OAuth flow
+  };
+
+  const handleOAuth2Login = () => {
+    login();
   };
 
   return (
@@ -46,6 +54,29 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {useOAuth2 && (
+              <div className="mb-6">
+                <Button 
+                  onClick={handleOAuth2Login}
+                  className="w-full h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium"
+                >
+                  <Shield className="w-5 h-5 mr-2" />
+                  Login with Keycloak
+                </Button>
+                
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">
+                      {useOAuth2 ? 'Or use legacy login' : 'Or continue with'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

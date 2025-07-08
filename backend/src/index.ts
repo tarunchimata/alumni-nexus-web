@@ -12,6 +12,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 // Import routes
 import authRoutes from './routes/auth';
+import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
 import userRoutes from './routes/users';
 import classRoutes from './routes/classes';
@@ -53,13 +54,14 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// CSRF protection for auth routes
+// CSRF protection for auth routes (skip for OAuth2 routes)
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.COOKIE_SECURE === 'true',
   },
+  ignoreMethods: process.env.USE_OAUTH2 === 'true' ? ['GET', 'HEAD', 'OPTIONS', 'POST'] : ['GET', 'HEAD', 'OPTIONS'],
 });
 
 // Auth-specific rate limiting
@@ -82,6 +84,7 @@ app.get('/health', (req, res) => {
 
 // API Routes with middleware
 app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
+app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF protection
 app.use('/api/schools', schoolRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
