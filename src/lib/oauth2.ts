@@ -22,7 +22,11 @@ class OAuth2Service {
   private readonly keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
   private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
   private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-  private readonly redirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
+  
+  // Dynamic redirect URI based on current origin
+  private get redirectUri(): string {
+    return import.meta.env.VITE_OAUTH2_REDIRECT_URI || `${window.location.origin}/oauth2/callback`;
+  }
 
   // Generate PKCE code verifier (128 character base64url string)
   private generateCodeVerifier(): string {

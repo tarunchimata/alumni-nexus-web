@@ -14,7 +14,7 @@ VITE_USE_OAUTH2=true
 VITE_KEYCLOAK_URL=https://login.hostingmanager.in
 VITE_KEYCLOAK_REALM=myschoolbuddies-realm
 VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client
-VITE_OAUTH2_REDIRECT_URI=http://localhost:3000/oauth2/callback
+# VITE_OAUTH2_REDIRECT_URI=http://localhost:3000/oauth2/callback (optional - defaults to current origin)
 VITE_API_URL=http://localhost:3001
 ```
 
@@ -37,6 +37,7 @@ KEYCLOAK_ADMIN_PASSWORD=S@feAdminKeycloak!2025
 
 ## 🧪 Automated Testing
 
+### Local Development
 Run the OAuth2 flow test script:
 
 ```bash
@@ -50,10 +51,20 @@ This script tests:
 - ✅ Frontend accessibility
 - ✅ Parameter validation
 
+### Lovable Preview Testing
+1. **Deploy to Preview**: Click "Publish" in Lovable to get your preview URL
+2. **Update Keycloak**: Add your preview domain to Keycloak client settings:
+   - Valid Redirect URIs: `https://your-preview-domain.lovable.app/oauth2/callback`
+   - Web Origins: `https://your-preview-domain.lovable.app`
+3. **Test Flow**: 
+   - Open your preview URL
+   - Click "Login with Keycloak"
+   - Should redirect to Keycloak, then back to your preview domain
+
 ## 🔍 Manual Testing
 
 ### Step 1: Access Login Page
-1. Navigate to: http://localhost:3000
+1. Navigate to: http://localhost:3000 (local) or your Lovable preview URL
 2. Click "Login with Keycloak" button
 3. **Expected**: Redirect to Keycloak login page at:
    ```
@@ -73,9 +84,10 @@ Use these demo credentials:
 
 ### Step 3: Verify Callback
 After successful login:
-1. **Expected**: Redirect to callback URL:
+1. **Expected**: Redirect to callback URL (dynamically determined):
    ```
-   http://localhost:3000/oauth2/callback?code=...&state=...
+   http://localhost:3000/oauth2/callback?code=...&state=... (local)
+   https://your-preview-domain.lovable.app/oauth2/callback?code=...&state=... (preview)
    ```
 2. **Expected**: OAuth2Callback component processes the code
 3. **Expected**: User info is fetched and stored
@@ -96,9 +108,12 @@ After successful login:
 - Check that OAuth2 service is reading environment correctly
 
 **2. Redirect URI Mismatch**
-- Verify Keycloak client configuration:
-  - Valid Redirect URIs: `http://localhost:3000/oauth2/callback`
-  - Web Origins: `http://localhost:3000`
+- Verify Keycloak client configuration includes your current domain:
+  - Valid Redirect URIs: 
+    - `http://localhost:3000/oauth2/callback` (local)
+    - `https://your-preview-domain.lovable.app/oauth2/callback` (preview)
+    - `https://yourdomain.com/oauth2/callback` (production)
+  - Web Origins: Include all your domains
 
 **3. Token Exchange Fails**
 - Check backend logs for parameter errors
@@ -156,14 +171,36 @@ The OAuth2 flow is working correctly when:
 
 ## 🚀 Production Deployment
 
-Before deploying to production:
+### Environment Configuration
+The OAuth2 redirect URI is now **dynamic** and works across environments:
 
-1. Update environment variables for production domains
-2. Update Keycloak client configuration:
-   - Add production redirect URIs
-   - Add production web origins
-3. Test the complete flow in production environment
-4. Monitor authentication metrics and error rates
+- **Local**: `http://localhost:3000/oauth2/callback`
+- **Lovable Preview**: `https://your-app.lovable.app/oauth2/callback`
+- **Production**: `https://yourdomain.com/oauth2/callback`
+
+### Keycloak Client Setup
+Add all your domains to Keycloak client configuration:
+
+**Valid Redirect URIs:**
+```
+http://localhost:3000/oauth2/callback
+https://*.lovable.app/oauth2/callback
+https://yourdomain.com/oauth2/callback
+```
+
+**Web Origins:**
+```
+http://localhost:3000
+https://*.lovable.app
+https://yourdomain.com
+```
+
+### Testing Checklist
+- ✅ Local development works
+- ✅ Lovable preview works  
+- ✅ Production deployment works
+- ✅ All demo users can log in
+- ✅ No console errors
 
 ## 📞 Support
 
