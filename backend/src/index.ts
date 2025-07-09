@@ -153,6 +153,7 @@ app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   res.status(404).json({ error: 'Endpoint not found' });
 });
 

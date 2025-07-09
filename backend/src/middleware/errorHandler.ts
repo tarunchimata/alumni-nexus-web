@@ -8,6 +8,9 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
+  // Ensure all error responses are JSON
+  res.setHeader('Content-Type', 'application/json');
+  
   logger.error('Error occurred:', {
     message: error.message,
     stack: error.stack,

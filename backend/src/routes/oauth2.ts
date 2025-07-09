@@ -8,6 +8,9 @@ const router = express.Router();
 
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
+  // Ensure all responses are JSON
+  res.setHeader('Content-Type', 'application/json');
+  
   logger.info('=== OAUTH2 TOKEN EXCHANGE START ===');
   logger.info('Request headers:', req.headers);
   logger.info('Request body keys:', Object.keys(req.body || {}));
@@ -23,7 +26,6 @@ router.post('/token', async (req, res) => {
 
     if (!code || !code_verifier || !redirectUri) {
       logger.warn('OAuth2 token exchange: Missing required parameters');
-      res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({ 
         error: 'Missing required parameters: code, code_verifier, redirectUri' 
       });
@@ -75,7 +77,6 @@ router.post('/token', async (req, res) => {
       hasRefreshToken: !!tokens.refresh_token
     });
 
-    res.setHeader('Content-Type', 'application/json');
     logger.info('=== SENDING SUCCESSFUL RESPONSE ===');
     logger.info('Response headers:', res.getHeaders());
     logger.info('Response status:', 200);
@@ -85,8 +86,6 @@ router.post('/token', async (req, res) => {
   } catch (error) {
     logger.error('=== OAUTH2 TOKEN EXCHANGE ERROR ===');
     logger.error('OAuth2 token exchange failed:', error);
-    
-    res.setHeader('Content-Type', 'application/json');
     
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
