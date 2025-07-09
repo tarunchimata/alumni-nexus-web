@@ -11,18 +11,24 @@ router.post('/token', async (req, res) => {
   // Ensure all responses are JSON
   res.setHeader('Content-Type', 'application/json');
   
-  logger.info('=== OAUTH2 TOKEN EXCHANGE START ===');
-  logger.info('Request headers:', req.headers);
-  logger.info('Request body keys:', Object.keys(req.body || {}));
+  logger.info('=== OAUTH2 TOKEN EXCHANGE REQUEST START ===');
+  logger.info('Environment check:', {
+    keycloakUrl: process.env.KEYCLOAK_URL,
+    realm: process.env.KEYCLOAK_REALM,
+    clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
+    hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET
+  });
   
   try {
-    logger.info('OAuth2 token exchange request received', { 
-      hasCode: !!req.body.code,
-      hasCodeVerifier: !!req.body.code_verifier,
-      hasRedirectUri: !!req.body.redirectUri 
-    });
-
     const { code, code_verifier, redirectUri } = req.body;
+    
+    logger.info('Request parameters:', {
+      hasCode: !!code,
+      codeLength: code?.length || 0,
+      hasCodeVerifier: !!code_verifier,
+      verifierLength: code_verifier?.length || 0,
+      redirectUri: redirectUri
+    });
 
     if (!code || !code_verifier || !redirectUri) {
       logger.warn('OAuth2 token exchange: Missing required parameters');
@@ -45,42 +51,37 @@ router.post('/token', async (req, res) => {
       tokenParams.append('client_secret', process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET);
     }
 
-    logger.info('Making token exchange request to Keycloak', {
-      url: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+    const keycloakTokenUrl = `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`;
+    
+    logger.info('Making token exchange request to Keycloak:', {
+      url: keycloakTokenUrl,
       clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
-      hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET
+      hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET,
+      grantType: 'authorization_code'
     });
 
     const tokenResponse = await axios.post(
-      `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      keycloakTokenUrl,
       tokenParams.toString(),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        timeout: 10000, // 10 second timeout
       }
     );
 
     const tokens = tokenResponse.data;
     
-    // Log successful token exchange
     logger.info('OAuth2 token exchange successful', {
-      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
-      tokenType: tokens.token_type,
-      expiresIn: tokens.expires_in,
-    });
-
-    logger.info('Token exchange successful', {
       tokenType: tokens.token_type,
       expiresIn: tokens.expires_in,
       hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token
+      hasRefreshToken: !!tokens.refresh_token,
+      accessTokenLength: tokens.access_token?.length || 0
     });
 
     logger.info('=== SENDING SUCCESSFUL RESPONSE ===');
-    logger.info('Response headers:', res.getHeaders());
-    logger.info('Response status:', 200);
-    logger.info('Response data keys:', Object.keys(tokens));
     res.json(tokens);
     logger.info('=== OAUTH2 TOKEN EXCHANGE SUCCESS ===');
   } catch (error) {
@@ -89,13 +90,19 @@ router.post('/token', async (req, res) => {
     
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
-      const message = error.response?.data?.error_description || 'Token exchange failed';
+      const message = error.response?.data?.error_description || error.response?.data?.error || 'Token exchange failed';
+      
       logger.error('Keycloak token exchange error details:', {
         status,
         message,
-        keycloakResponse: error.response?.data
+        keycloakResponse: error.response?.data,
+        keycloakUrl: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`
       });
-      return res.status(status).json({ error: message });
+      
+      return res.status(status).json({ 
+        error: message,
+        details: process.env.NODE_ENV === 'development' ? error.response?.data : undefined
+      });
     }
     
     logger.error('Non-axios error during token exchange:', {

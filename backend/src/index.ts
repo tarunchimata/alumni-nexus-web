@@ -39,7 +39,11 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 
-logger.info('OAuth2 environment variables validated successfully');
+logger.info('OAuth2 environment variables validated successfully', {
+  keycloakUrl: process.env.KEYCLOAK_URL,
+  keycloakRealm: process.env.KEYCLOAK_REALM,
+  keycloakClientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -131,7 +135,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Test endpoint to verify backend is responding
+// Test endpoint to verify backend is running and returning JSON
 app.get('/api/test', (req, res) => {
   logger.info('Test endpoint requested');
   res.setHeader('Content-Type', 'application/json');
@@ -139,7 +143,13 @@ app.get('/api/test', (req, res) => {
     message: 'Backend is running',
     timestamp: new Date().toISOString(),
     method: req.method,
-    url: req.url
+    url: req.url,
+    oauth2Config: {
+      enabled: process.env.USE_OAUTH2 === 'true',
+      keycloakUrl: process.env.KEYCLOAK_URL,
+      realm: process.env.KEYCLOAK_REALM,
+      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID
+    }
   });
 });
 
@@ -165,10 +175,13 @@ const startServer = async () => {
     logger.info('Connected to PostgreSQL database');
 
     app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
+      logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
+      logger.info(`Test endpoint: http://localhost:${PORT}/api/test`);
+      logger.info(`OAuth2 token endpoint: http://localhost:${PORT}/api/oauth2/token`);
       logger.info('Role-based authorization enabled');
+      logger.info('OAuth2 configuration validated and ready');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
