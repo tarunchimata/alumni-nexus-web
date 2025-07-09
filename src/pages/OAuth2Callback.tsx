@@ -50,8 +50,12 @@ const OAuth2Callback = () => {
           message: 'Exchanging authorization code for tokens...',
         });
 
+        console.log('OAuth2 Callback: Exchanging code for tokens', { code: code.substring(0, 10) + '...', state });
+
         // Exchange code for tokens
         await oauth2Service.exchangeCodeForTokens(code, state);
+        
+        console.log('OAuth2 Callback: Token exchange successful');
 
         setState({
           status: 'loading',
@@ -59,14 +63,23 @@ const OAuth2Callback = () => {
         });
 
         // Get user information
+        console.log('OAuth2 Callback: Fetching user info...');
         const userInfo = await oauth2Service.getUserInfo();
+        
         if (!userInfo) {
+          console.error('OAuth2 Callback: Failed to fetch user profile');
           setState({
             status: 'error',
             message: 'Failed to fetch user profile',
           });
           return;
         }
+        
+        console.log('OAuth2 Callback: User info retrieved successfully', { 
+          userId: userInfo.id, 
+          email: userInfo.email, 
+          role: userInfo.role 
+        });
 
         setState({
           status: 'success',
@@ -91,6 +104,17 @@ const OAuth2Callback = () => {
 
       } catch (error) {
         console.error('OAuth2 callback error:', error);
+        
+        // Additional debug logging for network errors
+        if (error instanceof Error && error.message.includes('fetch')) {
+          console.error('Network error details:', {
+            message: error.message,
+            stack: error.stack,
+            currentUrl: window.location.href,
+            apiUrl: import.meta.env.VITE_API_URL
+          });
+        }
+        
         setState({
           status: 'error',
           message: error instanceof Error ? error.message : 'An unexpected error occurred',

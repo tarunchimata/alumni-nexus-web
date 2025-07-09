@@ -14,10 +14,6 @@ import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth';
 import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
-import userRoutes from './routes/users';
-import classRoutes from './routes/classes';
-import messageRoutes from './routes/messages';
-import adminRoutes from './routes/admin';
 
 // Load environment variables
 dotenv.config();
@@ -34,8 +30,24 @@ export const prisma = new PrismaClient({
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8080',
+  ...(process.env.CORS_ORIGIN?.split(',') || [])
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or is a Lovable preview domain
+    if (allowedOrigins.includes(origin) || /\.lovable\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 
@@ -86,10 +98,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF protection
 app.use('/api/schools', schoolRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/classes', classRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
