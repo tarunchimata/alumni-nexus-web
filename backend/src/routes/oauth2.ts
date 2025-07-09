@@ -8,6 +8,10 @@ const router = express.Router();
 
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
+  logger.info('=== OAUTH2 TOKEN EXCHANGE START ===');
+  logger.info('Request headers:', req.headers);
+  logger.info('Request body keys:', Object.keys(req.body || {}));
+  
   try {
     logger.info('OAuth2 token exchange request received', { 
       hasCode: !!req.body.code,
@@ -72,8 +76,14 @@ router.post('/token', async (req, res) => {
     });
 
     res.setHeader('Content-Type', 'application/json');
+    logger.info('=== SENDING SUCCESSFUL RESPONSE ===');
+    logger.info('Response headers:', res.getHeaders());
+    logger.info('Response status:', 200);
+    logger.info('Response data keys:', Object.keys(tokens));
     res.json(tokens);
+    logger.info('=== OAUTH2 TOKEN EXCHANGE SUCCESS ===');
   } catch (error) {
+    logger.error('=== OAUTH2 TOKEN EXCHANGE ERROR ===');
     logger.error('OAuth2 token exchange failed:', error);
     
     res.setHeader('Content-Type', 'application/json');
@@ -95,6 +105,7 @@ router.post('/token', async (req, res) => {
     });
     
     res.status(500).json({ error: 'Internal server error' });
+    logger.error('=== OAUTH2 TOKEN EXCHANGE FAILED ===');
   }
 });
 

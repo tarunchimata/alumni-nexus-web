@@ -15,6 +15,13 @@ import authRoutes from './routes/auth';
 import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
 
+// Log successful import of routes
+logger.info('Routes imported successfully', {
+  auth: typeof authRoutes,
+  oauth2: typeof oauth2Routes,
+  schools: typeof schoolRoutes
+});
+
 // Load environment variables
 dotenv.config();
 
@@ -107,12 +114,32 @@ const authLimiter = rateLimit({
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  logger.info('Health check requested');
+  res.setHeader('Content-Type', 'application/json');
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0',
     roles: ['platform_admin', 'school_admin', 'teacher', 'student', 'alumni'],
+    oauth2: {
+      keycloakUrl: process.env.KEYCLOAK_URL,
+      realm: process.env.KEYCLOAK_REALM,
+      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
+      configured: !!(process.env.KEYCLOAK_URL && process.env.KEYCLOAK_REALM && process.env.KEYCLOAK_FRONTEND_CLIENT_ID)
+    }
+  });
+});
+
+// Test endpoint to verify backend is responding
+app.get('/api/test', (req, res) => {
+  logger.info('Test endpoint requested');
+  res.setHeader('Content-Type', 'application/json');
+  res.json({ 
+    message: 'Backend is running',
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url
   });
 });
 

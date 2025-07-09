@@ -107,6 +107,13 @@ class OAuth2Service {
     localStorage.removeItem('oauth2_state');
 
     console.log('OAuth2: Making token exchange request to backend');
+    console.log('OAuth2: Request details:', {
+      url: '/api/oauth2/token',
+      method: 'POST',
+      hasCode: !!code,
+      hasCodeVerifier: !!codeVerifier,
+      redirectUri: this.redirectUri
+    });
 
     const response = await fetch('/api/oauth2/token', {
       method: 'POST',
@@ -123,7 +130,17 @@ class OAuth2Service {
     console.log('OAuth2: Token exchange response received', {
       status: response.status,
       statusText: response.statusText,
-      contentType: response.headers.get('content-type')
+      contentType: response.headers.get('content-type'),
+      url: response.url,
+      ok: response.ok,
+      redirected: response.redirected,
+      type: response.type
+    });
+
+    // Log all response headers
+    console.log('OAuth2: Response headers:');
+    response.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
     });
 
     if (!response.ok) {
@@ -134,15 +151,17 @@ class OAuth2Service {
       try {
         if (contentType && contentType.includes('application/json')) {
           const errorData = await response.json();
+          console.error('OAuth2: JSON error response:', errorData);
           errorMessage = errorData.error || errorMessage;
         } else {
           // Response is not JSON (likely HTML error page)
           const textResponse = await response.text();
-          console.error('Non-JSON response from token exchange:', textResponse.substring(0, 200));
-          errorMessage = `Server returned non-JSON response (${response.status}). Check backend logs.`;
+          console.error('OAuth2: Non-JSON response from token exchange (full response):', textResponse);
+          console.error('OAuth2: Response preview (first 500 chars):', textResponse.substring(0, 500));
+          errorMessage = `Server returned non-JSON response (${response.status}). Check backend logs. Response type: ${contentType || 'unknown'}`;
         }
       } catch (parseError) {
-        console.error('Failed to parse error response:', parseError);
+        console.error('OAuth2: Failed to parse error response:', parseError);
         errorMessage = `HTTP ${response.status}: Unable to parse server response`;
       }
       
