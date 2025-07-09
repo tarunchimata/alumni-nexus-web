@@ -18,6 +18,22 @@ import schoolRoutes from './routes/schools';
 // Load environment variables
 dotenv.config();
 
+// Validate required OAuth2 environment variables
+const requiredOAuth2Vars = [
+  'KEYCLOAK_URL',
+  'KEYCLOAK_REALM',
+  'KEYCLOAK_FRONTEND_CLIENT_ID'
+];
+
+const missingVars = requiredOAuth2Vars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  logger.error(`Missing required OAuth2 environment variables: ${missingVars.join(', ')}`);
+  logger.error('Please check your .env file and ensure all OAuth2 variables are configured');
+  process.exit(1);
+}
+
+logger.info('OAuth2 environment variables validated successfully');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -65,6 +81,12 @@ app.use(limiter);
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Ensure all API responses are JSON with proper content-type
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
 
 // CSRF protection for auth routes (skip for OAuth2 routes)
 const csrfProtection = csurf({

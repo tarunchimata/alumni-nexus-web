@@ -9,9 +9,17 @@ const router = express.Router();
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
   try {
+    logger.info('OAuth2 token exchange request received', { 
+      hasCode: !!req.body.code,
+      hasCodeVerifier: !!req.body.code_verifier,
+      hasRedirectUri: !!req.body.redirectUri 
+    });
+
     const { code, code_verifier, redirectUri } = req.body;
 
     if (!code || !code_verifier || !redirectUri) {
+      logger.warn('OAuth2 token exchange: Missing required parameters');
+      res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({ 
         error: 'Missing required parameters: code, code_verifier, redirectUri' 
       });
@@ -30,6 +38,12 @@ router.post('/token', async (req, res) => {
     if (process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET) {
       tokenParams.append('client_secret', process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET);
     }
+
+    logger.info('Making token exchange request to Keycloak', {
+      url: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
+      hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET
+    });
 
     const tokenResponse = await axios.post(
       `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
@@ -50,15 +64,35 @@ router.post('/token', async (req, res) => {
       expiresIn: tokens.expires_in,
     });
 
+    logger.info('Token exchange successful', {
+      tokenType: tokens.token_type,
+      expiresIn: tokens.expires_in,
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token
+    });
+
+    res.setHeader('Content-Type', 'application/json');
     res.json(tokens);
   } catch (error) {
     logger.error('OAuth2 token exchange failed:', error);
     
+    res.setHeader('Content-Type', 'application/json');
+    
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
       const message = error.response?.data?.error_description || 'Token exchange failed';
+      logger.error('Keycloak token exchange error details:', {
+        status,
+        message,
+        keycloakResponse: error.response?.data
+      });
       return res.status(status).json({ error: message });
     }
+    
+    logger.error('Non-axios error during token exchange:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -67,12 +101,17 @@ router.post('/token', async (req, res) => {
 // GET /api/oauth2/userinfo - Get user information from access token
 router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
   try {
+    logger.info('OAuth2 userinfo request received');
+    
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warn('OAuth2 userinfo: Missing or invalid authorization header');
+      res.setHeader('Content-Type', 'application/json');
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
     const accessToken = authHeader.substring(7);
+    logger.info('OAuth2 userinfo: Token extracted, making request to Keycloak');
     
     // Get user info from Keycloak
     const userInfoResponse = await axios.get(
@@ -122,15 +161,35 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
       roles: userInfo.roles,
     });
 
+    logger.info('OAuth2 userinfo: User info formatted successfully', {
+      userId: userInfo.id,
+      email: userInfo.email,
+      role: userInfo.role,
+      rolesCount: userInfo.roles.length
+    });
+
+    res.setHeader('Content-Type', 'application/json');
     res.json(userInfo);
   } catch (error) {
     logger.error('Failed to get user info:', error);
     
+    res.setHeader('Content-Type', 'application/json');
+    
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
       const message = error.response?.data?.error || 'Failed to get user info';
+      logger.error('Keycloak userinfo error details:', {
+        status,
+        message,
+        keycloakResponse: error.response?.data
+      });
       return res.status(status).json({ error: message });
     }
+    
+    logger.error('Non-axios error during userinfo fetch:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -139,9 +198,13 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
 // POST /api/oauth2/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {
   try {
+    logger.info('OAuth2 refresh token request received');
+    
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
+      logger.warn('OAuth2 refresh: Missing refresh token');
+      res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({ error: 'Missing refresh token' });
     }
 
@@ -168,17 +231,32 @@ router.post('/refresh', async (req, res) => {
 
     const tokens = tokenResponse.data;
     
-    logger.info('Token refresh successful');
+    logger.info('Token refresh successful', {
+      tokenType: tokens.token_type,
+      expiresIn: tokens.expires_in
+    });
     
+    res.setHeader('Content-Type', 'application/json');
     res.json(tokens);
   } catch (error) {
     logger.error('Token refresh failed:', error);
     
+    res.setHeader('Content-Type', 'application/json');
+    
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
       const message = error.response?.data?.error_description || 'Token refresh failed';
+      logger.error('Keycloak refresh token error details:', {
+        status,
+        message,
+        keycloakResponse: error.response?.data
+      });
       return res.status(status).json({ error: message });
     }
+    
+    logger.error('Non-axios error during token refresh:', {
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
     
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -187,6 +265,8 @@ router.post('/refresh', async (req, res) => {
 // POST /api/oauth2/logout - Logout user
 router.post('/logout', async (req, res) => {
   try {
+    logger.info('OAuth2 logout request received');
+    
     const { refreshToken } = req.body;
 
     if (refreshToken) {
@@ -218,9 +298,11 @@ router.post('/logout', async (req, res) => {
       }
     }
 
+    res.setHeader('Content-Type', 'application/json');
     res.json({ message: 'Logout successful' });
   } catch (error) {
     logger.error('Logout failed:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Logout failed' });
   }
 });

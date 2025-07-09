@@ -106,6 +106,8 @@ class OAuth2Service {
     localStorage.removeItem('oauth2_code_verifier');
     localStorage.removeItem('oauth2_state');
 
+    console.log('OAuth2: Making token exchange request to backend');
+
     const response = await fetch('/api/oauth2/token', {
       method: 'POST',
       headers: {
@@ -118,11 +120,49 @@ class OAuth2Service {
       }),
     });
 
+    console.log('OAuth2: Token exchange response received', {
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get('content-type')
+    });
+
     if (!response.ok) {
-      throw new Error('Token exchange failed');
+      // Try to parse error response
+      const contentType = response.headers.get('content-type');
+      let errorMessage = 'Token exchange failed';
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } else {
+          // Response is not JSON (likely HTML error page)
+          const textResponse = await response.text();
+          console.error('Non-JSON response from token exchange:', textResponse.substring(0, 200));
+          errorMessage = `Server returned non-JSON response (${response.status}). Check backend logs.`;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse error response:', parseError);
+        errorMessage = `HTTP ${response.status}: Unable to parse server response`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    // Validate response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Token exchange: Expected JSON response, got:', contentType);
+      throw new Error('Server returned non-JSON response for token exchange');
     }
 
     const tokens = await response.json();
+    console.log('OAuth2: Token exchange successful', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      tokenType: tokens.token_type
+    });
+    
     this.storeTokens(tokens);
     return tokens;
   }
@@ -187,21 +227,48 @@ class OAuth2Service {
   async getUserInfo(): Promise<UserInfo | null> {
     const token = await this.getAccessToken();
     if (!token) {
+      console.warn('OAuth2: No access token available for user info request');
       return null;
     }
 
     try {
+      console.log('OAuth2: Making user info request to backend');
+      
       const response = await fetch('/api/oauth2/userinfo', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('OAuth2: User info response received', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type')
+      });
+
       if (!response.ok) {
+        console.error('OAuth2: User info request failed', {
+          status: response.status,
+          statusText: response.statusText
+        });
         return null;
       }
 
-      return await response.json();
+      // Validate response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('User info: Expected JSON response, got:', contentType);
+        return null;
+      }
+
+      const userInfo = await response.json();
+      console.log('OAuth2: User info parsed successfully', {
+        userId: userInfo.id,
+        email: userInfo.email,
+        role: userInfo.role
+      });
+      
+      return userInfo;
     } catch (error) {
       console.error('Failed to get user info:', error);
       return null;
