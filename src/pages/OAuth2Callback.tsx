@@ -10,6 +10,7 @@ interface CallbackState {
   message: string;
   userInfo?: any;
   errorDetails?: string;
+  debugInfo?: any;
 }
 
 const OAuth2Callback = () => {
@@ -38,7 +39,8 @@ const OAuth2Callback = () => {
           codeLength: code?.length || 0,
           statePreview: stateParam?.substring(0, 10) + '...' || 'undefined',
           error,
-          errorDescription
+          errorDescription,
+          fullUrl: window.location.href
         });
 
         // Handle OAuth2 errors from Keycloak
@@ -47,7 +49,8 @@ const OAuth2Callback = () => {
           setState({
             status: 'error',
             message: `Authentication failed: ${errorDescription || error}`,
-            errorDetails: 'The authentication server returned an error. Please try logging in again.'
+            errorDetails: 'The authentication server returned an error. Please try logging in again.',
+            debugInfo: { error, errorDescription, url: window.location.href }
           });
           return;
         }
@@ -58,7 +61,8 @@ const OAuth2Callback = () => {
           setState({
             status: 'error',
             message: 'Missing authorization code from authentication server',
-            errorDetails: 'The login process was incomplete. Please try logging in again.'
+            errorDetails: 'The login process was incomplete. Please try logging in again.',
+            debugInfo: { hasCode: !!code, url: window.location.href }
           });
           return;
         }
@@ -68,7 +72,8 @@ const OAuth2Callback = () => {
           setState({
             status: 'error',
             message: 'Missing state parameter from authentication server',
-            errorDetails: 'Security validation failed. Please try logging in again.'
+            errorDetails: 'Security validation failed. Please try logging in again.',
+            debugInfo: { hasState: !!stateParam, url: window.location.href }
           });
           return;
         }
@@ -80,26 +85,76 @@ const OAuth2Callback = () => {
 
         console.log('[OAuth2Callback] Exchanging authorization code for tokens');
 
-        // Exchange code for tokens
-        await oauth2Service.exchangeCodeForTokens(code, stateParam);
+        // Exchange code for tokens with enhanced error handling
+        let tokenExchangeResult;
+        try {
+          tokenExchangeResult = await oauth2Service.exchangeCodeForTokens(code, stateParam);
+          console.log('[OAuth2Callback] Token exchange successful');
+        } catch (tokenError) {
+          console.error('[OAuth2Callback] Token exchange failed:', tokenError);
+          
+          let errorMessage = 'Token exchange failed';
+          let errorDetails = 'Please try logging in again.';
+          
+          if (tokenError instanceof Error) {
+            errorMessage = tokenError.message;
+            
+            if (tokenError.message.includes('state')) {
+              errorDetails = 'Security validation failed. This might be due to browser storage issues or multiple login attempts. Please clear your browser cache and try again.';
+            } else if (tokenError.message.includes('Network error')) {
+              errorDetails = 'Cannot connect to the authentication server. Please check your internet connection and try again.';
+            } else if (tokenError.message.includes('Invalid response')) {
+              errorDetails = 'The authentication server returned an invalid response. Please try again or contact support.';
+            }
+          }
+          
+          setState({
+            status: 'error',
+            message: errorMessage,
+            errorDetails,
+            debugInfo: { 
+              tokenError: tokenError instanceof Error ? tokenError.message : 'Unknown error',
+              code: code?.substring(0, 10) + '...',
+              state: stateParam?.substring(0, 10) + '...'
+            }
+          });
+          return;
+        }
         
-        console.log('[OAuth2Callback] Token exchange successful');
-
         setState({
           status: 'loading',
           message: 'Fetching your profile information...',
         });
 
-        // Get user information
+        // Get user information with enhanced error handling
         console.log('[OAuth2Callback] Fetching user profile...');
-        const userInfo = await oauth2Service.getUserInfo();
-        
-        if (!userInfo) {
-          console.error('[OAuth2Callback] Failed to fetch user profile');
+        let userInfo;
+        try {
+          userInfo = await oauth2Service.getUserInfo();
+        } catch (userInfoError) {
+          console.error('[OAuth2Callback] User info fetch failed:', userInfoError);
+          
           setState({
             status: 'warning',
             message: 'Login successful, but failed to fetch profile information',
-            errorDetails: 'You are logged in, but we could not retrieve your profile. Some features may not work correctly.'
+            errorDetails: 'You are logged in, but we could not retrieve your profile. Some features may not work correctly.',
+            debugInfo: { userInfoError: userInfoError instanceof Error ? userInfoError.message : 'Unknown error' }
+          });
+          
+          // Still redirect to dashboard after a delay
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 3000);
+          return;
+        }
+        
+        if (!userInfo) {
+          console.error('[OAuth2Callback] Failed to fetch user profile - no data returned');
+          setState({
+            status: 'warning',
+            message: 'Login successful, but failed to fetch profile information',
+            errorDetails: 'You are logged in, but we could not retrieve your profile. Some features may not work correctly.',
+            debugInfo: { userInfo: 'null or undefined' }
           });
           
           // Still redirect to dashboard after a delay
@@ -137,7 +192,7 @@ const OAuth2Callback = () => {
         }, 2000);
 
       } catch (error) {
-        console.error('[OAuth2Callback] Callback processing error:', error);
+        console.error('[OAuth2Callback] Unexpected callback processing error:', error);
         
         let errorMessage = 'An unexpected error occurred during login';
         let errorDetails = 'Please try logging in again.';
@@ -146,19 +201,24 @@ const OAuth2Callback = () => {
           errorMessage = error.message;
           
           // Provide specific guidance for common errors
-          if (error.message.includes('state parameter')) {
-            errorDetails = 'This is a security validation error. Please clear your browser cache and try logging in again.';
-          } else if (error.message.includes('token exchange')) {
-            errorDetails = 'There was a problem communicating with the authentication server. Please try again.';
-          } else if (error.message.includes('expired')) {
-            errorDetails = 'Your login session took too long. Please try logging in again.';
+          if (error.message.includes('storage')) {
+            errorDetails = 'Browser storage issue detected. Please enable cookies and local storage, then try again.';
+          } else if (error.message.includes('network') || error.message.includes('fetch')) {
+            errorDetails = 'Network connectivity issue. Please check your internet connection and try again.';
+          } else if (error.message.includes('JSON')) {
+            errorDetails = 'Server response format error. Please try again or contact support if the problem persists.';
           }
         }
         
         setState({
           status: 'error',
           message: errorMessage,
-          errorDetails: errorDetails
+          errorDetails: errorDetails,
+          debugInfo: { 
+            unexpectedError: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack?.substring(0, 200) : undefined,
+            url: window.location.href
+          }
         });
       }
     };
@@ -236,6 +296,15 @@ const OAuth2Callback = () => {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
               <h4 className="font-medium text-red-900 mb-2">What can you do?</h4>
               <p className="text-sm text-red-700">{state.errorDetails}</p>
+            </div>
+          )}
+          
+          {state.debugInfo && process.env.NODE_ENV === 'development' && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left">
+              <h4 className="font-medium text-gray-900 mb-2">Debug Information:</h4>
+              <pre className="text-xs text-gray-600 overflow-auto max-h-32">
+                {JSON.stringify(state.debugInfo, null, 2)}
+              </pre>
             </div>
           )}
           

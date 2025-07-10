@@ -6,21 +6,22 @@ import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Middleware to ensure JSON responses
+// Middleware to ensure JSON responses and CORS
 router.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   next();
 });
 
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
   logger.info('=== OAUTH2 TOKEN EXCHANGE REQUEST START ===');
-  logger.info('Environment check:', {
-    keycloakUrl: process.env.KEYCLOAK_URL,
-    realm: process.env.KEYCLOAK_REALM,
-    clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
-    hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET
-  });
   
   try {
     const { code, code_verifier, redirectUri } = req.body;
@@ -36,7 +37,13 @@ router.post('/token', async (req, res) => {
     if (!code || !code_verifier || !redirectUri) {
       logger.warn('OAuth2 token exchange: Missing required parameters');
       return res.status(400).json({ 
-        error: 'Missing required parameters: code, code_verifier, redirectUri' 
+        error: 'missing_parameters',
+        message: 'Missing required parameters: code, code_verifier, redirectUri',
+        details: {
+          hasCode: !!code,
+          hasCodeVerifier: !!code_verifier,
+          hasRedirectUri: !!redirectUri
+        }
       });
     }
 
@@ -58,9 +65,7 @@ router.post('/token', async (req, res) => {
     
     logger.info('Making token exchange request to Keycloak:', {
       url: keycloakTokenUrl,
-      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
-      hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET,
-      grantType: 'authorization_code'
+      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID
     });
 
     const tokenResponse = await axios.post(
@@ -70,7 +75,7 @@ router.post('/token', async (req, res) => {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        timeout: 10000, // 10 second timeout
+        timeout: 15000, // 15 second timeout
       }
     );
 
@@ -80,12 +85,19 @@ router.post('/token', async (req, res) => {
       tokenType: tokens.token_type,
       expiresIn: tokens.expires_in,
       hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token,
-      accessTokenLength: tokens.access_token?.length || 0
+      hasRefreshToken: !!tokens.refresh_token
     });
 
-    logger.info('=== SENDING SUCCESSFUL RESPONSE ===');
-    res.json(tokens);
+    // Ensure proper JSON response
+    const response = {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in,
+      token_type: tokens.token_type || 'Bearer',
+      scope: tokens.scope
+    };
+
+    res.status(200).json(response);
     logger.info('=== OAUTH2 TOKEN EXCHANGE SUCCESS ===');
   } catch (error) {
     logger.error('=== OAUTH2 TOKEN EXCHANGE ERROR ===');
@@ -93,18 +105,19 @@ router.post('/token', async (req, res) => {
     
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
-      const message = error.response?.data?.error_description || error.response?.data?.error || 'Token exchange failed';
+      const keycloakError = error.response?.data;
       
       logger.error('Keycloak token exchange error details:', {
         status,
-        message,
-        keycloakResponse: error.response?.data,
-        keycloakUrl: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`
+        keycloakError,
+        message: error.message
       });
       
       return res.status(status).json({ 
-        error: message,
-        details: process.env.NODE_ENV === 'development' ? error.response?.data : undefined
+        error: 'keycloak_error',
+        message: keycloakError?.error_description || keycloakError?.error || 'Token exchange with Keycloak failed',
+        details: process.env.NODE_ENV === 'development' ? keycloakError : undefined,
+        status
       });
     }
     
@@ -113,8 +126,10 @@ router.post('/token', async (req, res) => {
       stack: error instanceof Error ? error.stack : undefined
     });
     
-    res.status(500).json({ error: 'Internal server error' });
-    logger.error('=== OAUTH2 TOKEN EXCHANGE FAILED ===');
+    res.status(500).json({ 
+      error: 'server_error',
+      message: 'Internal server error during token exchange'
+    });
   }
 });
 
@@ -126,7 +141,10 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       logger.warn('OAuth2 userinfo: Missing or invalid authorization header');
-      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+      return res.status(401).json({ 
+        error: 'unauthorized',
+        message: 'Missing or invalid authorization header' 
+      });
     }
 
     const accessToken = authHeader.substring(7);
@@ -139,6 +157,7 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
+        timeout: 10000,
       }
     );
 
@@ -176,18 +195,10 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
     logger.info('User info retrieved successfully', {
       userId: userInfo.id,
       email: userInfo.email,
-      role: userInfo.role,
-      roles: userInfo.roles,
+      role: userInfo.role
     });
 
-    logger.info('OAuth2 userinfo: User info formatted successfully', {
-      userId: userInfo.id,
-      email: userInfo.email,
-      role: userInfo.role,
-      rolesCount: userInfo.roles.length
-    });
-
-    res.json(userInfo);
+    res.status(200).json(userInfo);
   } catch (error) {
     logger.error('Failed to get user info:', error);
     
@@ -199,15 +210,17 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
         message,
         keycloakResponse: error.response?.data
       });
-      return res.status(status).json({ error: message });
+      return res.status(status).json({ 
+        error: 'keycloak_userinfo_error',
+        message,
+        status
+      });
     }
     
-    logger.error('Non-axios error during userinfo fetch:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+    res.status(500).json({ 
+      error: 'server_error',
+      message: 'Internal server error while fetching user info'
     });
-    
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
