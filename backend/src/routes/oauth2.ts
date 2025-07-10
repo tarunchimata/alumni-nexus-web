@@ -6,11 +6,14 @@ import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Middleware to ensure JSON responses
+router.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
-  // Ensure all responses are JSON
-  res.setHeader('Content-Type', 'application/json');
-  
   logger.info('=== OAUTH2 TOKEN EXCHANGE REQUEST START ===');
   logger.info('Environment check:', {
     keycloakUrl: process.env.KEYCLOAK_URL,
@@ -123,7 +126,6 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       logger.warn('OAuth2 userinfo: Missing or invalid authorization header');
-      res.setHeader('Content-Type', 'application/json');
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
@@ -185,12 +187,9 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
       rolesCount: userInfo.roles.length
     });
 
-    res.setHeader('Content-Type', 'application/json');
     res.json(userInfo);
   } catch (error) {
     logger.error('Failed to get user info:', error);
-    
-    res.setHeader('Content-Type', 'application/json');
     
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
@@ -221,7 +220,6 @@ router.post('/refresh', async (req, res) => {
 
     if (!refreshToken) {
       logger.warn('OAuth2 refresh: Missing refresh token');
-      res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({ error: 'Missing refresh token' });
     }
 
@@ -253,12 +251,9 @@ router.post('/refresh', async (req, res) => {
       expiresIn: tokens.expires_in
     });
     
-    res.setHeader('Content-Type', 'application/json');
     res.json(tokens);
   } catch (error) {
     logger.error('Token refresh failed:', error);
-    
-    res.setHeader('Content-Type', 'application/json');
     
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
@@ -315,11 +310,9 @@ router.post('/logout', async (req, res) => {
       }
     }
 
-    res.setHeader('Content-Type', 'application/json');
     res.json({ message: 'Logout successful' });
   } catch (error) {
     logger.error('Logout failed:', error);
-    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Logout failed' });
   }
 });

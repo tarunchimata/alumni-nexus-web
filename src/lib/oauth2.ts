@@ -28,6 +28,11 @@ class OAuth2Service {
     return import.meta.env.VITE_OAUTH2_REDIRECT_URI || `${window.location.origin}/oauth2/callback`;
   }
 
+  // Enhanced logging for OAuth2 flow
+  private log(message: string, data?: any) {
+    console.log(`[OAuth2] ${message}`, data || '');
+  }
+
   // Generate PKCE code verifier (128 character base64url string)
   private generateCodeVerifier(): string {
     const array = new Uint8Array(96);
@@ -60,15 +65,40 @@ class OAuth2Service {
       .replace(/=/g, '');
   }
 
+  // Clear OAuth2 state and parameters
+  private clearOAuth2State(): void {
+    this.log('Clearing OAuth2 state parameters');
+    localStorage.removeItem('oauth2_code_verifier');
+    localStorage.removeItem('oauth2_state');
+    localStorage.removeItem('oauth2_login_timestamp');
+  }
+
   // Build Keycloak authorization URL
   async buildAuthUrl(): Promise<string> {
+    // Clear any existing state first
+    this.clearOAuth2State();
+
     const codeVerifier = this.generateCodeVerifier();
     const codeChallenge = await this.generateCodeChallenge(codeVerifier);
     const state = this.generateState();
+    const timestamp = Date.now().toString();
+
+    this.log('Generating OAuth2 parameters', {
+      stateLength: state.length,
+      codeVerifierLength: codeVerifier.length,
+      timestamp
+    });
 
     // Store PKCE parameters for later use
     localStorage.setItem('oauth2_code_verifier', codeVerifier);
     localStorage.setItem('oauth2_state', state);
+    localStorage.setItem('oauth2_login_timestamp', timestamp);
+
+    this.log('Stored OAuth2 parameters in localStorage', {
+      storedState: state.substring(0, 10) + '...',
+      storedVerifier: codeVerifier.substring(0, 10) + '...',
+      timestamp
+    });
 
     const params = new URLSearchParams({
       client_id: this.clientId,
@@ -80,40 +110,80 @@ class OAuth2Service {
       code_challenge_method: 'S256',
     });
 
-    return `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?${params}`;
+    const authUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?${params}`;
+    this.log('Built authorization URL', { url: authUrl.substring(0, 100) + '...' });
+    
+    return authUrl;
   }
 
   // Initiate OAuth2 login flow
   async login(): Promise<void> {
+    this.log('Initiating OAuth2 login flow');
     const authUrl = await this.buildAuthUrl();
+    this.log('Redirecting to Keycloak', { url: authUrl.substring(0, 100) + '...' });
     window.location.href = authUrl;
   }
 
   // Exchange authorization code for tokens
-  async exchangeCodeForTokens(code: string, state: string): Promise<TokenResponse> {
-    // Validate state parameter
+  async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
+    this.log('Starting token exchange', {
+      codeLength: code?.length || 0,
+      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined'
+    });
+
+    // Get stored state and validate
     const storedState = localStorage.getItem('oauth2_state');
-    if (!storedState || storedState !== state) {
-      throw new Error('Invalid state parameter - potential CSRF attack');
+    const storedTimestamp = localStorage.getItem('oauth2_login_timestamp');
+    
+    this.log('State validation check', {
+      hasStoredState: !!storedState,
+      hasReceivedState: !!receivedState,
+      storedState: storedState?.substring(0, 10) + '...' || 'undefined',
+      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined',
+      statesMatch: storedState === receivedState,
+      timestamp: storedTimestamp
+    });
+
+    // Check if state exists and matches
+    if (!storedState) {
+      this.log('ERROR: No stored state found in localStorage');
+      throw new Error('No stored state found. Please try logging in again.');
+    }
+
+    if (!receivedState) {
+      this.log('ERROR: No state parameter received from Keycloak');
+      throw new Error('No state parameter received from authorization server.');
+    }
+
+    if (storedState !== receivedState) {
+      this.log('ERROR: State parameter mismatch', {
+        stored: storedState,
+        received: receivedState
+      });
+      this.clearOAuth2State();
+      throw new Error('State parameter mismatch. This could indicate a security issue. Please try logging in again.');
+    }
+
+    // Check if login is too old (30 minutes max)
+    if (storedTimestamp) {
+      const loginAge = Date.now() - parseInt(storedTimestamp);
+      if (loginAge > 30 * 60 * 1000) {
+        this.log('ERROR: Login session too old', { ageInMinutes: loginAge / 60000 });
+        this.clearOAuth2State();
+        throw new Error('Login session expired. Please try logging in again.');
+      }
     }
 
     const codeVerifier = localStorage.getItem('oauth2_code_verifier');
     if (!codeVerifier) {
-      throw new Error('Code verifier not found');
+      this.log('ERROR: Code verifier not found');
+      throw new Error('Code verifier not found. Please try logging in again.');
     }
 
-    // Clean up PKCE parameters
-    localStorage.removeItem('oauth2_code_verifier');
-    localStorage.removeItem('oauth2_state');
+    this.log('State validation successful, proceeding with token exchange');
 
-    console.log('OAuth2: Making token exchange request to backend');
-    console.log('OAuth2: Request details:', {
-      url: '/api/oauth2/token',
-      method: 'POST',
-      hasCode: !!code,
-      hasCodeVerifier: !!codeVerifier,
-      redirectUri: this.redirectUri
-    });
+    // Clean up state parameters after successful validation
+    this.clearOAuth2State();
 
     const response = await fetch('/api/oauth2/token', {
       method: 'POST',
@@ -127,56 +197,40 @@ class OAuth2Service {
       }),
     });
 
-    console.log('OAuth2: Token exchange response received', {
+    this.log('Token exchange response received', {
       status: response.status,
       statusText: response.statusText,
       contentType: response.headers.get('content-type'),
-      url: response.url,
-      ok: response.ok,
-      redirected: response.redirected,
-      type: response.type
-    });
-
-    // Log all response headers
-    console.log('OAuth2: Response headers:');
-    response.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
+      ok: response.ok
     });
 
     if (!response.ok) {
-      // Try to parse error response
       const contentType = response.headers.get('content-type');
       let errorMessage = 'Token exchange failed';
       
       try {
         if (contentType && contentType.includes('application/json')) {
           const errorData = await response.json();
-          console.error('OAuth2: JSON error response:', errorData);
+          this.log('Token exchange JSON error', errorData);
           errorMessage = errorData.error || errorMessage;
         } else {
-          // Response is not JSON (likely HTML error page)
           const textResponse = await response.text();
-          console.error('OAuth2: Non-JSON response from token exchange (full response):', textResponse);
-          console.error('OAuth2: Response preview (first 500 chars):', textResponse.substring(0, 500));
-          errorMessage = `Server returned non-JSON response (${response.status}). Check backend logs. Response type: ${contentType || 'unknown'}`;
+          this.log('Token exchange non-JSON error', { 
+            response: textResponse.substring(0, 500),
+            contentType 
+          });
+          errorMessage = `Server error (${response.status}). Please try again.`;
         }
       } catch (parseError) {
-        console.error('OAuth2: Failed to parse error response:', parseError);
+        this.log('Failed to parse token exchange error', parseError);
         errorMessage = `HTTP ${response.status}: Unable to parse server response`;
       }
       
       throw new Error(errorMessage);
     }
 
-    // Validate response is JSON before parsing
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('Token exchange: Expected JSON response, got:', contentType);
-      throw new Error('Server returned non-JSON response for token exchange');
-    }
-
     const tokens = await response.json();
-    console.log('OAuth2: Token exchange successful', {
+    this.log('Token exchange successful', {
       hasAccessToken: !!tokens.access_token,
       hasRefreshToken: !!tokens.refresh_token,
       tokenType: tokens.token_type
@@ -246,12 +300,12 @@ class OAuth2Service {
   async getUserInfo(): Promise<UserInfo | null> {
     const token = await this.getAccessToken();
     if (!token) {
-      console.warn('OAuth2: No access token available for user info request');
+      this.log('No access token available for user info request');
       return null;
     }
 
     try {
-      console.log('OAuth2: Making user info request to backend');
+      this.log('Making user info request to backend');
       
       const response = await fetch('/api/oauth2/userinfo', {
         headers: {
@@ -259,29 +313,28 @@ class OAuth2Service {
         },
       });
 
-      console.log('OAuth2: User info response received', {
+      this.log('User info response received', {
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get('content-type')
       });
 
       if (!response.ok) {
-        console.error('OAuth2: User info request failed', {
+        this.log('User info request failed', {
           status: response.status,
           statusText: response.statusText
         });
         return null;
       }
 
-      // Validate response is JSON before parsing
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        console.error('User info: Expected JSON response, got:', contentType);
+        this.log('User info: Expected JSON response, got:', contentType);
         return null;
       }
 
       const userInfo = await response.json();
-      console.log('OAuth2: User info parsed successfully', {
+      this.log('User info parsed successfully', {
         userId: userInfo.id,
         email: userInfo.email,
         role: userInfo.role
@@ -306,6 +359,7 @@ class OAuth2Service {
     
     // Clear local tokens first
     this.clearTokens();
+    this.clearOAuth2State();
 
     // Notify backend about logout
     if (refreshToken) {
