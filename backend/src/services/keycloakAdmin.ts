@@ -1,15 +1,33 @@
 
-import KcAdminClient from '@keycloak/keycloak-admin-client';
 import axios from 'axios';
 
+let KcAdminClient: any = null;
+
+async function getKeycloakAdminClient() {
+  if (!KcAdminClient) {
+    const keycloakModule = await import('@keycloak/keycloak-admin-client');
+    KcAdminClient = keycloakModule.default || keycloakModule.KcAdminClient || keycloakModule;
+  }
+  return KcAdminClient;
+}
+
 export const keycloakAdminClient = new (class {
-  kcAdmin = new KcAdminClient({
-    baseUrl: process.env.KEYCLOAK_URL!,
-    realmName: process.env.KEYCLOAK_REALM!,
-  });
+  private kcAdmin: any = null;
+
+  async getAdmin() {
+    if (!this.kcAdmin) {
+      const KcAdminClientClass = await getKeycloakAdminClient();
+      this.kcAdmin = new KcAdminClientClass({
+        baseUrl: process.env.KEYCLOAK_URL!,
+        realmName: process.env.KEYCLOAK_REALM!,
+      });
+    }
+    return this.kcAdmin;
+  }
 
   async authenticate() {
-    await this.kcAdmin.auth({
+    const kcAdmin = await this.getAdmin();
+    await kcAdmin.auth({
       grantType: 'password',
       clientId: 'admin-cli',
       username: process.env.KEYCLOAK_ADMIN_USERNAME!,
@@ -31,8 +49,9 @@ export const keycloakAdminClient = new (class {
     user_type: string;
   }) {
     await this.authenticate();
+    const kcAdmin = await this.getAdmin();
 
-    const user = await this.kcAdmin.users.create({
+    const user = await kcAdmin.users.create({
       username,
       email,
       enabled: true,
@@ -52,11 +71,11 @@ export const keycloakAdminClient = new (class {
 
     // Assign role based on user_type
     if (user.id) {
-      const roles = await this.kcAdmin.roles.find({ realm: process.env.KEYCLOAK_REALM });
-      const userRole = roles.find(role => role.name === user_type);
+      const roles = await kcAdmin.roles.find({ realm: process.env.KEYCLOAK_REALM });
+      const userRole = roles.find((role: any) => role.name === user_type);
       
       if (userRole && userRole.id) {
-        await this.kcAdmin.users.addRealmRoleMappings({
+        await kcAdmin.users.addRealmRoleMappings({
           id: user.id,
           roles: [{ id: userRole.id, name: userRole.name }],
         });
