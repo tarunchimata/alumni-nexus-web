@@ -23,12 +23,6 @@ class OAuth2Service {
   private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
   private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
   
-  // Backend API base URL configuration
-  private readonly backendUrl = import.meta.env.VITE_API_BASE_URL || 
-    (import.meta.env.MODE === 'production' 
-      ? 'https://api.myschoolbuddies.com' 
-      : 'http://localhost:3001');
-  
   // Dynamic redirect URI based on current origin
   private get redirectUri(): string {
     return import.meta.env.VITE_OAUTH2_REDIRECT_URI || `${window.location.origin}/oauth2/callback`;
@@ -44,7 +38,6 @@ class OAuth2Service {
       keycloakUrl: this.keycloakUrl,
       realm: this.realm,
       clientId: this.clientId,
-      backendUrl: this.backendUrl,
       redirectUri: this.redirectUri
     });
   }
@@ -154,12 +147,11 @@ class OAuth2Service {
     }
   }
 
-  // Exchange authorization code for tokens
+  // Exchange authorization code for tokens directly with Keycloak
   async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
-    this.log('Starting token exchange', {
+    this.log('Starting direct token exchange with Keycloak', {
       codeLength: code?.length || 0,
-      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined',
-      backendUrl: this.backendUrl
+      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined'
     });
 
     let storedState, storedTimestamp, codeVerifier;
@@ -184,21 +176,8 @@ class OAuth2Service {
     });
 
     // Validate state parameter
-    if (!storedState) {
-      this.log('ERROR: No stored state found in localStorage');
-      throw new Error('Authentication state not found. Please try logging in again.');
-    }
-
-    if (!receivedState) {
-      this.log('ERROR: No state parameter received from Keycloak');
-      throw new Error('Invalid authentication response from server.');
-    }
-
-    if (storedState !== receivedState) {
-      this.log('ERROR: State parameter mismatch', {
-        stored: storedState,
-        received: receivedState
-      });
+    if (!storedState || !receivedState || storedState !== receivedState) {
+      this.log('ERROR: State parameter validation failed');
       this.clearOAuth2State();
       throw new Error('Authentication state mismatch detected. Please try logging in again.');
     }
@@ -218,80 +197,59 @@ class OAuth2Service {
       throw new Error('Authentication parameters missing. Please try logging in again.');
     }
 
-    this.log('State validation successful, proceeding with token exchange');
+    this.log('State validation successful, proceeding with direct Keycloak token exchange');
 
     // Clean up state parameters after successful validation
     this.clearOAuth2State();
 
     try {
-      const tokenUrl = `${this.backendUrl}/api/oauth2/token`;
-      this.log('Making token exchange request to backend', { tokenUrl });
-
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
-        },
-        body: JSON.stringify({
-          code,
-          code_verifier: codeVerifier,
-          redirectUri: this.redirectUri,
-        }),
+      // Exchange code directly with Keycloak
+      const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: this.clientId,
+        code,
+        redirect_uri: this.redirectUri,
+        code_verifier: codeVerifier,
       });
 
-      this.log('Token exchange response received', {
+      const keycloakTokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
+      this.log('Making direct token exchange request to Keycloak', { tokenUrl: keycloakTokenUrl });
+
+      const response = await fetch(keycloakTokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: tokenParams.toString(),
+      });
+
+      this.log('Keycloak token exchange response received', {
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get('content-type'),
-        ok: response.ok,
-        url: response.url
+        ok: response.ok
       });
 
-      let responseText = '';
-      try {
-        responseText = await response.text();
-        this.log('Raw response text', { text: responseText.substring(0, 500) });
-      } catch (textError) {
-        this.log('Could not read response text', textError);
-        throw new Error('Invalid response from authentication server');
-      }
-
       if (!response.ok) {
-        let errorMessage = 'Token exchange failed';
-        
-        try {
-          const errorData = JSON.parse(responseText);
-          this.log('Token exchange JSON error', errorData);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (parseError) {
-          this.log('Could not parse error response as JSON', parseError);
-          errorMessage = `Server error (${response.status}). Please try again.`;
-        }
-        
-        throw new Error(errorMessage);
+        const errorText = await response.text();
+        this.log('Keycloak token exchange failed', { status: response.status, error: errorText });
+        throw new Error(`Keycloak authentication failed: ${response.status} ${response.statusText}`);
       }
 
-      let tokens;
-      try {
-        tokens = JSON.parse(responseText);
-        this.log('Token exchange successful', {
-          hasAccessToken: !!tokens.access_token,
-          hasRefreshToken: !!tokens.refresh_token,
-          tokenType: tokens.token_type
-        });
-      } catch (parseError) {
-        this.log('Could not parse successful response as JSON', parseError);
-        throw new Error('Invalid response format from authentication server');
-      }
+      const tokens = await response.json();
+      this.log('Token exchange successful', {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        tokenType: tokens.token_type
+      });
       
       this.storeTokens(tokens);
       return tokens;
     } catch (fetchError) {
-      this.log('Network error during token exchange', fetchError);
+      this.log('Network error during direct Keycloak token exchange', fetchError);
       if (fetchError instanceof TypeError) {
-        throw new Error(`Network error: Could not connect to backend server at ${this.backendUrl}. Please check your connection.`);
+        throw new Error('Network error: Could not connect to Keycloak server. Please check your connection.');
       }
       throw fetchError;
     }
@@ -340,17 +298,22 @@ class OAuth2Service {
         return null;
       }
 
-      const refreshUrl = `${this.backendUrl}/api/oauth2/refresh`;
+      const refreshUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
       this.log('Making refresh token request', { refreshUrl });
+
+      const refreshParams = new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: this.clientId,
+        refresh_token: refreshToken,
+      });
 
       const response = await fetch(refreshUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
-          'Origin': window.location.origin,
         },
-        body: JSON.stringify({ refreshToken }),
+        body: refreshParams.toString(),
       });
 
       if (!response.ok) {
@@ -368,7 +331,7 @@ class OAuth2Service {
     }
   }
 
-  // Get user information from backend
+  // Get user information directly from Keycloak
   async getUserInfo(): Promise<UserInfo | null> {
     const token = await this.getAccessToken();
     if (!token) {
@@ -377,18 +340,17 @@ class OAuth2Service {
     }
 
     try {
-      const userInfoUrl = `${this.backendUrl}/api/oauth2/userinfo`;
-      this.log('Making user info request to backend', { userInfoUrl });
+      const userInfoUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/userinfo`;
+      this.log('Making direct user info request to Keycloak', { userInfoUrl });
       
       const response = await fetch(userInfoUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
-          'Origin': window.location.origin,
         },
       });
 
-      this.log('User info response received', {
+      this.log('Keycloak user info response received', {
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get('content-type')
@@ -402,23 +364,60 @@ class OAuth2Service {
         return null;
       }
 
-      const responseText = await response.text();
+      const keycloakUser = await response.json();
       
-      try {
-        const userInfo = JSON.parse(responseText);
-        this.log('User info parsed successfully', {
-          userId: userInfo.id,
-          email: userInfo.email,
-          role: userInfo.role
-        });
-        
-        return userInfo;
-      } catch (parseError) {
-        this.log('Could not parse user info response', parseError);
-        return null;
+      // Decode JWT to get roles
+      const decodedToken = this.decodeJWT(token);
+      const roles = decodedToken?.realm_access?.roles || [];
+      
+      // Determine primary role based on hierarchy
+      let primaryRole = 'student'; // default
+      if (roles.includes('platform_admin')) {
+        primaryRole = 'platform_admin';
+      } else if (roles.includes('school_admin')) {
+        primaryRole = 'school_admin';
+      } else if (roles.includes('teacher')) {
+        primaryRole = 'teacher';
+      } else if (roles.includes('alumni')) {
+        primaryRole = 'alumni';
       }
+
+      // Format user info response
+      const userInfo = {
+        id: keycloakUser.sub,
+        email: keycloakUser.email,
+        firstName: keycloakUser.given_name || '',
+        lastName: keycloakUser.family_name || '',
+        role: primaryRole,
+        roles: roles,
+        schoolId: decodedToken?.school_id || keycloakUser.school_id,
+        avatar: keycloakUser.picture,
+      };
+
+      this.log('User info retrieved successfully', {
+        userId: userInfo.id,
+        email: userInfo.email,
+        role: userInfo.role
+      });
+
+      return userInfo;
     } catch (error) {
       console.error('Failed to get user info:', error);
+      return null;
+    }
+  }
+
+  // Simple JWT decoder (for client-side role extraction)
+  private decodeJWT(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      this.log('JWT decode error:', error);
       return null;
     }
   }
@@ -431,32 +430,9 @@ class OAuth2Service {
 
   // Logout user
   async logout(): Promise<void> {
-    const refreshToken = localStorage.getItem('oauth2_refresh_token');
-    
-    // Clear local tokens first
     this.clearTokens();
     this.clearOAuth2State();
-
-    // Notify backend about logout
-    if (refreshToken) {
-      try {
-        const logoutUrl = `${this.backendUrl}/api/oauth2/logout`;
-        await fetch(logoutUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin,
-          },
-          body: JSON.stringify({ refreshToken }),
-        });
-      } catch (error) {
-        console.error('Backend logout failed:', error);
-      }
-    }
-
-    // Redirect to Keycloak logout
-    const logoutUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
-    window.location.href = logoutUrl;
+    window.location.href = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
   }
 
   // Clear all stored tokens

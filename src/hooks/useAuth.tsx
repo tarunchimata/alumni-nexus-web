@@ -1,6 +1,5 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { initKeycloak, login as keycloakLogin, logout as keycloakLogout, register as keycloakRegister, getUserInfo, isAuthenticated, getToken } from "@/lib/keycloak";
 import { oauth2Service } from "@/lib/oauth2";
 
 interface User {
@@ -39,84 +38,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // Check if OAuth2 mode is enabled
-      const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
+      console.log('[Auth] Initializing authentication...');
       
-      if (useOAuth2) {
-        // OAuth2 authentication flow
-        const isAuth = await oauth2Service.isAuthenticated();
+      // Check if user is authenticated
+      const isAuth = await oauth2Service.isAuthenticated();
+      
+      if (isAuth) {
+        console.log('[Auth] User is authenticated, fetching user info...');
+        const userInfo = await oauth2Service.getUserInfo();
+        const authToken = await oauth2Service.getAccessToken();
         
-        if (isAuth) {
-          const userInfo = await oauth2Service.getUserInfo();
-          const authToken = await oauth2Service.getAccessToken();
-          
-          if (userInfo) {
-            setUser({
-              id: userInfo.id,
-              email: userInfo.email,
-              firstName: userInfo.firstName,
-              lastName: userInfo.lastName,
-              role: userInfo.role as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
-              schoolId: userInfo.schoolId,
-              avatar: userInfo.avatar,
-            });
-          }
-          
-          setToken(authToken || null);
-          setAuthenticated(true);
-        } else {
-          setAuthenticated(false);
+        if (userInfo) {
+          setUser({
+            id: userInfo.id,
+            email: userInfo.email,
+            firstName: userInfo.firstName,
+            lastName: userInfo.lastName,
+            role: userInfo.role as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
+            schoolId: userInfo.schoolId,
+            avatar: userInfo.avatar,
+          });
+          console.log('[Auth] User authenticated successfully:', userInfo.email);
         }
+        
+        setToken(authToken || null);
+        setAuthenticated(true);
       } else {
-        // Fallback to cookie-based Keycloak authentication
-        const authStatus = await initKeycloak();
-        
-        if (authStatus) {
-          const userInfo = await getUserInfo();
-          const authToken = getToken();
-          
-          if (userInfo) {
-            // Fetch user profile from backend
-            const response = await fetch('/api/auth/profile', {
-              headers: {
-                'Authorization': `Bearer ${authToken}`,
-              },
-            });
-            
-            if (response.ok) {
-              const userData = await response.json();
-              setUser({
-                id: userData.id,
-                email: userData.email,
-                firstName: userData.firstName,
-                lastName: userData.lastName,
-                role: userData.role,
-                schoolId: userData.school?.id,
-                avatar: userData.profilePictureUrl,
-              });
-            } else {
-              // Fallback to Keycloak user info
-              setUser({
-                id: userInfo.id,
-                email: userInfo.email,
-                firstName: userInfo.firstName,
-                lastName: userInfo.lastName,
-                role: userInfo.roles?.includes('platform_admin') ? 'platform_admin' :
-                      userInfo.roles?.includes('school_admin') ? 'school_admin' :
-                      userInfo.roles?.includes('teacher') ? 'teacher' :
-                      userInfo.roles?.includes('alumni') ? 'alumni' : 'student',
-              });
-            }
-          }
-          
-          setToken(authToken || null);
-          setAuthenticated(true);
-        } else {
-          setAuthenticated(false);
-        }
+        console.log('[Auth] User is not authenticated');
+        setAuthenticated(false);
       }
     } catch (error) {
-      console.error('Auth initialization failed:', error);
+      console.error('[Auth] Authentication initialization failed:', error);
       setAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -124,28 +76,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = () => {
-    const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
-    
-    if (useOAuth2) {
-      oauth2Service.login();
-    } else {
-      keycloakLogin();
-    }
+    console.log('[Auth] Initiating login...');
+    oauth2Service.login();
   };
 
   const register = () => {
-    keycloakRegister();
+    console.log('[Auth] Initiating registration...');
+    // For now, redirect to login - you can implement separate registration later
+    oauth2Service.login();
   };
 
   const logout = () => {
-    const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
-    
-    if (useOAuth2) {
-      oauth2Service.logout();
-    } else {
-      keycloakLogout();
-    }
-    
+    console.log('[Auth] Logging out...');
+    oauth2Service.logout();
     setUser(null);
     setToken(null);
     setAuthenticated(false);
