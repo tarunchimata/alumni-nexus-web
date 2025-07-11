@@ -1,3 +1,4 @@
+
 import express from 'express';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
@@ -6,12 +7,24 @@ import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Middleware to ensure JSON responses and CORS
+// Enhanced CORS middleware for OAuth2 routes
 router.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://preview--alumni-nexus-web.lovable.app',
+    process.env.CORS_ORIGIN?.split(',') || []
+  ].flat().filter(Boolean);
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -31,7 +44,8 @@ router.post('/token', async (req, res) => {
       codeLength: code?.length || 0,
       hasCodeVerifier: !!code_verifier,
       verifierLength: code_verifier?.length || 0,
-      redirectUri: redirectUri
+      redirectUri: redirectUri,
+      origin: req.headers.origin
     });
 
     if (!code || !code_verifier || !redirectUri) {

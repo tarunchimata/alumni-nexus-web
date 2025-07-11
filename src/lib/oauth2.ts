@@ -23,6 +23,12 @@ class OAuth2Service {
   private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
   private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
   
+  // Backend API base URL configuration
+  private readonly backendUrl = import.meta.env.VITE_API_BASE_URL || 
+    (import.meta.env.MODE === 'production' 
+      ? 'https://api.myschoolbuddies.com' 
+      : 'http://localhost:3001');
+  
   // Dynamic redirect URI based on current origin
   private get redirectUri(): string {
     return import.meta.env.VITE_OAUTH2_REDIRECT_URI || `${window.location.origin}/oauth2/callback`;
@@ -31,6 +37,16 @@ class OAuth2Service {
   // Enhanced logging for OAuth2 flow
   private log(message: string, data?: any) {
     console.log(`[OAuth2] ${message}`, data || '');
+  }
+
+  constructor() {
+    this.log('OAuth2Service initialized', {
+      keycloakUrl: this.keycloakUrl,
+      realm: this.realm,
+      clientId: this.clientId,
+      backendUrl: this.backendUrl,
+      redirectUri: this.redirectUri
+    });
   }
 
   // Generate PKCE code verifier (128 character base64url string)
@@ -142,7 +158,8 @@ class OAuth2Service {
   async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
     this.log('Starting token exchange', {
       codeLength: code?.length || 0,
-      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined'
+      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined',
+      backendUrl: this.backendUrl
     });
 
     let storedState, storedTimestamp, codeVerifier;
@@ -207,11 +224,15 @@ class OAuth2Service {
     this.clearOAuth2State();
 
     try {
-      const response = await fetch('/api/oauth2/token', {
+      const tokenUrl = `${this.backendUrl}/api/oauth2/token`;
+      this.log('Making token exchange request to backend', { tokenUrl });
+
+      const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Origin': window.location.origin,
         },
         body: JSON.stringify({
           code,
@@ -224,7 +245,8 @@ class OAuth2Service {
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get('content-type'),
-        ok: response.ok
+        ok: response.ok,
+        url: response.url
       });
 
       let responseText = '';
@@ -269,7 +291,7 @@ class OAuth2Service {
     } catch (fetchError) {
       this.log('Network error during token exchange', fetchError);
       if (fetchError instanceof TypeError) {
-        throw new Error('Network error: Could not connect to authentication server. Please check your connection.');
+        throw new Error(`Network error: Could not connect to backend server at ${this.backendUrl}. Please check your connection.`);
       }
       throw fetchError;
     }
@@ -318,11 +340,15 @@ class OAuth2Service {
         return null;
       }
 
-      const response = await fetch('/api/oauth2/refresh', {
+      const refreshUrl = `${this.backendUrl}/api/oauth2/refresh`;
+      this.log('Making refresh token request', { refreshUrl });
+
+      const response = await fetch(refreshUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Origin': window.location.origin,
         },
         body: JSON.stringify({ refreshToken }),
       });
@@ -351,12 +377,14 @@ class OAuth2Service {
     }
 
     try {
-      this.log('Making user info request to backend');
+      const userInfoUrl = `${this.backendUrl}/api/oauth2/userinfo`;
+      this.log('Making user info request to backend', { userInfoUrl });
       
-      const response = await fetch('/api/oauth2/userinfo', {
+      const response = await fetch(userInfoUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
+          'Origin': window.location.origin,
         },
       });
 
@@ -412,10 +440,12 @@ class OAuth2Service {
     // Notify backend about logout
     if (refreshToken) {
       try {
-        await fetch('/api/oauth2/logout', {
+        const logoutUrl = `${this.backendUrl}/api/oauth2/logout`;
+        await fetch(logoutUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Origin': window.location.origin,
           },
           body: JSON.stringify({ refreshToken }),
         });

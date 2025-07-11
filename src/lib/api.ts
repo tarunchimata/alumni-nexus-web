@@ -2,9 +2,12 @@
 // API utilities and configuration
 import { getToken, updateToken } from './keycloak';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://api.myschoolbuddies.com' 
-  : 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://api.myschoolbuddies.com' 
+    : 'http://localhost:3001');
+
+console.log('[API Client] Using API base URL:', API_BASE_URL);
 
 export class ApiClient {
   private baseURL: string;
@@ -105,7 +108,6 @@ export class ApiClient {
 
 export const apiClient = new ApiClient();
 
-// API endpoints for different modules
 export const endpoints = {
   auth: {
     profile: '/api/auth/profile',
