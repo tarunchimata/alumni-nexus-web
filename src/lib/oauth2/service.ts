@@ -68,10 +68,10 @@ export class OAuth2Service {
 
     this.storage.clearOAuth2State();
 
+    // Remove client_secret for public client
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.config.getClientId(),
-      client_secret: this.config.getClientSecretValue(),
       code,
       redirect_uri: this.config.getRedirectUriValue(),
       code_verifier: codeVerifier,
@@ -171,10 +171,10 @@ export class OAuth2Service {
 
       const refreshUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
 
+      // Remove client_secret for public client
       const refreshParams = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: this.config.getClientId(),
-        client_secret: this.config.getClientSecretValue(),
         refresh_token: refreshTokenValue,
       });
 

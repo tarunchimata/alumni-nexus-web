@@ -9,18 +9,10 @@ export class OAuth2ConfigService {
       keycloakUrl: import.meta.env.VITE_KEYCLOAK_URL,
       realm: import.meta.env.VITE_KEYCLOAK_REALM,
       clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
-      clientSecret: this.getClientSecret(),
       redirectUri: this.getRedirectUri()
     };
 
     this.validateConfiguration();
-  }
-
-  private getClientSecret(): string {
-    const envClientSecret = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET;
-    const fallbackClientSecret = 'F6NBOY2YrW3ZtD2zsgWwatASL3sAFP7Q';
-    
-    return envClientSecret || fallbackClientSecret;
   }
 
   private getRedirectUri(): string {
@@ -47,20 +39,13 @@ export class OAuth2ConfigService {
       throw new Error(error);
     }
 
-    if (!this.config.clientSecret) {
-      const error = 'Client secret is required for OAuth2 authentication';
-      console.error(`[OAuth2] Client secret validation failed`);
-      throw new Error(error);
-    }
-
     if (import.meta.env.DEV) {
-      console.log('[OAuth2] Configuration validated successfully', {
+      console.log('[OAuth2] Configuration validated successfully (public client)', {
         keycloakUrl: this.config.keycloakUrl,
         realm: this.config.realm,
         clientId: this.config.clientId,
-        hasClientSecret: !!this.config.clientSecret,
         redirectUri: this.config.redirectUri,
-        clientSecretSource: import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET ? 'environment' : 'fallback'
+        clientType: 'public'
       });
     }
   }
@@ -79,10 +64,6 @@ export class OAuth2ConfigService {
 
   getClientId(): string {
     return this.config.clientId;
-  }
-
-  public getClientSecretValue(): string {
-    return this.config.clientSecret;
   }
 
   getRedirectUriValue(): string {

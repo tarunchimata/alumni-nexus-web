@@ -26,6 +26,5 @@ export interface OAuth2Config {
   keycloakUrl: string;
   realm: string;
   clientId: string;
-  clientSecret: string;
   redirectUri: string;
 }
