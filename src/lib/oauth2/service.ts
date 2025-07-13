@@ -1,40 +1,18 @@
-// OAuth2 + PKCE implementation for Keycloak authentication
 
-interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-}
+import type { TokenResponse, UserInfo, KeycloakErrorResponse } from './types';
+import { OAuth2ConfigService } from './config';
+import { PKCEService } from './pkce';
+import { OAuth2StorageService } from './storage';
 
-interface UserInfo {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  roles: string[];
-  schoolId?: string;
-  avatar?: string;
-}
+export class OAuth2Service {
+  private readonly config: OAuth2ConfigService;
+  private readonly pkce: PKCEService;
+  private readonly storage: OAuth2StorageService;
 
-interface KeycloakErrorResponse {
-  error: string;
-  error_description?: string;
-}
-
-class OAuth2Service {
-  private readonly keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
-  private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
-  private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-  private readonly clientSecret = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET;
-  
-  // Fixed redirect URI for Lovable preview environment
-  private get redirectUri(): string {
-    const envRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
-    const defaultRedirectUri = 'https://preview--alumni-nexus-web.lovable.app/oauth2/callback';
-    
-    return envRedirectUri || defaultRedirectUri;
+  constructor() {
+    this.config = new OAuth2ConfigService();
+    this.pkce = new PKCEService();
+    this.storage = new OAuth2StorageService();
   }
 
   // Enhanced logging for OAuth2 flow with detailed debugging
@@ -42,127 +20,19 @@ class OAuth2Service {
     console.log(`[OAuth2] ${message}`, data || '');
   }
 
-  constructor() {
-    this.validateConfiguration();
-    this.log('OAuth2Service initialized with configuration:', {
-      keycloakUrl: this.keycloakUrl,
-      realm: this.realm,
-      clientId: this.clientId,
-      hasClientSecret: !!this.clientSecret,
-      redirectUri: this.redirectUri,
-      environment: import.meta.env.MODE
-    });
-  }
-
-  // Validate all required environment variables
-  private validateConfiguration(): void {
-    const requiredVars = {
-      VITE_KEYCLOAK_URL: this.keycloakUrl,
-      VITE_KEYCLOAK_REALM: this.realm,
-      VITE_KEYCLOAK_CLIENT_ID: this.clientId,
-      VITE_KEYCLOAK_CLIENT_SECRET: this.clientSecret
-    };
-
-    const missing = Object.entries(requiredVars)
-      .filter(([key, value]) => !value)
-      .map(([key]) => key);
-
-    if (missing.length > 0) {
-      const error = `Missing required environment variables: ${missing.join(', ')}`;
-      this.log('ERROR: Configuration validation failed', { missing, current: requiredVars });
-      throw new Error(error);
-    }
-
-    this.log('Configuration validation successful', {
-      ...requiredVars,
-      VITE_KEYCLOAK_CLIENT_SECRET: this.clientSecret ? '[PRESENT]' : '[MISSING]'
-    });
-  }
-
-  // Generate PKCE code verifier (128 character base64url string)
-  private generateCodeVerifier(): string {
-    const array = new Uint8Array(96);
-    crypto.getRandomValues(array);
-    const verifier = btoa(String.fromCharCode(...array))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
-      .substring(0, 128);
-    
-    this.log('Generated code verifier', { length: verifier.length, preview: verifier.substring(0, 10) + '...' });
-    return verifier;
-  }
-
-  // Generate SHA256 code challenge from verifier
-  private async generateCodeChallenge(verifier: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await crypto.subtle.digest('SHA-256', data);
-    const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
-    this.log('Generated code challenge', { 
-      verifierPreview: verifier.substring(0, 10) + '...',
-      challengePreview: challenge.substring(0, 10) + '...'
-    });
-    return challenge;
-  }
-
-  // Generate secure random state for CSRF protection
-  private generateState(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const state = btoa(String.fromCharCode(...array))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
-    this.log('Generated state parameter', { length: state.length, preview: state.substring(0, 10) + '...' });
-    return state;
-  }
-
-  // Clear OAuth2 state and parameters
-  private clearOAuth2State(): void {
-    this.log('Clearing OAuth2 state parameters');
-    try {
-      localStorage.removeItem('oauth2_code_verifier');
-      localStorage.removeItem('oauth2_state');
-      localStorage.removeItem('oauth2_login_timestamp');
-    } catch (error) {
-      this.log('Warning: Could not clear localStorage', error);
-    }
-  }
-
   // Build Keycloak authorization URL
   async buildAuthUrl(): Promise<string> {
-    this.clearOAuth2State();
+    this.storage.clearOAuth2State();
 
-    const codeVerifier = this.generateCodeVerifier();
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-    const state = this.generateState();
-    const timestamp = Date.now().toString();
+    const codeVerifier = this.pkce.generateCodeVerifier();
+    const codeChallenge = await this.pkce.generateCodeChallenge(codeVerifier);
+    const state = this.pkce.generateState();
 
-    // Store PKCE parameters for later use
-    try {
-      localStorage.setItem('oauth2_code_verifier', codeVerifier);
-      localStorage.setItem('oauth2_state', state);
-      localStorage.setItem('oauth2_login_timestamp', timestamp);
-      
-      this.log('Stored OAuth2 parameters in localStorage successfully', {
-        codeVerifierStored: !!localStorage.getItem('oauth2_code_verifier'),
-        stateStored: !!localStorage.getItem('oauth2_state'),
-        timestampStored: !!localStorage.getItem('oauth2_login_timestamp')
-      });
-    } catch (error) {
-      this.log('ERROR: Failed to store OAuth2 parameters', error);
-      throw new Error('Could not store OAuth2 parameters. Please check browser storage permissions.');
-    }
+    this.storage.storeOAuth2State(codeVerifier, state);
 
     const params = new URLSearchParams({
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
+      client_id: this.config.getClientId(),
+      redirect_uri: this.config.getRedirectUriValue(),
       response_type: 'code',
       scope: 'openid profile email',
       state,
@@ -170,7 +40,7 @@ class OAuth2Service {
       code_challenge_method: 'S256',
     });
 
-    const authUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?${params}`;
+    const authUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/auth?${params}`;
     this.log('Built authorization URL', { 
       url: authUrl.substring(0, 100) + '...',
       params: Object.fromEntries(params.entries())
@@ -201,9 +71,7 @@ class OAuth2Service {
     });
 
     // Validate and retrieve stored parameters
-    const storedState = localStorage.getItem('oauth2_state');
-    const storedTimestamp = localStorage.getItem('oauth2_login_timestamp');
-    const codeVerifier = localStorage.getItem('oauth2_code_verifier');
+    const { state: storedState, timestamp: storedTimestamp, codeVerifier } = this.storage.getOAuth2State();
 
     this.log('📋 STORED PARAMETERS VALIDATION', {
       hasStoredState: !!storedState,
@@ -218,7 +86,7 @@ class OAuth2Service {
     // State validation
     if (!storedState || !receivedState || storedState !== receivedState) {
       this.log('❌ STATE VALIDATION FAILED');
-      this.clearOAuth2State();
+      this.storage.clearOAuth2State();
       throw new Error('Authentication state mismatch detected. Please try logging in again.');
     }
 
@@ -227,7 +95,7 @@ class OAuth2Service {
       const loginAge = Date.now() - parseInt(storedTimestamp);
       if (loginAge > 30 * 60 * 1000) {
         this.log('❌ LOGIN SESSION EXPIRED', { ageInMinutes: loginAge / 60000 });
-        this.clearOAuth2State();
+        this.storage.clearOAuth2State();
         throw new Error('Login session expired. Please try logging in again.');
       }
     }
@@ -238,19 +106,19 @@ class OAuth2Service {
     }
 
     this.log('✅ All validations passed, proceeding with token exchange');
-    this.clearOAuth2State();
+    this.storage.clearOAuth2State();
 
     // Prepare token exchange request with client secret
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
+      client_id: this.config.getClientId(),
+      client_secret: this.config.getClientSecret(),
       code,
-      redirect_uri: this.redirectUri,
+      redirect_uri: this.config.getRedirectUriValue(),
       code_verifier: codeVerifier,
     });
 
-    const keycloakTokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
+    const keycloakTokenUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
 
     this.log('🔄 TOKEN EXCHANGE REQUEST DETAILS', {
       url: keycloakTokenUrl,
@@ -258,10 +126,10 @@ class OAuth2Service {
       contentType: 'application/x-www-form-urlencoded',
       payload: {
         grant_type: 'authorization_code',
-        client_id: this.clientId,
+        client_id: this.config.getClientId(),
         client_secret: '[PRESENT]',
         code: code.substring(0, 10) + '...',
-        redirect_uri: this.redirectUri,
+        redirect_uri: this.config.getRedirectUriValue(),
         code_verifier: codeVerifier.substring(0, 10) + '...',
       }
     });
@@ -328,7 +196,7 @@ class OAuth2Service {
         throw new Error('Invalid response format from Keycloak server');
       }
       
-      this.storeTokens(tokens);
+      this.storage.storeTokens(tokens);
       return tokens;
 
     } catch (fetchError) {
@@ -350,11 +218,11 @@ class OAuth2Service {
     
     switch (error.error) {
       case 'invalid_client':
-        return `${baseMessage} - Invalid client configuration. Please check client_id: ${this.clientId}`;
+        return `${baseMessage} - Invalid client configuration. Please check client_id: ${this.config.getClientId()}`;
       case 'invalid_grant':
         return `${baseMessage} - Invalid authorization code or expired session. Please try logging in again.`;
       case 'invalid_request':
-        return `${baseMessage} - Invalid request parameters. Please check redirect_uri: ${this.redirectUri}`;
+        return `${baseMessage} - Invalid request parameters. Please check redirect_uri: ${this.config.getRedirectUriValue()}`;
       case 'unsupported_grant_type':
         return `${baseMessage} - Authorization code grant type not supported for this client.`;
       default:
@@ -362,37 +230,17 @@ class OAuth2Service {
     }
   }
 
-  // Store tokens securely in localStorage
-  private storeTokens(tokens: TokenResponse): void {
-    try {
-      const expiresAt = Date.now() + (tokens.expires_in * 1000);
-      localStorage.setItem('oauth2_access_token', tokens.access_token);
-      localStorage.setItem('oauth2_refresh_token', tokens.refresh_token);
-      localStorage.setItem('oauth2_expires_at', expiresAt.toString());
-      
-      this.log('✅ Tokens stored successfully', {
-        accessTokenLength: tokens.access_token.length,
-        refreshTokenLength: tokens.refresh_token.length,
-        expiresAt: new Date(expiresAt).toISOString()
-      });
-    } catch (error) {
-      this.log('❌ Error storing tokens', error);
-      throw new Error('Could not store authentication tokens. Please check browser storage permissions.');
-    }
-  }
-
   // Get current access token (refresh if needed)
   async getAccessToken(): Promise<string | null> {
     try {
-      const token = localStorage.getItem('oauth2_access_token');
-      const expiresAt = localStorage.getItem('oauth2_expires_at');
-
-      if (!token || !expiresAt) {
+      const token = this.storage.getAccessToken();
+      
+      if (!token) {
         return null;
       }
 
       // Check if token is expired (with 5 minute buffer)
-      if (Date.now() > (parseInt(expiresAt) - 300000)) {
+      if (this.storage.isTokenExpired()) {
         return await this.refreshToken();
       }
 
@@ -406,18 +254,18 @@ class OAuth2Service {
   // Refresh access token using refresh token
   async refreshToken(): Promise<string | null> {
     try {
-      const refreshTokenValue = localStorage.getItem('oauth2_refresh_token');
+      const refreshTokenValue = this.storage.getRefreshToken();
       if (!refreshTokenValue) {
         return null;
       }
 
-      const refreshUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
+      const refreshUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
       this.log('Making refresh token request', { refreshUrl });
 
       const refreshParams = new URLSearchParams({
         grant_type: 'refresh_token',
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
+        client_id: this.config.getClientId(),
+        client_secret: this.config.getClientSecret(),
         refresh_token: refreshTokenValue,
       });
 
@@ -431,16 +279,16 @@ class OAuth2Service {
       });
 
       if (!response.ok) {
-        this.clearTokens();
+        this.storage.clearTokens();
         return null;
       }
 
       const tokens = await response.json();
-      this.storeTokens(tokens);
+      this.storage.storeTokens(tokens);
       return tokens.access_token;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      this.clearTokens();
+      this.storage.clearTokens();
       return null;
     }
   }
@@ -454,7 +302,7 @@ class OAuth2Service {
     }
 
     try {
-      const userInfoUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/userinfo`;
+      const userInfoUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/userinfo`;
       this.log('Making direct user info request to Keycloak', { userInfoUrl });
       
       const response = await fetch(userInfoUrl, {
@@ -544,24 +392,8 @@ class OAuth2Service {
 
   // Logout user
   async logout(): Promise<void> {
-    this.clearTokens();
-    this.clearOAuth2State();
-    window.location.href = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
-  }
-
-  // Clear all stored tokens
-  private clearTokens(): void {
-    try {
-      localStorage.removeItem('oauth2_access_token');
-      localStorage.removeItem('oauth2_refresh_token');
-      localStorage.removeItem('oauth2_expires_at');
-      localStorage.removeItem('oauth2_code_verifier');
-      localStorage.removeItem('oauth2_state');
-    } catch (error) {
-      this.log('Warning: Could not clear tokens from localStorage', error);
-    }
+    this.storage.clearTokens();
+    this.storage.clearOAuth2State();
+    window.location.href = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
   }
 }
-
-export const oauth2Service = new OAuth2Service();
-export default oauth2Service;
