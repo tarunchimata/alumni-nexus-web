@@ -14,15 +14,10 @@ export class OAuth2ConfigService {
     };
 
     this.validateConfiguration();
-    this.logConfiguration();
   }
 
   private getClientSecret(): string {
-    // Try to get from environment variable first
     const envClientSecret = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET;
-    
-    // If not available in environment, use the known client secret for development
-    // In production, this should always come from environment variables
     const fallbackClientSecret = 'F6NBOY2YrW3ZtD2zsgWwatASL3sAFP7Q';
     
     return envClientSecret || fallbackClientSecret;
@@ -48,34 +43,26 @@ export class OAuth2ConfigService {
 
     if (missing.length > 0) {
       const error = `Missing required environment variables: ${missing.join(', ')}`;
-      console.log(`[OAuth2] ERROR: Configuration validation failed`, { missing, current: requiredVars });
+      console.error(`[OAuth2] Configuration validation failed`, { missing, current: requiredVars });
       throw new Error(error);
     }
 
-    // Validate client secret separately with more detailed logging
     if (!this.config.clientSecret) {
       const error = 'Client secret is required for OAuth2 authentication';
-      console.log(`[OAuth2] ERROR: Client secret validation failed`);
+      console.error(`[OAuth2] Client secret validation failed`);
       throw new Error(error);
     }
 
-    console.log('[OAuth2] Configuration validation successful', {
-      ...requiredVars,
-      VITE_KEYCLOAK_CLIENT_SECRET: this.config.clientSecret ? '[PRESENT]' : '[MISSING]',
-      clientSecretSource: import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET ? 'environment' : 'fallback'
-    });
-  }
-
-  private logConfiguration(): void {
-    console.log('[OAuth2] OAuth2Service initialized with configuration:', {
-      keycloakUrl: this.config.keycloakUrl,
-      realm: this.config.realm,
-      clientId: this.config.clientId,
-      hasClientSecret: !!this.config.clientSecret,
-      redirectUri: this.config.redirectUri,
-      environment: import.meta.env.MODE,
-      clientSecretSource: import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET ? 'environment' : 'fallback'
-    });
+    if (import.meta.env.DEV) {
+      console.log('[OAuth2] Configuration validated successfully', {
+        keycloakUrl: this.config.keycloakUrl,
+        realm: this.config.realm,
+        clientId: this.config.clientId,
+        hasClientSecret: !!this.config.clientSecret,
+        redirectUri: this.config.redirectUri,
+        clientSecretSource: import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET ? 'environment' : 'fallback'
+      });
+    }
   }
 
   getConfig(): OAuth2Config {
