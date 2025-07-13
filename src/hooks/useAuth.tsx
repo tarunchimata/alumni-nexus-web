@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { oauth2Service } from "@/lib/oauth2";
 
@@ -20,6 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   token: string | null;
+  refreshAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +32,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  // Re-initialize auth when URL changes (for OAuth2 callback handling)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      console.log('[Auth] Storage changed, re-initializing auth...');
+      initializeAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const initializeAuth = async () => {
@@ -66,10 +77,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         console.log('[Auth] User is not authenticated');
         setAuthenticated(false);
+        setUser(null);
+        setToken(null);
       }
     } catch (error) {
       console.error('[Auth] Authentication initialization failed:', error);
       setAuthenticated(false);
+      setUser(null);
+      setToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +97,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = () => {
     console.log('[Auth] Initiating registration...');
-    // For now, redirect to login - you can implement separate registration later
     oauth2Service.login();
   };
 
@@ -94,6 +108,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthenticated(false);
   };
 
+  // Expose method to manually refresh auth state
+  const refreshAuth = () => {
+    console.log('[Auth] Manually refreshing auth state...');
+    initializeAuth();
+  };
+
   const value = {
     user,
     login,
@@ -102,6 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     isAuthenticated: authenticated,
     token,
+    refreshAuth,
   };
 
   return (

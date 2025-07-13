@@ -1,6 +1,8 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { oauth2Service } from '@/lib/oauth2';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
@@ -14,6 +16,7 @@ interface CallbackState {
 
 const OAuth2Callback = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [state, setState] = useState<CallbackState>({
     status: 'loading',
     message: 'Processing login...',
@@ -21,38 +24,31 @@ const OAuth2Callback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('🚀 [OAuth2Callback] Starting comprehensive callback processing');
+      console.log('🚀 [OAuth2Callback] Starting callback processing');
       
       try {
-        // Parse URL parameters with detailed logging
+        // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const stateParam = urlParams.get('state');
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
-        console.log('📋 [OAuth2Callback] URL parameters analysis:', {
-          fullUrl: window.location.href,
+        console.log('📋 [OAuth2Callback] URL parameters:', {
           hasCode: !!code,
-          codeLength: code?.length || 0,
-          codePreview: code?.substring(0, 15) + '...' || 'undefined',
           hasState: !!stateParam,
-          stateLength: stateParam?.length || 0,
-          statePreview: stateParam?.substring(0, 15) + '...' || 'undefined',
           hasError: !!error,
           error,
-          errorDescription,
-          allParams: Object.fromEntries(urlParams.entries())
+          errorDescription
         });
 
         // Handle OAuth2 errors from Keycloak
         if (error) {
-          console.error('❌ [OAuth2Callback] OAuth2 error from Keycloak:', { error, errorDescription });
+          console.error('❌ [OAuth2Callback] OAuth2 error:', { error, errorDescription });
           setState({
             status: 'error',
             message: `Authentication failed: ${errorDescription || error}`,
             errorDetails: 'The authentication server returned an error. Please try logging in again.',
-            debugInfo: { error, errorDescription, url: window.location.href }
           });
           return;
         }
@@ -64,11 +60,6 @@ const OAuth2Callback = () => {
             status: 'error',
             message: 'Missing authorization code from authentication server',
             errorDetails: 'The login process was incomplete. Please try logging in again.',
-            debugInfo: { 
-              hasCode: !!code, 
-              url: window.location.href,
-              allParams: Object.fromEntries(urlParams.entries())
-            }
           });
           return;
         }
@@ -79,25 +70,23 @@ const OAuth2Callback = () => {
             status: 'error',
             message: 'Missing state parameter from authentication server',
             errorDetails: 'Security validation failed. Please try logging in again.',
-            debugInfo: { hasState: !!stateParam, url: window.location.href }
           });
           return;
         }
 
         setState({
           status: 'loading',
-          message: 'Validating security parameters and exchanging tokens...',
+          message: 'Exchanging authorization code for tokens...',
         });
 
-        console.log('🔄 [OAuth2Callback] Starting token exchange with comprehensive logging');
+        console.log('🔄 [OAuth2Callback] Starting token exchange');
 
-        // Exchange code for tokens with enhanced error handling
-        let tokenExchangeResult;
+        // Exchange code for tokens
         try {
-          tokenExchangeResult = await oauth2Service.exchangeCodeForTokens(code, stateParam);
-          console.log('✅ [OAuth2Callback] Token exchange completed successfully');
+          await oauth2Service.exchangeCodeForTokens(code, stateParam);
+          console.log('✅ [OAuth2Callback] Token exchange completed');
         } catch (tokenError) {
-          console.error('❌ [OAuth2Callback] Token exchange failed with detailed error:', tokenError);
+          console.error('❌ [OAuth2Callback] Token exchange failed:', tokenError);
           
           let errorMessage = 'Token exchange failed';
           let errorDetails = 'Please try logging in again.';
@@ -105,17 +94,12 @@ const OAuth2Callback = () => {
           if (tokenError instanceof Error) {
             errorMessage = tokenError.message;
             
-            // Provide specific guidance based on error type
             if (tokenError.message.includes('state')) {
               errorDetails = 'Security validation failed. Clear your browser cache and try logging in again.';
-            } else if (tokenError.message.includes('401')) {
-              errorDetails = 'Authentication failed. This may be due to client configuration issues. Check the console for detailed debugging information.';
             } else if (tokenError.message.includes('invalid_client')) {
-              errorDetails = 'Client configuration error. Please verify the client_id and client settings in Keycloak.';
+              errorDetails = 'Client configuration error. Please verify the client settings.';
             } else if (tokenError.message.includes('invalid_grant')) {
               errorDetails = 'Authorization code expired or invalid. Please try logging in again.';
-            } else if (tokenError.message.includes('Network error')) {
-              errorDetails = 'Cannot connect to the authentication server. Please check your internet connection.';
             }
           }
           
@@ -123,92 +107,44 @@ const OAuth2Callback = () => {
             status: 'error',
             message: errorMessage,
             errorDetails,
-            debugInfo: { 
-              tokenError: tokenError instanceof Error ? tokenError.message : 'Unknown error',
-              code: code?.substring(0, 15) + '...',
-              state: stateParam?.substring(0, 15) + '...',
-              timestamp: new Date().toISOString()
-            }
           });
           return;
         }
         
         setState({
           status: 'loading',
-          message: 'Fetching your profile information...',
+          message: 'Authentication successful! Redirecting to dashboard...',
         });
 
-        // Get user information
-        console.log('👤 [OAuth2Callback] Fetching user profile information');
-        let userInfo;
-        try {
-          userInfo = await oauth2Service.getUserInfo();
-          console.log('✅ [OAuth2Callback] User profile retrieved successfully');
-        } catch (userInfoError) {
-          console.error('⚠️ [OAuth2Callback] User info fetch failed:', userInfoError);
-          
-          setState({
-            status: 'warning',
-            message: 'Login successful, but profile fetch incomplete',
-            errorDetails: 'You are logged in, but we could not retrieve your full profile. Some features may not work correctly.',
-            debugInfo: { userInfoError: userInfoError instanceof Error ? userInfoError.message : 'Unknown error' }
-          });
-          
-          setTimeout(() => navigate('/dashboard'), 3000);
-          return;
-        }
-        
-        if (!userInfo) {
-          console.error('⚠️ [OAuth2Callback] No user profile data returned');
-          setState({
-            status: 'warning',
-            message: 'Login successful, but profile data unavailable',
-            errorDetails: 'Authentication completed but profile information is missing. Some features may not work correctly.',
-            debugInfo: { userInfo: 'null or undefined', timestamp: new Date().toISOString() }
-          });
-          
-          setTimeout(() => navigate('/dashboard'), 3000);
-          return;
-        }
-        
-        console.log('🎉 [OAuth2Callback] Complete login flow successful:', { 
-          userId: userInfo.id, 
-          email: userInfo.email, 
-          role: userInfo.role,
-          timestamp: new Date().toISOString()
-        });
+        console.log('🎉 [OAuth2Callback] Login successful, waiting for auth state update');
 
-        setState({
-          status: 'success',
-          message: 'Login successful! Redirecting to your dashboard...',
-          userInfo,
-        });
-
-        // Redirect based on user role
+        // Wait a moment for auth state to update, then redirect
         setTimeout(() => {
-          console.log('🔄 [OAuth2Callback] Redirecting to dashboard for role:', userInfo.role);
-          navigate('/dashboard');
-        }, 2000);
+          console.log('🔄 [OAuth2Callback] Redirecting to dashboard');
+          navigate('/dashboard', { replace: true });
+        }, 1500);
 
       } catch (error) {
-        console.error('💥 [OAuth2Callback] Unexpected callback processing error:', error);
+        console.error('💥 [OAuth2Callback] Unexpected error:', error);
         
         setState({
           status: 'error',
           message: 'Unexpected error during login processing',
-          errorDetails: 'An unexpected error occurred. Please try logging in again or contact support if the problem persists.',
-          debugInfo: { 
-            unexpectedError: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack?.substring(0, 300) : undefined,
-            url: window.location.href,
-            timestamp: new Date().toISOString()
-          }
+          errorDetails: 'An unexpected error occurred. Please try logging in again.',
         });
       }
     };
 
     handleCallback();
   }, [navigate]);
+
+  // If user is already authenticated and loaded, redirect immediately
+  useEffect(() => {
+    if (!isLoading && user) {
+      console.log('🚀 [OAuth2Callback] User already authenticated, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, isLoading, navigate]);
 
   const handleRetry = () => {
     console.log('[OAuth2Callback] User initiated retry, redirecting to login');
@@ -280,26 +216,6 @@ const OAuth2Callback = () => {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
               <h4 className="font-medium text-red-900 mb-2">What can you do?</h4>
               <p className="text-sm text-red-700">{state.errorDetails}</p>
-            </div>
-          )}
-          
-          {state.debugInfo && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left">
-              <h4 className="font-medium text-gray-900 mb-2">Debug Information:</h4>
-              <pre className="text-xs text-gray-600 overflow-auto max-h-40 whitespace-pre-wrap">
-                {JSON.stringify(state.debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-          
-          {state.userInfo && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
-              <h4 className="font-medium text-green-900 mb-2">Welcome back!</h4>
-              <div className="space-y-1 text-sm text-green-700">
-                <p><span className="font-medium">Name:</span> {state.userInfo.firstName} {state.userInfo.lastName}</p>
-                <p><span className="font-medium">Email:</span> {state.userInfo.email}</p>
-                <p><span className="font-medium">Role:</span> {state.userInfo.role.replace('_', ' ').toUpperCase()}</p>
-              </div>
             </div>
           )}
 
