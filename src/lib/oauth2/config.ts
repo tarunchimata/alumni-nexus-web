@@ -94,7 +94,7 @@ export class OAuth2ConfigService {
     return this.config.clientId;
   }
 
-  getClientSecret(): string {
+  public getClientSecretValue(): string {
     return this.config.clientSecret;
   }
 

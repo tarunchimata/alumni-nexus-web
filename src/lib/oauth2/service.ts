@@ -1,4 +1,3 @@
-
 import type { TokenResponse, UserInfo, KeycloakErrorResponse } from './types';
 import { OAuth2ConfigService } from './config';
 import { PKCEService } from './pkce';
@@ -112,7 +111,7 @@ export class OAuth2Service {
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.config.getClientId(),
-      client_secret: this.config.getClientSecret(),
+      client_secret: this.config.getClientSecretValue(),
       code,
       redirect_uri: this.config.getRedirectUriValue(),
       code_verifier: codeVerifier,
@@ -265,7 +264,7 @@ export class OAuth2Service {
       const refreshParams = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: this.config.getClientId(),
-        client_secret: this.config.getClientSecret(),
+        client_secret: this.config.getClientSecretValue(),
         refresh_token: refreshTokenValue,
       });
 
