@@ -27,6 +27,7 @@ class OAuth2Service {
   private readonly keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
   private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
   private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
+  private readonly clientSecret = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET;
   
   // Fixed redirect URI for Lovable preview environment
   private get redirectUri(): string {
@@ -47,6 +48,7 @@ class OAuth2Service {
       keycloakUrl: this.keycloakUrl,
       realm: this.realm,
       clientId: this.clientId,
+      hasClientSecret: !!this.clientSecret,
       redirectUri: this.redirectUri,
       environment: import.meta.env.MODE
     });
@@ -57,7 +59,8 @@ class OAuth2Service {
     const requiredVars = {
       VITE_KEYCLOAK_URL: this.keycloakUrl,
       VITE_KEYCLOAK_REALM: this.realm,
-      VITE_KEYCLOAK_CLIENT_ID: this.clientId
+      VITE_KEYCLOAK_CLIENT_ID: this.clientId,
+      VITE_KEYCLOAK_CLIENT_SECRET: this.clientSecret
     };
 
     const missing = Object.entries(requiredVars)
@@ -70,7 +73,10 @@ class OAuth2Service {
       throw new Error(error);
     }
 
-    this.log('Configuration validation successful', requiredVars);
+    this.log('Configuration validation successful', {
+      ...requiredVars,
+      VITE_KEYCLOAK_CLIENT_SECRET: this.clientSecret ? '[PRESENT]' : '[MISSING]'
+    });
   }
 
   // Generate PKCE code verifier (128 character base64url string)
@@ -234,10 +240,11 @@ class OAuth2Service {
     this.log('✅ All validations passed, proceeding with token exchange');
     this.clearOAuth2State();
 
-    // Prepare token exchange request
+    // Prepare token exchange request with client secret
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.clientId,
+      client_secret: this.clientSecret,
       code,
       redirect_uri: this.redirectUri,
       code_verifier: codeVerifier,
@@ -252,6 +259,7 @@ class OAuth2Service {
       payload: {
         grant_type: 'authorization_code',
         client_id: this.clientId,
+        client_secret: '[PRESENT]',
         code: code.substring(0, 10) + '...',
         redirect_uri: this.redirectUri,
         code_verifier: codeVerifier.substring(0, 10) + '...',
@@ -398,8 +406,8 @@ class OAuth2Service {
   // Refresh access token using refresh token
   async refreshToken(): Promise<string | null> {
     try {
-      const refreshToken = localStorage.getItem('oauth2_refresh_token');
-      if (!refreshToken) {
+      const refreshTokenValue = localStorage.getItem('oauth2_refresh_token');
+      if (!refreshTokenValue) {
         return null;
       }
 
@@ -409,7 +417,8 @@ class OAuth2Service {
       const refreshParams = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: this.clientId,
-        refresh_token: refreshToken,
+        client_secret: this.clientSecret,
+        refresh_token: refreshTokenValue,
       });
 
       const response = await fetch(refreshUrl, {
