@@ -18,39 +18,73 @@ interface UserInfo {
   avatar?: string;
 }
 
+interface KeycloakErrorResponse {
+  error: string;
+  error_description?: string;
+}
+
 class OAuth2Service {
   private readonly keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
   private readonly realm = import.meta.env.VITE_KEYCLOAK_REALM;
   private readonly clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
   
-  // Dynamic redirect URI based on current origin
+  // Fixed redirect URI for Lovable preview environment
   private get redirectUri(): string {
-    return import.meta.env.VITE_OAUTH2_REDIRECT_URI || `${window.location.origin}/oauth2/callback`;
+    const envRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
+    const defaultRedirectUri = 'https://preview--alumni-nexus-web.lovable.app/oauth2/callback';
+    
+    return envRedirectUri || defaultRedirectUri;
   }
 
-  // Enhanced logging for OAuth2 flow
+  // Enhanced logging for OAuth2 flow with detailed debugging
   private log(message: string, data?: any) {
     console.log(`[OAuth2] ${message}`, data || '');
   }
 
   constructor() {
-    this.log('OAuth2Service initialized', {
+    this.validateConfiguration();
+    this.log('OAuth2Service initialized with configuration:', {
       keycloakUrl: this.keycloakUrl,
       realm: this.realm,
       clientId: this.clientId,
-      redirectUri: this.redirectUri
+      redirectUri: this.redirectUri,
+      environment: import.meta.env.MODE
     });
+  }
+
+  // Validate all required environment variables
+  private validateConfiguration(): void {
+    const requiredVars = {
+      VITE_KEYCLOAK_URL: this.keycloakUrl,
+      VITE_KEYCLOAK_REALM: this.realm,
+      VITE_KEYCLOAK_CLIENT_ID: this.clientId
+    };
+
+    const missing = Object.entries(requiredVars)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+
+    if (missing.length > 0) {
+      const error = `Missing required environment variables: ${missing.join(', ')}`;
+      this.log('ERROR: Configuration validation failed', { missing, current: requiredVars });
+      throw new Error(error);
+    }
+
+    this.log('Configuration validation successful', requiredVars);
   }
 
   // Generate PKCE code verifier (128 character base64url string)
   private generateCodeVerifier(): string {
     const array = new Uint8Array(96);
     crypto.getRandomValues(array);
-    return btoa(String.fromCharCode(...array))
+    const verifier = btoa(String.fromCharCode(...array))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '')
       .substring(0, 128);
+    
+    this.log('Generated code verifier', { length: verifier.length, preview: verifier.substring(0, 10) + '...' });
+    return verifier;
   }
 
   // Generate SHA256 code challenge from verifier
@@ -58,20 +92,29 @@ class OAuth2Service {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
     const digest = await crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
+    
+    this.log('Generated code challenge', { 
+      verifierPreview: verifier.substring(0, 10) + '...',
+      challengePreview: challenge.substring(0, 10) + '...'
+    });
+    return challenge;
   }
 
   // Generate secure random state for CSRF protection
   private generateState(): string {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
-    return btoa(String.fromCharCode(...array))
+    const state = btoa(String.fromCharCode(...array))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
+    
+    this.log('Generated state parameter', { length: state.length, preview: state.substring(0, 10) + '...' });
+    return state;
   }
 
   // Clear OAuth2 state and parameters
@@ -88,7 +131,6 @@ class OAuth2Service {
 
   // Build Keycloak authorization URL
   async buildAuthUrl(): Promise<string> {
-    // Clear any existing state first
     this.clearOAuth2State();
 
     const codeVerifier = this.generateCodeVerifier();
@@ -96,25 +138,19 @@ class OAuth2Service {
     const state = this.generateState();
     const timestamp = Date.now().toString();
 
-    this.log('Generating OAuth2 parameters', {
-      stateLength: state.length,
-      codeVerifierLength: codeVerifier.length,
-      timestamp
-    });
-
     // Store PKCE parameters for later use
     try {
       localStorage.setItem('oauth2_code_verifier', codeVerifier);
       localStorage.setItem('oauth2_state', state);
       localStorage.setItem('oauth2_login_timestamp', timestamp);
       
-      this.log('Stored OAuth2 parameters in localStorage', {
-        storedState: state.substring(0, 10) + '...',
-        storedVerifier: codeVerifier.substring(0, 10) + '...',
-        timestamp
+      this.log('Stored OAuth2 parameters in localStorage successfully', {
+        codeVerifierStored: !!localStorage.getItem('oauth2_code_verifier'),
+        stateStored: !!localStorage.getItem('oauth2_state'),
+        timestampStored: !!localStorage.getItem('oauth2_login_timestamp')
       });
     } catch (error) {
-      this.log('Error storing OAuth2 parameters', error);
+      this.log('ERROR: Failed to store OAuth2 parameters', error);
       throw new Error('Could not store OAuth2 parameters. Please check browser storage permissions.');
     }
 
@@ -129,7 +165,10 @@ class OAuth2Service {
     });
 
     const authUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?${params}`;
-    this.log('Built authorization URL', { url: authUrl.substring(0, 100) + '...' });
+    this.log('Built authorization URL', { 
+      url: authUrl.substring(0, 100) + '...',
+      params: Object.fromEntries(params.entries())
+    });
     
     return authUrl;
   }
@@ -139,82 +178,87 @@ class OAuth2Service {
     this.log('Initiating OAuth2 login flow');
     try {
       const authUrl = await this.buildAuthUrl();
-      this.log('Redirecting to Keycloak', { url: authUrl.substring(0, 100) + '...' });
+      this.log('Redirecting to Keycloak authorization endpoint');
       window.location.href = authUrl;
     } catch (error) {
-      this.log('Error during login initiation', error);
+      this.log('ERROR: Login initiation failed', error);
       throw error;
     }
   }
 
-  // Exchange authorization code for tokens directly with Keycloak
+  // Exchange authorization code for tokens with comprehensive debugging
   async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
-    this.log('Starting direct token exchange with Keycloak', {
+    this.log('🚀 STARTING TOKEN EXCHANGE DEBUG SESSION', {
       codeLength: code?.length || 0,
+      codePreview: code?.substring(0, 10) + '...' || 'undefined',
       receivedState: receivedState?.substring(0, 10) + '...' || 'undefined'
     });
 
-    let storedState, storedTimestamp, codeVerifier;
-    
-    try {
-      // Get stored state and validate
-      storedState = localStorage.getItem('oauth2_state');
-      storedTimestamp = localStorage.getItem('oauth2_login_timestamp');
-      codeVerifier = localStorage.getItem('oauth2_code_verifier');
-    } catch (error) {
-      this.log('Error accessing localStorage', error);
-      throw new Error('Could not access browser storage. Please check permissions and try again.');
-    }
-    
-    this.log('State validation check', {
+    // Validate and retrieve stored parameters
+    const storedState = localStorage.getItem('oauth2_state');
+    const storedTimestamp = localStorage.getItem('oauth2_login_timestamp');
+    const codeVerifier = localStorage.getItem('oauth2_code_verifier');
+
+    this.log('📋 STORED PARAMETERS VALIDATION', {
       hasStoredState: !!storedState,
       hasReceivedState: !!receivedState,
-      storedState: storedState?.substring(0, 10) + '...' || 'undefined',
-      receivedState: receivedState?.substring(0, 10) + '...' || 'undefined',
       statesMatch: storedState === receivedState,
-      timestamp: storedTimestamp
+      hasCodeVerifier: !!codeVerifier,
+      hasTimestamp: !!storedTimestamp,
+      storedStatePreview: storedState?.substring(0, 10) + '...' || 'null',
+      codeVerifierPreview: codeVerifier?.substring(0, 10) + '...' || 'null'
     });
 
-    // Validate state parameter
+    // State validation
     if (!storedState || !receivedState || storedState !== receivedState) {
-      this.log('ERROR: State parameter validation failed');
+      this.log('❌ STATE VALIDATION FAILED');
       this.clearOAuth2State();
       throw new Error('Authentication state mismatch detected. Please try logging in again.');
     }
 
-    // Check if login is too old (30 minutes max)
+    // Timestamp validation (30 minutes max)
     if (storedTimestamp) {
       const loginAge = Date.now() - parseInt(storedTimestamp);
       if (loginAge > 30 * 60 * 1000) {
-        this.log('ERROR: Login session too old', { ageInMinutes: loginAge / 60000 });
+        this.log('❌ LOGIN SESSION EXPIRED', { ageInMinutes: loginAge / 60000 });
         this.clearOAuth2State();
         throw new Error('Login session expired. Please try logging in again.');
       }
     }
 
     if (!codeVerifier) {
-      this.log('ERROR: Code verifier not found');
+      this.log('❌ CODE VERIFIER MISSING');
       throw new Error('Authentication parameters missing. Please try logging in again.');
     }
 
-    this.log('State validation successful, proceeding with direct Keycloak token exchange');
-
-    // Clean up state parameters after successful validation
+    this.log('✅ All validations passed, proceeding with token exchange');
     this.clearOAuth2State();
 
-    try {
-      // Exchange code directly with Keycloak
-      const tokenParams = new URLSearchParams({
+    // Prepare token exchange request
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: this.clientId,
+      code,
+      redirect_uri: this.redirectUri,
+      code_verifier: codeVerifier,
+    });
+
+    const keycloakTokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
+
+    this.log('🔄 TOKEN EXCHANGE REQUEST DETAILS', {
+      url: keycloakTokenUrl,
+      method: 'POST',
+      contentType: 'application/x-www-form-urlencoded',
+      payload: {
         grant_type: 'authorization_code',
         client_id: this.clientId,
-        code,
+        code: code.substring(0, 10) + '...',
         redirect_uri: this.redirectUri,
-        code_verifier: codeVerifier,
-      });
+        code_verifier: codeVerifier.substring(0, 10) + '...',
+      }
+    });
 
-      const keycloakTokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
-      this.log('Making direct token exchange request to Keycloak', { tokenUrl: keycloakTokenUrl });
-
+    try {
       const response = await fetch(keycloakTokenUrl, {
         method: 'POST',
         headers: {
@@ -224,34 +268,89 @@ class OAuth2Service {
         body: tokenParams.toString(),
       });
 
-      this.log('Keycloak token exchange response received', {
+      this.log('📥 KEYCLOAK TOKEN RESPONSE', {
         status: response.status,
         statusText: response.statusText,
-        contentType: response.headers.get('content-type'),
-        ok: response.ok
+        ok: response.ok,
+        headers: {
+          'content-type': response.headers.get('content-type'),
+          'cache-control': response.headers.get('cache-control'),
+          'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+        }
+      });
+
+      const responseText = await response.text();
+      this.log('📄 RAW RESPONSE BODY', { 
+        body: responseText,
+        length: responseText.length 
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        this.log('Keycloak token exchange failed', { status: response.status, error: errorText });
-        throw new Error(`Keycloak authentication failed: ${response.status} ${response.statusText}`);
+        let errorDetails: KeycloakErrorResponse;
+        try {
+          errorDetails = JSON.parse(responseText);
+          this.log('❌ KEYCLOAK ERROR RESPONSE PARSED', errorDetails);
+        } catch (parseError) {
+          this.log('❌ FAILED TO PARSE ERROR RESPONSE', { parseError, responseText });
+          errorDetails = { error: 'parse_error', error_description: responseText };
+        }
+
+        const errorMessage = this.getErrorMessage(response.status, errorDetails);
+        this.log('❌ TOKEN EXCHANGE FAILED', { 
+          status: response.status,
+          error: errorDetails.error,
+          description: errorDetails.error_description,
+          finalErrorMessage: errorMessage
+        });
+        
+        throw new Error(errorMessage);
       }
 
-      const tokens = await response.json();
-      this.log('Token exchange successful', {
-        hasAccessToken: !!tokens.access_token,
-        hasRefreshToken: !!tokens.refresh_token,
-        tokenType: tokens.token_type
-      });
+      let tokens: TokenResponse;
+      try {
+        tokens = JSON.parse(responseText);
+        this.log('✅ TOKEN EXCHANGE SUCCESSFUL', {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          tokenType: tokens.token_type,
+          expiresIn: tokens.expires_in
+        });
+      } catch (parseError) {
+        this.log('❌ FAILED TO PARSE SUCCESS RESPONSE', { parseError, responseText });
+        throw new Error('Invalid response format from Keycloak server');
+      }
       
       this.storeTokens(tokens);
       return tokens;
+
     } catch (fetchError) {
-      this.log('Network error during direct Keycloak token exchange', fetchError);
-      if (fetchError instanceof TypeError) {
+      this.log('❌ NETWORK ERROR DURING TOKEN EXCHANGE', {
+        error: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+        stack: fetchError instanceof Error ? fetchError.stack : undefined
+      });
+      
+      if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
         throw new Error('Network error: Could not connect to Keycloak server. Please check your connection.');
       }
       throw fetchError;
+    }
+  }
+
+  // Get specific error message based on Keycloak error response
+  private getErrorMessage(status: number, error: KeycloakErrorResponse): string {
+    const baseMessage = `Keycloak authentication failed: ${status}`;
+    
+    switch (error.error) {
+      case 'invalid_client':
+        return `${baseMessage} - Invalid client configuration. Please check client_id: ${this.clientId}`;
+      case 'invalid_grant':
+        return `${baseMessage} - Invalid authorization code or expired session. Please try logging in again.`;
+      case 'invalid_request':
+        return `${baseMessage} - Invalid request parameters. Please check redirect_uri: ${this.redirectUri}`;
+      case 'unsupported_grant_type':
+        return `${baseMessage} - Authorization code grant type not supported for this client.`;
+      default:
+        return `${baseMessage} - ${error.error_description || error.error || 'Unknown error'}`;
     }
   }
 
@@ -262,8 +361,14 @@ class OAuth2Service {
       localStorage.setItem('oauth2_access_token', tokens.access_token);
       localStorage.setItem('oauth2_refresh_token', tokens.refresh_token);
       localStorage.setItem('oauth2_expires_at', expiresAt.toString());
+      
+      this.log('✅ Tokens stored successfully', {
+        accessTokenLength: tokens.access_token.length,
+        refreshTokenLength: tokens.refresh_token.length,
+        expiresAt: new Date(expiresAt).toISOString()
+      });
     } catch (error) {
-      this.log('Error storing tokens', error);
+      this.log('❌ Error storing tokens', error);
       throw new Error('Could not store authentication tokens. Please check browser storage permissions.');
     }
   }

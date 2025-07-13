@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { oauth2Service } from '@/lib/oauth2';
@@ -22,30 +21,33 @@ const OAuth2Callback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
+      console.log('🚀 [OAuth2Callback] Starting comprehensive callback processing');
+      
       try {
-        console.log('[OAuth2Callback] Starting callback processing');
-        
-        // Parse URL parameters
+        // Parse URL parameters with detailed logging
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const stateParam = urlParams.get('state');
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
-        console.log('[OAuth2Callback] URL parameters:', {
+        console.log('📋 [OAuth2Callback] URL parameters analysis:', {
+          fullUrl: window.location.href,
           hasCode: !!code,
-          hasState: !!stateParam,
-          hasError: !!error,
           codeLength: code?.length || 0,
-          statePreview: stateParam?.substring(0, 10) + '...' || 'undefined',
+          codePreview: code?.substring(0, 15) + '...' || 'undefined',
+          hasState: !!stateParam,
+          stateLength: stateParam?.length || 0,
+          statePreview: stateParam?.substring(0, 15) + '...' || 'undefined',
+          hasError: !!error,
           error,
           errorDescription,
-          fullUrl: window.location.href
+          allParams: Object.fromEntries(urlParams.entries())
         });
 
         // Handle OAuth2 errors from Keycloak
         if (error) {
-          console.error('[OAuth2Callback] OAuth2 error from Keycloak:', { error, errorDescription });
+          console.error('❌ [OAuth2Callback] OAuth2 error from Keycloak:', { error, errorDescription });
           setState({
             status: 'error',
             message: `Authentication failed: ${errorDescription || error}`,
@@ -57,18 +59,22 @@ const OAuth2Callback = () => {
 
         // Validate required parameters
         if (!code) {
-          console.error('[OAuth2Callback] Missing authorization code');
+          console.error('❌ [OAuth2Callback] Missing authorization code');
           setState({
             status: 'error',
             message: 'Missing authorization code from authentication server',
             errorDetails: 'The login process was incomplete. Please try logging in again.',
-            debugInfo: { hasCode: !!code, url: window.location.href }
+            debugInfo: { 
+              hasCode: !!code, 
+              url: window.location.href,
+              allParams: Object.fromEntries(urlParams.entries())
+            }
           });
           return;
         }
 
         if (!stateParam) {
-          console.error('[OAuth2Callback] Missing state parameter');
+          console.error('❌ [OAuth2Callback] Missing state parameter');
           setState({
             status: 'error',
             message: 'Missing state parameter from authentication server',
@@ -80,18 +86,18 @@ const OAuth2Callback = () => {
 
         setState({
           status: 'loading',
-          message: 'Validating login security parameters...',
+          message: 'Validating security parameters and exchanging tokens...',
         });
 
-        console.log('[OAuth2Callback] Exchanging authorization code for tokens');
+        console.log('🔄 [OAuth2Callback] Starting token exchange with comprehensive logging');
 
         // Exchange code for tokens with enhanced error handling
         let tokenExchangeResult;
         try {
           tokenExchangeResult = await oauth2Service.exchangeCodeForTokens(code, stateParam);
-          console.log('[OAuth2Callback] Token exchange successful');
+          console.log('✅ [OAuth2Callback] Token exchange completed successfully');
         } catch (tokenError) {
-          console.error('[OAuth2Callback] Token exchange failed:', tokenError);
+          console.error('❌ [OAuth2Callback] Token exchange failed with detailed error:', tokenError);
           
           let errorMessage = 'Token exchange failed';
           let errorDetails = 'Please try logging in again.';
@@ -99,12 +105,17 @@ const OAuth2Callback = () => {
           if (tokenError instanceof Error) {
             errorMessage = tokenError.message;
             
+            // Provide specific guidance based on error type
             if (tokenError.message.includes('state')) {
-              errorDetails = 'Security validation failed. This might be due to browser storage issues or multiple login attempts. Please clear your browser cache and try again.';
+              errorDetails = 'Security validation failed. Clear your browser cache and try logging in again.';
+            } else if (tokenError.message.includes('401')) {
+              errorDetails = 'Authentication failed. This may be due to client configuration issues. Check the console for detailed debugging information.';
+            } else if (tokenError.message.includes('invalid_client')) {
+              errorDetails = 'Client configuration error. Please verify the client_id and client settings in Keycloak.';
+            } else if (tokenError.message.includes('invalid_grant')) {
+              errorDetails = 'Authorization code expired or invalid. Please try logging in again.';
             } else if (tokenError.message.includes('Network error')) {
-              errorDetails = 'Cannot connect to the authentication server. Please check your internet connection and try again.';
-            } else if (tokenError.message.includes('Invalid response')) {
-              errorDetails = 'The authentication server returned an invalid response. Please try again or contact support.';
+              errorDetails = 'Cannot connect to the authentication server. Please check your internet connection.';
             }
           }
           
@@ -114,8 +125,9 @@ const OAuth2Callback = () => {
             errorDetails,
             debugInfo: { 
               tokenError: tokenError instanceof Error ? tokenError.message : 'Unknown error',
-              code: code?.substring(0, 10) + '...',
-              state: stateParam?.substring(0, 10) + '...'
+              code: code?.substring(0, 15) + '...',
+              state: stateParam?.substring(0, 15) + '...',
+              timestamp: new Date().toISOString()
             }
           });
           return;
@@ -126,48 +138,44 @@ const OAuth2Callback = () => {
           message: 'Fetching your profile information...',
         });
 
-        // Get user information with enhanced error handling
-        console.log('[OAuth2Callback] Fetching user profile...');
+        // Get user information
+        console.log('👤 [OAuth2Callback] Fetching user profile information');
         let userInfo;
         try {
           userInfo = await oauth2Service.getUserInfo();
+          console.log('✅ [OAuth2Callback] User profile retrieved successfully');
         } catch (userInfoError) {
-          console.error('[OAuth2Callback] User info fetch failed:', userInfoError);
+          console.error('⚠️ [OAuth2Callback] User info fetch failed:', userInfoError);
           
           setState({
             status: 'warning',
-            message: 'Login successful, but failed to fetch profile information',
-            errorDetails: 'You are logged in, but we could not retrieve your profile. Some features may not work correctly.',
+            message: 'Login successful, but profile fetch incomplete',
+            errorDetails: 'You are logged in, but we could not retrieve your full profile. Some features may not work correctly.',
             debugInfo: { userInfoError: userInfoError instanceof Error ? userInfoError.message : 'Unknown error' }
           });
           
-          // Still redirect to dashboard after a delay
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
+          setTimeout(() => navigate('/dashboard'), 3000);
           return;
         }
         
         if (!userInfo) {
-          console.error('[OAuth2Callback] Failed to fetch user profile - no data returned');
+          console.error('⚠️ [OAuth2Callback] No user profile data returned');
           setState({
             status: 'warning',
-            message: 'Login successful, but failed to fetch profile information',
-            errorDetails: 'You are logged in, but we could not retrieve your profile. Some features may not work correctly.',
-            debugInfo: { userInfo: 'null or undefined' }
+            message: 'Login successful, but profile data unavailable',
+            errorDetails: 'Authentication completed but profile information is missing. Some features may not work correctly.',
+            debugInfo: { userInfo: 'null or undefined', timestamp: new Date().toISOString() }
           });
           
-          // Still redirect to dashboard after a delay
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
+          setTimeout(() => navigate('/dashboard'), 3000);
           return;
         }
         
-        console.log('[OAuth2Callback] User profile retrieved successfully', { 
+        console.log('🎉 [OAuth2Callback] Complete login flow successful:', { 
           userId: userInfo.id, 
           email: userInfo.email, 
-          role: userInfo.role 
+          role: userInfo.role,
+          timestamp: new Date().toISOString()
         });
 
         setState({
@@ -178,46 +186,22 @@ const OAuth2Callback = () => {
 
         // Redirect based on user role
         setTimeout(() => {
-          switch (userInfo.role) {
-            case 'platform_admin':
-            case 'school_admin':
-            case 'teacher':
-            case 'student':
-            case 'alumni':
-              navigate('/dashboard');
-              break;
-            default:
-              navigate('/');
-          }
+          console.log('🔄 [OAuth2Callback] Redirecting to dashboard for role:', userInfo.role);
+          navigate('/dashboard');
         }, 2000);
 
       } catch (error) {
-        console.error('[OAuth2Callback] Unexpected callback processing error:', error);
-        
-        let errorMessage = 'An unexpected error occurred during login';
-        let errorDetails = 'Please try logging in again.';
-        
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          
-          // Provide specific guidance for common errors
-          if (error.message.includes('storage')) {
-            errorDetails = 'Browser storage issue detected. Please enable cookies and local storage, then try again.';
-          } else if (error.message.includes('network') || error.message.includes('fetch')) {
-            errorDetails = 'Network connectivity issue. Please check your internet connection and try again.';
-          } else if (error.message.includes('JSON')) {
-            errorDetails = 'Server response format error. Please try again or contact support if the problem persists.';
-          }
-        }
+        console.error('💥 [OAuth2Callback] Unexpected callback processing error:', error);
         
         setState({
           status: 'error',
-          message: errorMessage,
-          errorDetails: errorDetails,
+          message: 'Unexpected error during login processing',
+          errorDetails: 'An unexpected error occurred. Please try logging in again or contact support if the problem persists.',
           debugInfo: { 
             unexpectedError: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack?.substring(0, 200) : undefined,
-            url: window.location.href
+            stack: error instanceof Error ? error.stack?.substring(0, 300) : undefined,
+            url: window.location.href,
+            timestamp: new Date().toISOString()
           }
         });
       }
@@ -299,10 +283,10 @@ const OAuth2Callback = () => {
             </div>
           )}
           
-          {state.debugInfo && process.env.NODE_ENV === 'development' && (
+          {state.debugInfo && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left">
               <h4 className="font-medium text-gray-900 mb-2">Debug Information:</h4>
-              <pre className="text-xs text-gray-600 overflow-auto max-h-32">
+              <pre className="text-xs text-gray-600 overflow-auto max-h-40 whitespace-pre-wrap">
                 {JSON.stringify(state.debugInfo, null, 2)}
               </pre>
             </div>
