@@ -125,6 +125,7 @@ export const endpoints = {
     update: '/api/users/:id',
     delete: '/api/users/:id',
     bulk: '/api/users/bulk',
+    search: '/api/users/search',
   },
   classes: {
     list: '/api/classes',
@@ -134,10 +135,37 @@ export const endpoints = {
     members: '/api/classes/:id/members',
   },
   messages: {
-    list: '/api/messages',
-    send: '/api/messages',
-    conversation: '/api/messages/conversation/:id',
+    conversations: '/api/messages/conversations',
+    direct: '/api/messages/direct',
     groups: '/api/messages/groups',
+    upload: '/api/messages/upload',
+  },
+  groups: {
+    list: '/api/groups',
+    create: '/api/groups',
+    join: '/api/groups/:id/join',
+    leave: '/api/groups/:id/leave',
+    messages: '/api/groups/:id/messages',
+  },
+  notifications: {
+    list: '/api/notifications',
+    markRead: '/api/notifications/:id/read',
+    markAllRead: '/api/notifications/read-all',
+  },
+  posts: {
+    list: '/api/posts',
+    create: '/api/posts',
+    update: '/api/posts/:id',
+    delete: '/api/posts/:id',
+    reactions: '/api/posts/:id/reactions',
+    comments: '/api/posts/:id/comments',
+  },
+  connections: {
+    list: '/api/connections',
+    send: '/api/connections/send',
+    accept: '/api/connections/:id/accept',
+    reject: '/api/connections/:id/reject',
+    suggestions: '/api/connections/suggestions',
   },
   admin: {
     stats: '/api/admin/stats',
