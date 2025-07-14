@@ -1,4 +1,3 @@
-
 import type { TokenResponse, UserInfo, KeycloakErrorResponse } from './types';
 import { OAuth2ConfigService } from './config';
 import { PKCEService } from './pkce';
@@ -203,55 +202,64 @@ export class OAuth2Service {
   }
 
   async getUserInfo(): Promise<UserInfo | null> {
-    const token = await this.getAccessToken();
-    if (!token) {
-      return null;
-    }
-
     try {
-      const userInfoUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/userinfo`;
-      
-      const response = await fetch(userInfoUrl, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        console.log('[OAuth2] No access token available');
         return null;
       }
 
-      const keycloakUser = await response.json();
-      
-      const decodedToken = this.decodeJWT(token);
-      const roles = decodedToken?.realm_access?.roles || [];
-      
-      let primaryRole = 'student';
-      if (roles.includes('platform_admin')) {
-        primaryRole = 'platform_admin';
-      } else if (roles.includes('school_admin')) {
-        primaryRole = 'school_admin';
-      } else if (roles.includes('teacher')) {
-        primaryRole = 'teacher';
-      } else if (roles.includes('alumni')) {
-        primaryRole = 'alumni';
+      // Decode the JWT token to get user info
+      const payload = this.decodeJWT(accessToken);
+      if (!payload) {
+        console.log('[OAuth2] Failed to decode JWT token');
+        return null;
       }
 
-      const userInfo = {
-        id: keycloakUser.sub,
-        email: keycloakUser.email,
-        firstName: keycloakUser.given_name || '',
-        lastName: keycloakUser.family_name || '',
-        role: primaryRole,
-        roles: roles,
-        schoolId: decodedToken?.school_id || keycloakUser.school_id,
-        avatar: keycloakUser.picture,
+      console.log('[OAuth2] JWT payload:', payload);
+
+      // Extract roles with proper precedence (highest role wins)
+      const realmRoles = payload.realm_access?.roles || [];
+      const resourceRoles = Object.values(payload.resource_access || {})
+        .flatMap((resource: any) => resource.roles || []);
+      
+      const allRoles = [...realmRoles, ...resourceRoles];
+      console.log('[OAuth2] All user roles:', allRoles);
+
+      // Define role hierarchy (higher number = higher precedence)
+      const roleHierarchy = {
+        'platform_admin': 100,
+        'school_admin': 80,
+        'teacher': 60,
+        'alumni': 40,
+        'student': 20
       };
 
-      return userInfo;
+      // Find the highest precedence role
+      let highestRole = 'student'; // default fallback
+      let highestPrecedence = 0;
+
+      for (const role of allRoles) {
+        const precedence = roleHierarchy[role as keyof typeof roleHierarchy];
+        if (precedence && precedence > highestPrecedence) {
+          highestPrecedence = precedence;
+          highestRole = role;
+        }
+      }
+
+      console.log('[OAuth2] Selected role based on hierarchy:', highestRole);
+
+      return {
+        id: payload.sub,
+        email: payload.email || '',
+        firstName: payload.given_name || '',
+        lastName: payload.family_name || '',
+        role: highestRole as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
+        schoolId: payload.school_id,
+        avatar: payload.picture,
+      };
     } catch (error) {
-      console.error('Failed to get user info:', error);
+      console.error('[OAuth2] Error getting user info:', error);
       return null;
     }
   }
