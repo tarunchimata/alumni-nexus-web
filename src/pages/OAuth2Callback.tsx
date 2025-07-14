@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { oauth2Service } from '@/lib/oauth2';
@@ -16,7 +15,7 @@ interface CallbackState {
 
 const OAuth2Callback = () => {
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshAuth } = useAuth();
   const [state, setState] = useState<CallbackState>({
     status: 'loading',
     message: 'Processing login...',
@@ -113,16 +112,26 @@ const OAuth2Callback = () => {
         
         setState({
           status: 'loading',
+          message: 'Refreshing authentication state...',
+        });
+
+        console.log('🔄 [OAuth2Callback] Tokens stored, refreshing auth state');
+
+        // Refresh authentication state immediately
+        await refreshAuth();
+
+        console.log('🎉 [OAuth2Callback] Authentication state refreshed');
+
+        setState({
+          status: 'loading',
           message: 'Authentication successful! Redirecting to dashboard...',
         });
 
-        console.log('🎉 [OAuth2Callback] Login successful, waiting for auth state update');
-
-        // Wait a moment for auth state to update, then redirect
+        // Wait for auth state to update in next render cycle
         setTimeout(() => {
-          console.log('🔄 [OAuth2Callback] Redirecting to dashboard');
+          console.log('🔄 [OAuth2Callback] Checking auth state before redirect');
           navigate('/dashboard', { replace: true });
-        }, 1500);
+        }, 100);
 
       } catch (error) {
         console.error('💥 [OAuth2Callback] Unexpected error:', error);
@@ -136,7 +145,7 @@ const OAuth2Callback = () => {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, refreshAuth]);
 
   // If user is already authenticated and loaded, redirect immediately
   useEffect(() => {

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { oauth2Service } from "@/lib/oauth2";
 
@@ -19,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   token: string | null;
-  refreshAuth: () => void;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,17 +33,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     initializeAuth();
-  }, []);
-
-  // Re-initialize auth when URL changes (for OAuth2 callback handling)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      console.log('[Auth] Storage changed, re-initializing auth...');
-      initializeAuth();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const initializeAuth = async () => {
@@ -108,10 +98,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthenticated(false);
   };
 
-  // Expose method to manually refresh auth state
-  const refreshAuth = () => {
+  // Return a Promise to allow awaiting the auth refresh
+  const refreshAuth = async (): Promise<void> => {
     console.log('[Auth] Manually refreshing auth state...');
-    initializeAuth();
+    await initializeAuth();
   };
 
   const value = {
