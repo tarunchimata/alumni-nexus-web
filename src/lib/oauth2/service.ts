@@ -254,7 +254,8 @@ export class OAuth2Service {
         email: payload.email || '',
         firstName: payload.given_name || '',
         lastName: payload.family_name || '',
-        role: highestRole as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
+        role: highestRole,
+        roles: allRoles,
         schoolId: payload.school_id,
         avatar: payload.picture,
       };
