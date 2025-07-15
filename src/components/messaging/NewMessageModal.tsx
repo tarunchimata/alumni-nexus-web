@@ -35,7 +35,10 @@ export const NewMessageModal = ({ open, onClose }: NewMessageModalProps) => {
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', searchTerm],
-    queryFn: () => apiClient.get(`/api/users?search=${searchTerm}&limit=20`),
+    queryFn: async (): Promise<User[]> => {
+      const response = await apiClient.get(`/api/users?search=${searchTerm}&limit=20`);
+      return response;
+    },
     enabled: searchTerm.length > 2,
   });
 

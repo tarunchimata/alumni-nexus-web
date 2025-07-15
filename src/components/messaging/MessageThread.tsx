@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Send, Paperclip, Smile } from 'lucide-react';
-import { messageService } from '@/services/messageService';
+import { messageService, DirectMessage, GroupMessage } from '@/services/messageService';
 import { useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -15,6 +15,8 @@ interface MessageThreadProps {
   id: number;
   onBack: () => void;
 }
+
+type Message = DirectMessage | GroupMessage;
 
 export const MessageThread = ({ type, id, onBack }: MessageThreadProps) => {
   const { user } = useAuth();
@@ -83,7 +85,7 @@ export const MessageThread = ({ type, id, onBack }: MessageThreadProps) => {
       <CardContent className="flex-1 flex flex-col p-0">
         <ScrollArea className="flex-1 px-4">
           <div className="space-y-4 py-4">
-            {messages.map((message: any) => (
+            {messages.map((message: Message) => (
               <div
                 key={message.id}
                 className={`flex ${
