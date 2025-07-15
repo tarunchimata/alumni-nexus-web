@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,6 +13,7 @@ import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth';
 import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
+import postRoutes from './routes/posts';
 
 // Log successful import of routes
 logger.info('Routes imported successfully', {
@@ -157,6 +157,7 @@ app.get('/api/test', (req, res) => {
 app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF protection
 app.use('/api/schools', schoolRoutes);
+app.use('/api/posts', postRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

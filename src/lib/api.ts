@@ -1,4 +1,3 @@
-
 // API utilities and configuration
 import { getToken, updateToken } from './keycloak';
 
@@ -140,6 +139,14 @@ export const endpoints = {
     groups: '/api/messages/groups',
     upload: '/api/messages/upload',
   },
+  posts: {
+    list: '/api/posts',
+    create: '/api/posts',
+    update: '/api/posts/:id',
+    delete: '/api/posts/:id',
+    reactions: '/api/posts/:id/reactions',
+    comments: '/api/posts/:id/comments',
+  },
   groups: {
     list: '/api/groups',
     create: '/api/groups',
@@ -151,14 +158,6 @@ export const endpoints = {
     list: '/api/notifications',
     markRead: '/api/notifications/:id/read',
     markAllRead: '/api/notifications/read-all',
-  },
-  posts: {
-    list: '/api/posts',
-    create: '/api/posts',
-    update: '/api/posts/:id',
-    delete: '/api/posts/:id',
-    reactions: '/api/posts/:id/reactions',
-    comments: '/api/posts/:id/comments',
   },
   connections: {
     list: '/api/connections',
