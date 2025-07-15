@@ -33,10 +33,10 @@ export const NewMessageModal = ({ open, onClose }: NewMessageModalProps) => {
   const [message, setMessage] = useState('');
   const { sendDirectMessage } = useMessages();
 
-  const { data: users, isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['users', searchTerm],
     queryFn: async (): Promise<User[]> => {
-      const response = await apiClient.get(`/api/users?search=${searchTerm}&limit=20`);
+      const response = await apiClient.get<User[]>(`/api/users?search=${searchTerm}&limit=20`);
       return response;
     },
     enabled: searchTerm.length > 2,
@@ -78,13 +78,13 @@ export const NewMessageModal = ({ open, onClose }: NewMessageModalProps) => {
                   <div className="flex items-center justify-center h-32">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                   </div>
-                ) : searchTerm.length > 2 && (!users || users.length === 0) ? (
+                ) : searchTerm.length > 2 && users.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     No users found
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {users && users.map((user: User) => (
+                    {users.map((user: User) => (
                       <div
                         key={user.id}
                         className="p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
