@@ -27,10 +27,13 @@ export const MessageThread = ({ type, id, onBack }: MessageThreadProps) => {
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: [type === 'direct' ? 'directMessages' : 'groupMessages', id],
-    queryFn: () => 
-      type === 'direct' 
-        ? messageService.getDirectMessages(id)
-        : messageService.getGroupMessages(id),
+    queryFn: async (): Promise<Message[]> => {
+      if (type === 'direct') {
+        return await messageService.getDirectMessages(id);
+      } else {
+        return await messageService.getGroupMessages(id);
+      }
+    },
     refetchInterval: 30000, // Refetch every 30 seconds as fallback
   });
 
@@ -89,24 +92,24 @@ export const MessageThread = ({ type, id, onBack }: MessageThreadProps) => {
               <div
                 key={message.id}
                 className={`flex ${
-                  message.senderId === user?.id ? 'justify-end' : 'justify-start'
+                  String(message.senderId) === String(user?.id) ? 'justify-end' : 'justify-start'
                 }`}
               >
                 <div
                   className={`max-w-[70%] p-3 rounded-lg ${
-                    message.senderId === user?.id
+                    String(message.senderId) === String(user?.id)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   }`}
                 >
-                  {type === 'group' && message.senderId !== user?.id && (
+                  {type === 'group' && String(message.senderId) !== String(user?.id) && (
                     <p className="text-xs font-medium mb-1">
                       {message.sender.firstName} {message.sender.lastName}
                     </p>
                   )}
                   <p className="text-sm">{message.messageText}</p>
                   <p className={`text-xs mt-1 ${
-                    message.senderId === user?.id
+                    String(message.senderId) === String(user?.id)
                       ? 'text-primary-foreground/70'
                       : 'text-muted-foreground'
                   }`}>

@@ -33,7 +33,7 @@ export const NewMessageModal = ({ open, onClose }: NewMessageModalProps) => {
   const [message, setMessage] = useState('');
   const { sendDirectMessage } = useMessages();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [] as User[], isLoading } = useQuery({
     queryKey: ['users', searchTerm],
     queryFn: async (): Promise<User[]> => {
       const response = await apiClient.get(`/api/users?search=${searchTerm}&limit=20`);
