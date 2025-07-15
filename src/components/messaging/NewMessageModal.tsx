@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -39,7 +40,7 @@ export const NewMessageModal = ({ open, onClose }: NewMessageModalProps) => {
       return response;
     },
     enabled: searchTerm.length > 2,
-    initialData: [],
+    initialData: [] as User[],
   });
 
   const handleSendMessage = () => {
