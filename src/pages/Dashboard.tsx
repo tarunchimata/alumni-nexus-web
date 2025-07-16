@@ -3,11 +3,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ActivityFeed } from "@/components/social/ActivityFeed";
-import { PlatformAdminDashboard } from "@/components/dashboards/PlatformAdminDashboard";
-import { SchoolAdminDashboard } from "@/components/dashboards/SchoolAdminDashboard";
-import { TeacherDashboard } from "@/components/dashboards/TeacherDashboard";
-import { StudentDashboard } from "@/components/dashboards/StudentDashboard";
-import { AlumniDashboard } from "@/components/dashboards/AlumniDashboard";
+import PlatformAdminDashboard from "@/components/dashboards/PlatformAdminDashboard";
+import SchoolAdminDashboard from "@/components/dashboards/SchoolAdminDashboard";
+import TeacherDashboard from "@/components/dashboards/TeacherDashboard";
+import StudentDashboard from "@/components/dashboards/StudentDashboard";
+import AlumniDashboard from "@/components/dashboards/AlumniDashboard";
 
 const Dashboard = () => {
   const { user } = useAuth();

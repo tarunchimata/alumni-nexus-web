@@ -68,7 +68,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
     mutationFn: async (reaction: string) => {
       return apiClient.post(`/api/posts/${post.id}/reactions`, { reaction });
     },
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       if (result.action === 'removed') {
         setUserReaction(undefined);
       } else {

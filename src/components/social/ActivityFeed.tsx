@@ -79,14 +79,12 @@ export const ActivityFeed = () => {
   };
 
   // Initialize posts when data is loaded
-  useState(() => {
-    if (data && page === 1) {
-      setPosts(data);
-      if (data.length < 10) {
-        setHasMore(false);
-      }
+  if (data && page === 1 && posts.length === 0) {
+    setPosts(data);
+    if (data.length < 10) {
+      setHasMore(false);
     }
-  }, [data, page]);
+  }
 
   const handlePostCreated = (newPost: Post) => {
     setPosts(prev => [newPost, ...prev]);
