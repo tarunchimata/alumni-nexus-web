@@ -13,9 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CreatePostProps {
   onPostCreated: (post: any) => void;
+  context?: 'global' | 'school' | 'class' | 'alumni';
+  placeholder?: string;
 }
 
-export const CreatePost = ({ onPostCreated }: CreatePostProps) => {
+export const CreatePost = ({ onPostCreated, context = 'global', placeholder = "What's on your mind?" }: CreatePostProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [content, setContent] = useState('');
@@ -75,7 +77,7 @@ export const CreatePost = ({ onPostCreated }: CreatePostProps) => {
           
           <div className="flex-1 space-y-3">
             <Textarea
-              placeholder="What's on your mind?"
+              placeholder={placeholder}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onFocus={() => setIsExpanded(true)}

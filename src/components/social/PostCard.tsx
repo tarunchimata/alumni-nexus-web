@@ -53,10 +53,11 @@ interface PostCardProps {
       comments: number;
     };
   };
-  onUpdate: () => void;
+  onUpdate?: () => void;
+  context?: 'global' | 'school' | 'class' | 'alumni';
 }
 
-export const PostCard = ({ post, onUpdate }: PostCardProps) => {
+export const PostCard = ({ post, onUpdate, context = 'global' }: PostCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showComments, setShowComments] = useState(false);
@@ -74,7 +75,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
       } else {
         setUserReaction(result.reaction);
       }
-      onUpdate();
+      onUpdate?.();
     },
     onError: (error: any) => {
       toast({
@@ -94,7 +95,7 @@ export const PostCard = ({ post, onUpdate }: PostCardProps) => {
         title: 'Post deleted',
         description: 'Your post has been deleted successfully.',
       });
-      onUpdate();
+      onUpdate?.();
     },
     onError: (error: any) => {
       toast({

@@ -7,6 +7,8 @@ import { PostCard } from './PostCard';
 import { CreatePost } from './CreatePost';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
+import { useRole } from '@/contexts/RoleContext';
 
 interface Post {
   id: number;
@@ -48,7 +50,14 @@ interface Post {
   };
 }
 
-export const ActivityFeed = () => {
+interface ActivityFeedProps {
+  context?: 'global' | 'school' | 'class' | 'alumni';
+  className?: string;
+}
+
+export const ActivityFeed = ({ context = 'global', className }: ActivityFeedProps) => {
+  const { user } = useAuth();
+  const { hasPermission } = useRole();
   const [posts, setPosts] = useState<Post[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -89,6 +98,34 @@ export const ActivityFeed = () => {
   const handlePostCreated = (newPost: Post) => {
     setPosts(prev => [newPost, ...prev]);
   };
+
+  // Check if user can create posts in this context
+  const canCreatePost = () => {
+    if (!user) return false;
+    
+    switch (context) {
+      case 'global':
+        return hasPermission('message:write');
+      case 'school':
+        return hasPermission('message:write') && user.schoolId;
+      case 'class':
+        return hasPermission('class:write') || hasPermission('message:write');
+      case 'alumni':
+        return user.role === 'alumni' && hasPermission('message:write');
+      default:
+        return hasPermission('message:write');
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground">Please log in to view the activity feed</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading && posts.length === 0) {
     return (
