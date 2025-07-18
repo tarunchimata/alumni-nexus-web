@@ -19,11 +19,49 @@ const Login = () => {
 
   const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Integration point for Keycloak authentication
-    console.log("Login attempt:", formData);
-    // This will integrate with Keycloak OAuth flow
+    
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      if (response.ok) {
+        // Get user profile to determine redirect
+        const profileResponse = await fetch('/api/auth/profile', {
+          credentials: 'include',
+        });
+        
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json();
+          
+          // Role-based redirect
+          if (profile.roles.includes('platform_admin')) {
+            window.location.href = '/dashboard/platform';
+          } else if (profile.roles.includes('school_admin')) {
+            window.location.href = '/dashboard/school';
+          } else {
+            window.location.href = '/dashboard';
+          }
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } else {
+        const error = await response.json();
+        console.error('Login failed:', error);
+        // Handle login error (show toast, etc.)
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      // Handle network error
+    }
   };
 
   const handleOAuth2Login = () => {
@@ -171,8 +209,8 @@ const Login = () => {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Don't have an account?{' '}
-                <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Sign up
+                <Link to="/register" className="text-primary hover:text-primary/80 font-medium">
+                  Create Account
                 </Link>
               </p>
             </div>

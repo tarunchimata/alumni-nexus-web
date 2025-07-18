@@ -1,0 +1,352 @@
+/* My School Buddies Keycloak Theme - Login Styles */
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, hsl(220, 60%, 98%) 0%, hsl(270, 20%, 98%) 50%, hsl(320, 60%, 98%) 100%);
+  min-height: 100vh;
+  color: hsl(222.2, 84%, 4.9%);
+  line-height: 1.6;
+}
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  padding: 2rem;
+  border: 1px solid hsl(214.3, 31.8%, 91.4%);
+}
+
+/* Brand header */
+.brand-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.brand-logo img {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.brand-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, hsl(221.2, 83.2%, 53.3%), hsl(262.1, 83.3%, 57.8%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.brand-subtitle {
+  color: hsl(215.4, 16.3%, 46.9%);
+  font-size: 0.875rem;
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(222.2, 84%, 4.9%);
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid hsl(214.3, 31.8%, 91.4%);
+  border-radius: 8px;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: hsl(221.2, 83.2%, 53.3%);
+  box-shadow: 0 0 0 3px hsl(221.2, 83.2%, 53.3%, 0.1);
+}
+
+.form-control[aria-invalid="true"] {
+  border-color: hsl(0, 84.2%, 60.2%);
+}
+
+/* Password field */
+.password-field {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(215.4, 16.3%, 46.9%);
+  font-size: 1rem;
+  padding: 0.25rem;
+}
+
+.password-toggle:hover {
+  color: hsl(222.2, 84%, 4.9%);
+}
+
+/* Form options */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  accent-color: hsl(221.2, 83.2%, 53.3%);
+}
+
+.forgot-password a {
+  color: hsl(221.2, 83.2%, 53.3%);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+/* Submit button */
+.form-submit {
+  margin-bottom: 1.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  min-height: 2.75rem;
+  padding: 0.75rem 1.5rem;
+}
+
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, hsl(221.2, 83.2%, 53.3%), hsl(262.1, 83.3%, 57.8%));
+  color: white;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, hsl(221.2, 83.2%, 48.3%), hsl(262.1, 83.3%, 52.8%));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px hsl(221.2, 83.2%, 53.3%, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Register link */
+.register-link {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.register-link p {
+  color: hsl(215.4, 16.3%, 46.9%);
+  font-size: 0.875rem;
+}
+
+.register-link a {
+  color: hsl(221.2, 83.2%, 53.3%);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
+}
+
+/* Social login */
+.social-login {
+  margin-top: 1.5rem;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: hsl(214.3, 31.8%, 91.4%);
+}
+
+.divider span {
+  background: white;
+  color: hsl(215.4, 16.3%, 46.9%);
+  padding: 0 1rem;
+  font-size: 0.875rem;
+}
+
+.social-providers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.btn-social {
+  background: white;
+  border: 1px solid hsl(214.3, 31.8%, 91.4%);
+  color: hsl(222.2, 84%, 4.9%);
+  justify-content: center;
+}
+
+.btn-social:hover {
+  background: hsl(210, 40%, 98%);
+  border-color: hsl(214.3, 31.8%, 85%);
+  transform: translateY(-1px);
+}
+
+/* Error messages */
+.error-message {
+  display: block;
+  color: hsl(0, 84.2%, 60.2%);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.alert-error {
+  background: hsl(0, 85.7%, 97.3%);
+  color: hsl(0, 84.2%, 60.2%);
+  border: 1px solid hsl(0, 84.2%, 93.3%);
+}
+
+.alert-success {
+  background: hsl(143, 85%, 96%);
+  color: hsl(140, 100%, 27%);
+  border: 1px solid hsl(143, 85%, 90%);
+}
+
+.alert-warning {
+  background: hsl(48, 100%, 96%);
+  color: hsl(45, 93%, 47%);
+  border: 1px solid hsl(48, 100%, 88%);
+}
+
+.alert-info {
+  background: hsl(204, 100%, 97%);
+  color: hsl(204, 93.8%, 53.9%);
+  border: 1px solid hsl(204, 93.8%, 90%);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .login-box {
+    padding: 1.5rem;
+    margin: 1rem;
+    border-radius: 12px;
+  }
+  
+  .brand-title {
+    font-size: 1.5rem;
+  }
+  
+  .social-providers {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(135deg, hsl(224, 71.4%, 4.1%) 0%, hsl(262.1, 83.3%, 7.8%) 50%, hsl(320, 60%, 8%) 100%);
+    color: hsl(210, 40%, 98%);
+  }
+  
+  .login-box {
+    background: hsl(222.2, 84%, 4.9%);
+    border-color: hsl(217.2, 32.6%, 17.5%);
+  }
+  
+  .form-control {
+    background: hsl(222.2, 84%, 4.9%);
+    border-color: hsl(217.2, 32.6%, 17.5%);
+    color: hsl(210, 40%, 98%);
+  }
+  
+  .form-control:focus {
+    border-color: hsl(221.2, 83.2%, 53.3%);
+    box-shadow: 0 0 0 3px hsl(221.2, 83.2%, 53.3%, 0.2);
+  }
+  
+  .divider::before {
+    background: hsl(217.2, 32.6%, 17.5%);
+  }
+  
+  .divider span {
+    background: hsl(222.2, 84%, 4.9%);
+    color: hsl(215.4, 16.3%, 56.9%);
+  }
+  
+  .btn-social {
+    background: hsl(222.2, 84%, 4.9%);
+    border-color: hsl(217.2, 32.6%, 17.5%);
+    color: hsl(210, 40%, 98%);
+  }
+  
+  .btn-social:hover {
+    background: hsl(217.2, 32.6%, 17.5%);
+  }
+}

@@ -10,7 +10,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
+import MultiStepRegister from "./pages/MultiStepRegister";
+import RegistrationPending from "./pages/RegistrationPending";
 import Dashboard from "./pages/Dashboard";
 import ActivityFeedPage from "./pages/ActivityFeedPage";
 import PeopleDiscovery from "./pages/PeopleDiscovery";
@@ -44,8 +45,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<MultiStepRegister />} />
+        <Route path="/registration/pending" element={<RegistrationPending />} />
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
               
               {/* Dashboard Routes */}
