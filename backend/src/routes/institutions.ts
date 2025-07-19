@@ -1,142 +1,119 @@
 import express from 'express';
-import { body, query, validationResult } from 'express-validator';
-import { authenticateToken } from '../middleware/auth';
+import { body, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
-import pool from '../db/connection';
+import { prisma } from '../index';
 
 const router = express.Router();
 
-// GET /api/institutions/search?q={query}
-router.get(
-  '/search',
-  [
-    query('q').isString().isLength({ min: 1 }).withMessage('Search query is required'),
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { q } = req.query;
-    const searchTerm = `%${q}%`;
-
-    try {
-      const query = `
-        SELECT 
-          id,
-          institution_name,
-          city,
-          state,
-          udise_code,
-          institution_category,
-          management_type
-        FROM institutions 
-        WHERE 
-          status = 'Active' AND (
-            LOWER(institution_name) LIKE LOWER($1) OR
-            LOWER(city) LIKE LOWER($1) OR
-            LOWER(udise_code) LIKE LOWER($1)
-          )
-        ORDER BY 
-          CASE 
-            WHEN LOWER(institution_name) LIKE LOWER($2) THEN 1
-            WHEN LOWER(institution_name) LIKE LOWER($1) THEN 2
-            ELSE 3
-          END,
-          institution_name
-        LIMIT 20
-      `;
-
-      const exactSearchTerm = `${q}%`;
-      const result = await pool.query(query, [searchTerm, exactSearchTerm]);
-
-      res.json(result.rows);
-    } catch (err) {
-      logger.error('Institution search failed:', err);
-      res.status(500).json({ error: 'Search failed' });
-    }
+// GET /api/institutions/search?q=query
+router.get('/search', async (req, res) => {
+  const query = req.query.q as string;
+  
+  if (!query || query.length < 2) {
+    return res.status(400).json({ error: 'Search query must be at least 2 characters' });
   }
-);
-
-// POST /api/institutions/request
-router.post(
-  '/request',
-  [
-    body('institution_name').isString().isLength({ min: 2 }).withMessage('Institution name is required'),
-    body('city').isString().isLength({ min: 2 }).withMessage('City is required'),
-    body('state').isString().isLength({ min: 2 }).withMessage('State is required'),
-    body('requester_email').isEmail().withMessage('Valid email is required'),
-    body('requester_name').isString().isLength({ min: 2 }).withMessage('Requester name is required'),
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { institution_name, city, state, requester_email, requester_name, udise_code } = req.body;
-
-    try {
-      // Check if institution already exists
-      const existingQuery = `
-        SELECT id FROM institutions 
-        WHERE LOWER(institution_name) = LOWER($1) AND LOWER(city) = LOWER($2)
-      `;
-      const existing = await pool.query(existingQuery, [institution_name, city]);
-
-      if (existing.rows.length > 0) {
-        return res.status(400).json({ error: 'Institution already exists in our database' });
-      }
-
-      // Insert request into pending table (we'll create this table)
-      const insertQuery = `
-        INSERT INTO institution_requests (
-          institution_name, city, state, udise_code,
-          requester_email, requester_name, status, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW())
-        RETURNING id
-      `;
-
-      const result = await pool.query(insertQuery, [
-        institution_name, city, state, udise_code, requester_email, requester_name
-      ]);
-
-      logger.info(`Institution request created: ${institution_name} by ${requester_email}`);
-
-      res.json({ 
-        message: 'Institution request submitted successfully. We will review and add it to our database.',
-        request_id: result.rows[0].id
-      });
-    } catch (err) {
-      logger.error('Institution request failed:', err);
-      res.status(500).json({ error: 'Request submission failed' });
-    }
-  }
-);
-
-// GET /api/institutions/requests - For platform admins
-router.get('/requests', authenticateToken, async (req: any, res) => {
+  
   try {
-    // Check if user is platform admin
-    if (!req.user.roles.includes('platform_admin')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const query = `
-      SELECT 
-        id, institution_name, city, state, udise_code,
-        requester_email, requester_name, status, created_at
-      FROM institution_requests 
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (err) {
-    logger.error('Failed to fetch institution requests:', err);
-    res.status(500).json({ error: 'Failed to fetch requests' });
+    const institutions = await prisma.institutions.findMany({
+      where: {
+        OR: [
+          { institution_name: { contains: query, mode: 'insensitive' } },
+          { city: { contains: query, mode: 'insensitive' } },
+          { district: { contains: query, mode: 'insensitive' } },
+          { state: { contains: query, mode: 'insensitive' } },
+          { udise_code: { contains: query, mode: 'insensitive' } }
+        ],
+        status: 'Active'
+      },
+      select: {
+        id: true,
+        institution_name: true,
+        city: true,
+        district: true,
+        state: true,
+        udise_code: true,
+        institution_type: true
+      },
+      take: 20,
+      orderBy: [
+        { institution_name: 'asc' }
+      ]
+    });
+    
+    logger.info(`Institution search completed: ${query} - ${institutions.length} results`);
+    
+    res.json(institutions);
+  } catch (error) {
+    logger.error('Institution search failed:', error);
+    res.status(500).json({ error: 'Search failed' });
   }
 });
+
+// POST /api/institutions/request - Request new institution addition
+router.post('/request', [
+  body('institutionName').isString().isLength({ min: 3 }).withMessage('Institution name must be at least 3 characters'),
+  body('city').isString().withMessage('City is required'),
+  body('state').isString().withMessage('State is required'),
+  body('requestedBy').isEmail().withMessage('Valid email is required'),
+  body('contactInfo').optional().isString(),
+  body('additionalDetails').optional().isString()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { institutionName, city, state, requestedBy, contactInfo, additionalDetails } = req.body;
+  
+  try {
+    // Check if institution already exists
+    const existingInstitution = await prisma.institutions.findFirst({
+      where: {
+        institution_name: { contains: institutionName, mode: 'insensitive' },
+        city: { contains: city, mode: 'insensitive' },
+        state: { contains: state, mode: 'insensitive' }
+      }
+    });
+    
+    if (existingInstitution) {
+      return res.status(400).json({ 
+        error: 'Similar institution already exists',
+        institution: {
+          name: existingInstitution.institution_name,
+          city: existingInstitution.city,
+          state: existingInstitution.state
+        }
+      });
+    }
+    
+    // Create institution request
+    const institutionRequest = await prisma.institution_requests.create({
+      data: {
+        institution_name: institutionName,
+        city,
+        state,
+        requested_by: requestedBy,
+        contact_info: contactInfo,
+        additional_details: additionalDetails,
+        status: 'pending'
+      }
+    });
+    
+    logger.info(`New institution requested: ${institutionName} by ${requestedBy}`);
+    
+    // TODO: Send notification to platform admins
+    
+    res.json({ 
+      message: 'Institution request submitted successfully',
+      requestId: institutionRequest.id,
+      status: 'pending'
+    });
+  } catch (error) {
+    logger.error('Institution request failed:', error);
+    res.status(500).json({ error: 'Failed to submit institution request' });
+  }
+});
+
+// Additional endpoints for platform admins would go here
 
 export default router;

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import csurf from 'csurf';
+import session from 'express-session';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { logger } from './utils/logger';
@@ -14,6 +15,8 @@ import authRoutes from './routes/auth';
 import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
 import postRoutes from './routes/posts';
+import institutionsRoutes from './routes/institutions';
+import registrationRoutes from './routes/registration';
 
 // Log successful import of routes
 logger.info('Routes imported successfully', {
@@ -89,6 +92,18 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Session management for registration flow
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'my-school-buddies-registration-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.COOKIE_SECURE === 'true',
+    httpOnly: true,
+    maxAge: 30 * 60 * 1000 // 30 minutes for registration flow
+  }
+}));
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -158,6 +173,8 @@ app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF protection
 app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/institutions', institutionsRoutes);
+app.use('/api/registration', authLimiter, registrationRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

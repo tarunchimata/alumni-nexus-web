@@ -23,21 +23,37 @@ CREATE TABLE institutions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create institution requests table
-CREATE TABLE institution_requests (
+-- Create institution_requests table for pending school additions
+CREATE TABLE IF NOT EXISTS institution_requests (
   id SERIAL PRIMARY KEY,
   institution_name VARCHAR(255) NOT NULL,
   city VARCHAR(100) NOT NULL,
   state VARCHAR(100) NOT NULL,
-  udise_code VARCHAR(20),
-  additional_info TEXT,
-  requester_email VARCHAR(255) NOT NULL,
-  requester_name VARCHAR(255) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  requested_by VARCHAR(100) NOT NULL,
+  contact_info TEXT,
+  additional_details TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   reviewed_at TIMESTAMP,
-  reviewed_by INTEGER REFERENCES users(id)
+  reviewed_by VARCHAR(100)
 );
+
+-- Add indexes for better search performance
+CREATE INDEX IF NOT EXISTS idx_institutions_name ON institutions(institution_name);
+CREATE INDEX IF NOT EXISTS idx_institutions_city ON institutions(city);
+CREATE INDEX IF NOT EXISTS idx_institutions_state ON institutions(state);
+CREATE INDEX IF NOT EXISTS idx_institutions_udise ON institutions(udise_code);
+CREATE INDEX IF NOT EXISTS idx_institutions_status ON institutions(status);
+
+-- Add some sample institutions for testing
+INSERT INTO institutions (institution_code, institution_name, city, district, state, udise_code, status) 
+VALUES 
+  ('INST001', 'Delhi Public School', 'Hyderabad', 'Hyderabad', 'Telangana', '28010100101', 'Active'),
+  ('INST002', 'Kendriya Vidyalaya', 'Secunderabad', 'Hyderabad', 'Telangana', '28010100102', 'Active'),
+  ('INST003', 'St. Francis College for Women', 'Hyderabad', 'Hyderabad', 'Telangana', '28010100103', 'Active'),
+  ('INST004', 'GITAM University', 'Visakhapatnam', 'Visakhapatnam', 'Andhra Pradesh', '28010100104', 'Active'),
+  ('INST005', 'IIT Hyderabad', 'Sangareddy', 'Medak', 'Telangana', '28010100105', 'Active')
+ON CONFLICT (institution_code) DO NOTHING;
 
 -- Add phone_number and date_of_birth to users table if not exists
 ALTER TABLE users 
