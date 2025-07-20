@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, User, Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { PasswordStrengthMeter } from './PasswordStrengthMeter';
+import PasswordStrengthMeter from './PasswordStrengthMeter';
 import { useToast } from '@/hooks/use-toast';
 
 interface RegistrationStep3Props {
@@ -235,10 +235,7 @@ export const RegistrationStep3 = ({ data, onNext, onBack, isLoading }: Registrat
           </button>
         </div>
         {formData.password && (
-          <PasswordStrengthMeter 
-            password={formData.password} 
-            strength={getPasswordStrength(formData.password)} 
-          />
+          <PasswordStrengthMeter password={formData.password} />
         )}
         {errors.password && (
           <p className="text-destructive text-sm">{errors.password}</p>

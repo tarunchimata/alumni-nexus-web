@@ -10,6 +10,7 @@ interface User {
   role: 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin';
   schoolId?: string;
   avatar?: string;
+  status?: 'pending_approval' | 'active' | 'inactive' | 'rejected';
 }
 
 interface AuthContextType {
