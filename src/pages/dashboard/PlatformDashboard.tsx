@@ -1,54 +1,112 @@
-import { useAuth } from "@/hooks/useAuth";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 const PlatformDashboard = () => {
-  const { user, logout } = useAuth();
-
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Platform Admin Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.firstName}!</p>
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
+      <div className="flex-1">
+        <DashboardHeader />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900">Platform Overview</h2>
+              <p className="text-gray-600">Manage schools, users, and platform settings</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Schools</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">45</div>
+                  <p className="text-xs text-muted-foreground">+2 from last month</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">1,234</div>
+                  <p className="text-xs text-muted-foreground">+180 from last month</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12</div>
+                  <p className="text-xs text-muted-foreground">School registration requests</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">89</div>
+                  <p className="text-xs text-muted-foreground">Users currently online</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent School Requests</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Springfield High School</p>
+                        <p className="text-sm text-gray-500">Requested 2 days ago</p>
+                      </div>
+                      <div className="text-sm text-blue-600">Pending Review</div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Lincoln Elementary</p>
+                        <p className="text-sm text-gray-500">Requested 1 week ago</p>
+                      </div>
+                      <div className="text-sm text-green-600">Approved</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Health</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span>Database</span>
+                      <span className="text-green-600">Healthy</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Keycloak</span>
+                      <span className="text-green-600">Online</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>API Response Time</span>
+                      <span className="text-green-600">142ms</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-          <Button onClick={logout} variant="outline">
-            Logout
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Schools</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">45</p>
-              <p className="text-muted-foreground">Active schools</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">1,234</p>
-              <p className="text-muted-foreground">Total users</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">12</p>
-              <p className="text-muted-foreground">School requests</p>
-            </CardContent>
-          </Card>
-        </div>
+        </main>
       </div>
     </div>
   );

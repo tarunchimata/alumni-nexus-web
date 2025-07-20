@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import MultiStepRegister from "@/pages/MultiStepRegister";
 import PendingApproval from "@/pages/PendingApproval";
+import OAuth2Callback from "@/pages/OAuth2Callback";
 
 // Dashboards
 import PlatformDashboard from "@/pages/dashboard/PlatformDashboard";
@@ -95,6 +96,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<MultiStepRegister />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
+              <Route path="/oauth2/callback" element={<OAuth2Callback />} />
 
               {/* Dashboard Routes */}
               <Route path="/dashboard" element={<DashboardRoute />} />
