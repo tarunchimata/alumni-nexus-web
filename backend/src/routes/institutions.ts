@@ -1,29 +1,41 @@
+
 import express from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, validationResult, query } from 'express-validator';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
 
 const router = express.Router();
 
 // GET /api/institutions/search?q=query
-router.get('/search', async (req, res) => {
-  const query = req.query.q as string;
-  
-  if (!query || query.length < 2) {
-    return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+router.get('/search', [
+  query('q').isString().isLength({ min: 2 }).withMessage('Search query must be at least 2 characters'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
+
+  const query = req.query.q as string;
+  const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
   
   try {
+    const startTime = Date.now();
+    
     const institutions = await prisma.institutions.findMany({
       where: {
-        OR: [
-          { institution_name: { contains: query, mode: 'insensitive' } },
-          { city: { contains: query, mode: 'insensitive' } },
-          { district: { contains: query, mode: 'insensitive' } },
-          { state: { contains: query, mode: 'insensitive' } },
-          { udise_code: { contains: query, mode: 'insensitive' } }
-        ],
-        status: 'Active'
+        AND: [
+          { status: 'Active' },
+          {
+            OR: [
+              { institution_name: { contains: query, mode: 'insensitive' } },
+              { city: { contains: query, mode: 'insensitive' } },
+              { district: { contains: query, mode: 'insensitive' } },
+              { state: { contains: query, mode: 'insensitive' } },
+              { udise_code: { contains: query, mode: 'insensitive' } },
+              { institution_code: { contains: query, mode: 'insensitive' } }
+            ]
+          }
+        ]
       },
       select: {
         id: true,
@@ -32,41 +44,91 @@ router.get('/search', async (req, res) => {
         district: true,
         state: true,
         udise_code: true,
-        institution_type: true
+        institution_type: true,
+        institution_category: true,
+        management_type: true
       },
-      take: 20,
+      take: limit,
       orderBy: [
-        { institution_name: 'asc' }
+        // Prioritize exact matches in name
+        { institution_name: 'asc' },
+        { city: 'asc' }
       ]
     });
+
+    const responseTime = Date.now() - startTime;
     
-    logger.info(`Institution search completed: ${query} - ${institutions.length} results`);
+    logger.info(`Institution search completed: "${query}" - ${institutions.length} results in ${responseTime}ms`);
     
-    res.json(institutions);
+    // Add search relevance scoring
+    const scoredResults = institutions.map(institution => {
+      let score = 0;
+      const queryLower = query.toLowerCase();
+      const nameLower = institution.institution_name.toLowerCase();
+      const cityLower = institution.city?.toLowerCase() || '';
+      
+      // Exact name match gets highest score
+      if (nameLower === queryLower) score += 100;
+      // Name starts with query gets high score
+      else if (nameLower.startsWith(queryLower)) score += 80;
+      // Name contains query gets medium score
+      else if (nameLower.includes(queryLower)) score += 60;
+      
+      // City match bonus
+      if (cityLower === queryLower) score += 50;
+      else if (cityLower.startsWith(queryLower)) score += 30;
+      else if (cityLower.includes(queryLower)) score += 20;
+      
+      return { ...institution, _score: score };
+    });
+
+    // Sort by relevance score
+    scoredResults.sort((a, b) => b._score - a._score);
+    
+    res.json({
+      institutions: scoredResults.map(({ _score, ...institution }) => institution),
+      meta: {
+        total: institutions.length,
+        query,
+        responseTime,
+        limit
+      }
+    });
   } catch (error) {
     logger.error('Institution search failed:', error);
-    res.status(500).json({ error: 'Search failed' });
+    res.status(500).json({ error: 'Search failed. Please try again.' });
   }
 });
 
 // POST /api/institutions/request - Request new institution addition
 router.post('/request', [
   body('institutionName').isString().isLength({ min: 3 }).withMessage('Institution name must be at least 3 characters'),
-  body('city').isString().withMessage('City is required'),
-  body('state').isString().withMessage('State is required'),
+  body('city').isString().isLength({ min: 2 }).withMessage('City is required'),
+  body('state').isString().isLength({ min: 2 }).withMessage('State is required'),
   body('requestedBy').isEmail().withMessage('Valid email is required'),
   body('contactInfo').optional().isString(),
-  body('additionalDetails').optional().isString()
+  body('additionalDetails').optional().isString(),
+  body('institutionType').optional().isIn(['School', 'College', 'University', 'Institute']),
+  body('managementType').optional().isIn(['Government', 'Private', 'Aided'])
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { institutionName, city, state, requestedBy, contactInfo, additionalDetails } = req.body;
+  const { 
+    institutionName, 
+    city, 
+    state, 
+    requestedBy, 
+    contactInfo, 
+    additionalDetails,
+    institutionType,
+    managementType
+  } = req.body;
   
   try {
-    // Check if institution already exists
+    // Check if similar institution already exists or is requested
     const existingInstitution = await prisma.institutions.findFirst({
       where: {
         institution_name: { contains: institutionName, mode: 'insensitive' },
@@ -81,8 +143,27 @@ router.post('/request', [
         institution: {
           name: existingInstitution.institution_name,
           city: existingInstitution.city,
-          state: existingInstitution.state
+          state: existingInstitution.state,
+          id: existingInstitution.id
         }
+      });
+    }
+
+    // Check for duplicate requests
+    const existingRequest = await prisma.institution_requests.findFirst({
+      where: {
+        institution_name: { contains: institutionName, mode: 'insensitive' },
+        city: { contains: city, mode: 'insensitive' },
+        state: { contains: state, mode: 'insensitive' },
+        status: { in: ['pending', 'under_review'] }
+      }
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ 
+        error: 'Similar institution request already pending',
+        requestId: existingRequest.id,
+        status: existingRequest.status
       });
     }
     
@@ -95,25 +176,48 @@ router.post('/request', [
         requested_by: requestedBy,
         contact_info: contactInfo,
         additional_details: additionalDetails,
+        institution_type: institutionType,
+        management_type: managementType,
         status: 'pending'
       }
     });
     
-    logger.info(`New institution requested: ${institutionName} by ${requestedBy}`);
-    
-    // TODO: Send notification to platform admins
+    logger.info(`New institution requested: ${institutionName} by ${requestedBy}`, {
+      requestId: institutionRequest.id,
+      city,
+      state
+    });
     
     res.json({ 
-      message: 'Institution request submitted successfully',
-      requestId: institutionRequest.id,
-      status: 'pending'
+      message: 'Institution request submitted successfully. Our team will review it within 2-3 business days.',
+      request: {
+        id: institutionRequest.id,
+        institutionName,
+        city,
+        state,
+        status: 'pending',
+        estimatedReviewTime: '2-3 business days'
+      }
     });
   } catch (error) {
     logger.error('Institution request failed:', error);
-    res.status(500).json({ error: 'Failed to submit institution request' });
+    res.status(500).json({ error: 'Failed to submit institution request. Please try again.' });
   }
 });
 
-// Additional endpoints for platform admins would go here
+// GET /api/institutions/requests - Get all institution requests (admin only)
+router.get('/requests', async (req, res) => {
+  try {
+    const requests = await prisma.institution_requests.findMany({
+      orderBy: { created_at: 'desc' },
+      take: 50
+    });
+    
+    res.json({ requests });
+  } catch (error) {
+    logger.error('Failed to fetch institution requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
 
 export default router;

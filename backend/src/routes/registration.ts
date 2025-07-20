@@ -1,3 +1,4 @@
+
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
@@ -7,22 +8,24 @@ import {
   initRegistrationSession, 
   validateRegistrationStep, 
   cleanupRegistrationSession,
-  RegistrationSession 
 } from '../middleware/sessionAuth';
 
 const router = express.Router();
 
 // POST /api/registration/init - Initialize registration session
 router.post('/init', initRegistrationSession, (req, res) => {
+  logger.info('Registration session initialized', { sessionId: req.sessionID });
   res.json({ 
     message: 'Registration session initialized',
-    currentStep: req.session.registration?.currentStep || 1
+    currentStep: req.session.registration?.currentStep || 1,
+    sessionId: req.sessionID
   });
 });
 
 // POST /api/registration/basic - Store basic info (Step 1)
 router.post('/basic', [
-  body('fullName').isString().isLength({ min: 2 }).withMessage('Full name must be at least 2 characters'),
+  body('firstName').isString().isLength({ min: 2 }).withMessage('First name must be at least 2 characters'),
+  body('lastName').isString().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('phone').isMobilePhone('any').withMessage('Valid phone number is required'),
   body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
@@ -32,7 +35,8 @@ router.post('/basic', [
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { fullName, email, phone, dateOfBirth } = req.body;
+  const { firstName, lastName, email, phone, dateOfBirth } = req.body;
+  const fullName = `${firstName} ${lastName}`;
   
   // Age validation (5-100 years)
   const birthDate = new Date(dateOfBirth);
@@ -47,18 +51,22 @@ router.post('/basic', [
   if (age < 5 || age > 100) {
     return res.status(400).json({ 
       error: 'Age must be between 5 and 100 years',
-      age 
+      age,
+      field: 'dateOfBirth'
     });
   }
 
-  // Check for duplicate email and phone
+  // Check for duplicate email
   try {
     const existingUser = await keycloakAdminClient.getUserByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ 
+        error: 'Email already registered',
+        field: 'email'
+      });
     }
   } catch (error) {
-    // User not found is expected
+    logger.error('Error checking email uniqueness:', error);
   }
 
   // Store in session
@@ -66,15 +74,23 @@ router.post('/basic', [
     req.session.registration = { currentStep: 1, startTime: new Date() };
   }
   
-  req.session.registration.basicInfo = { fullName, email, phone, dateOfBirth };
+  req.session.registration.basicInfo = { 
+    firstName, 
+    lastName, 
+    fullName, 
+    email, 
+    phone, 
+    dateOfBirth 
+  };
   req.session.registration.currentStep = 2;
   
-  logger.info(`Registration Step 1 completed for email: ${email}`);
+  logger.info(`Registration Step 1 completed for: ${email}`, { age });
   
   res.json({ 
     message: 'Basic info stored successfully',
     currentStep: 2,
-    age
+    age,
+    data: { firstName, lastName, email }
   });
 });
 
@@ -97,7 +113,10 @@ router.post('/school', [
     });
     
     if (!institution) {
-      return res.status(400).json({ error: 'Invalid institution selected' });
+      return res.status(400).json({ 
+        error: 'Invalid institution selected',
+        field: 'institutionId'
+      });
     }
     
     // Store in session
@@ -125,7 +144,9 @@ router.post('/school', [
 // POST /api/registration/account - Store account info (Step 3)
 router.post('/account', [
   body('username').isString().isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must contain uppercase, lowercase, number and special character'),
   body('confirmPassword').custom((value, { req }) => {
     if (value !== req.body.password) {
       throw new Error('Password confirmation does not match password');
@@ -144,10 +165,13 @@ router.post('/account', [
   try {
     const existingUser = await keycloakAdminClient.getUserByUsername(username);
     if (existingUser) {
-      return res.status(400).json({ error: 'Username already taken' });
+      return res.status(400).json({ 
+        error: 'Username already taken',
+        field: 'username'
+      });
     }
   } catch (error) {
-    // User not found is expected
+    logger.error('Error checking username availability:', error);
   }
   
   // Store in session (don't store password for security)
@@ -166,7 +190,12 @@ router.post('/account', [
 // POST /api/registration/complete - Final registration (Step 4)
 router.post('/complete', [
   body('role').isIn(['student', 'teacher', 'alumni']).withMessage('Valid role is required'),
-  body('termsAccepted').isBoolean().withMessage('Terms acceptance is required'),
+  body('termsAccepted').isBoolean().custom((value) => {
+    if (!value) {
+      throw new Error('Terms and conditions must be accepted');
+    }
+    return true;
+  }),
 ], validateRegistrationStep(4), cleanupRegistrationSession, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -177,7 +206,10 @@ router.post('/complete', [
   const session = req.session.registration!;
   
   if (!termsAccepted) {
-    return res.status(400).json({ error: 'Terms and conditions must be accepted' });
+    return res.status(400).json({ 
+      error: 'Terms and conditions must be accepted',
+      field: 'termsAccepted'
+    });
   }
   
   try {
@@ -186,8 +218,8 @@ router.post('/complete', [
       username: session.accountInfo!.username,
       email: session.basicInfo!.email,
       password: session.accountInfo!.password,
-      firstName: session.basicInfo!.fullName.split(' ')[0],
-      lastName: session.basicInfo!.fullName.split(' ').slice(1).join(' '),
+      firstName: session.basicInfo!.firstName,
+      lastName: session.basicInfo!.lastName,
       school_id: session.schoolInfo!.institutionId.toString(),
       user_type: role,
       phone: session.basicInfo!.phone,
@@ -198,19 +230,23 @@ router.post('/complete', [
     logger.info(`User registration completed: ${session.basicInfo!.email} with role: ${role}`);
     
     res.json({ 
-      message: 'Registration completed successfully',
+      message: 'Registration completed successfully. Your account is pending approval.',
       user: {
         id: userId,
         email: session.basicInfo!.email,
         username: session.accountInfo!.username,
         role,
         status: 'pending_approval',
-        school: session.schoolInfo!.institutionName
+        school: session.schoolInfo!.institutionName,
+        requiresApproval: true
       }
     });
   } catch (error) {
     logger.error('Registration completion failed:', error);
-    res.status(500).json({ error: 'Registration failed. Please try again.' });
+    res.status(500).json({ 
+      error: 'Registration failed. Please try again.',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -236,6 +272,29 @@ router.get('/status', (req, res) => {
       roleInfo: !!session.roleInfo
     }
   });
+});
+
+// POST /api/registration/check-username - Check username availability
+router.post('/check-username', [
+  body('username').isString().isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { username } = req.body;
+  
+  try {
+    const existingUser = await keycloakAdminClient.getUserByUsername(username);
+    res.json({ 
+      available: !existingUser,
+      username
+    });
+  } catch (error) {
+    logger.error('Error checking username:', error);
+    res.status(500).json({ error: 'Failed to check username availability' });
+  }
 });
 
 export default router;

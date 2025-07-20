@@ -1,90 +1,156 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./hooks/useAuth";
-import { RoleProvider } from "./contexts/RoleContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { DashboardLayout } from "./components/layout/DashboardLayout";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import MultiStepRegister from "./pages/MultiStepRegister";
-import RegistrationPending from "./pages/RegistrationPending";
-import Dashboard from "./pages/Dashboard";
-import ActivityFeedPage from "./pages/ActivityFeedPage";
-import PeopleDiscovery from "./pages/PeopleDiscovery";
-import AlumniDirectory from "./pages/AlumniDirectory";
-import PeopleYouMayKnow from "./pages/PeopleYouMayKnow";
-import ConnectionsList from "./pages/ConnectionsList";
-import EventsList from "./pages/EventsList";
-import Profile from "./pages/Profile";
-import ProfileEdit from "./pages/ProfileEdit";
-import Settings from "./pages/Settings";
-import Messages from "./pages/Messages";
-import NotFound from "./pages/NotFound";
-import OAuth2Callback from "./pages/OAuth2Callback";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+
+// Pages
+import Home from "@/pages/Home";
+import Login from "@/pages/Login";
+import MultiStepRegister from "@/pages/MultiStepRegister";
+import PendingApproval from "@/pages/PendingApproval";
+
+// Dashboards
+import PlatformDashboard from "@/pages/dashboard/PlatformDashboard";
+import SchoolDashboard from "@/pages/dashboard/SchoolDashboard";  
+import UserDashboard from "@/pages/dashboard/UserDashboard";
+
+// Profile and Settings
+import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
-      refetchOnWindowFocus: false,
     },
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <RoleProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+// Protected Route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Role-based dashboard routing
+const DashboardRoute = () => {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Handle pending approval
+  if (user.status === 'pending_approval') {
+    return <Navigate to="/auth/pending-approval" replace />;
+  }
+
+  // Role-based redirects
+  switch (user.role) {
+    case 'platform_admin':
+      return <Navigate to="/dashboard/platform" replace />;
+    case 'school_admin':
+      return <Navigate to="/dashboard/school" replace />;
+    case 'teacher':
+    case 'student':
+    case 'alumni':
+      return <Navigate to="/dashboard/user" replace />;
+    default:
+      return <UserDashboard />;
+  }
+};
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <div className="min-h-screen bg-background">
             <Routes>
-              <Route path="/" element={<Index />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<MultiStepRegister />} />
-        <Route path="/registration/pending" element={<RegistrationPending />} />
-              <Route path="/oauth2/callback" element={<OAuth2Callback />} />
-              
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<MultiStepRegister />} />
+              <Route path="/auth/pending-approval" element={<PendingApproval />} />
+
               {/* Dashboard Routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<Dashboard />} />
-                <Route path="activity" element={<ActivityFeedPage />} />
-                <Route path="people" element={<PeopleDiscovery />} />
-                <Route path="people/alumni" element={<AlumniDirectory />} />
-                <Route path="people/suggestions" element={<PeopleYouMayKnow />} />
-                <Route path="connections" element={<ConnectionsList />} />
-                <Route path="events" element={<EventsList />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="profile/edit" element={<ProfileEdit />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
-              
-              {/* Standalone Messages Route */}
+              <Route path="/dashboard" element={<DashboardRoute />} />
               <Route 
-                path="/messages" 
+                path="/dashboard/platform" 
                 element={
                   <ProtectedRoute>
-                    <Messages />
+                    <PlatformDashboard />
                   </ProtectedRoute>
                 } 
               />
-              
-              <Route path="*" element={<NotFound />} />
+              <Route 
+                path="/dashboard/school" 
+                element={
+                  <ProtectedRoute>
+                    <SchoolDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/user" 
+                element={
+                  <ProtectedRoute>
+                    <UserDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Profile and Settings */}
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Catch-all redirect */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </RoleProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+            
+            <Toaster />
+          </div>
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

@@ -1,18 +1,25 @@
 
 import axios from 'axios';
+import { logger } from '../utils/logger';
 
 let KcAdminClient: any = null;
 
 async function getKeycloakAdminClient() {
   if (!KcAdminClient) {
-    const keycloakModule = await import('@keycloak/keycloak-admin-client');
-    KcAdminClient = keycloakModule.default || keycloakModule.KcAdminClient || keycloakModule;
+    try {
+      const keycloakModule = await import('@keycloak/keycloak-admin-client');
+      KcAdminClient = keycloakModule.default || keycloakModule.KcAdminClient || keycloakModule;
+    } catch (error) {
+      logger.error('Failed to import Keycloak admin client:', error);
+      throw new Error('Keycloak admin client not available');
+    }
   }
   return KcAdminClient;
 }
 
 export const keycloakAdminClient = new (class {
   private kcAdmin: any = null;
+  private tokenExpiry: number = 0;
 
   async getAdmin() {
     if (!this.kcAdmin) {
@@ -26,68 +33,163 @@ export const keycloakAdminClient = new (class {
   }
 
   async authenticate() {
+    const now = Date.now();
+    if (this.tokenExpiry > now + 30000) { // Token valid for at least 30 more seconds
+      return;
+    }
+
     const kcAdmin = await this.getAdmin();
-    await kcAdmin.auth({
-      grantType: 'password',
-      clientId: 'admin-cli',
-      username: process.env.KEYCLOAK_ADMIN_USERNAME!,
-      password: process.env.KEYCLOAK_ADMIN_PASSWORD!,
-    });
+    try {
+      await kcAdmin.auth({
+        grantType: 'password',
+        clientId: 'admin-cli',
+        username: process.env.KEYCLOAK_ADMIN_USERNAME!,
+        password: process.env.KEYCLOAK_ADMIN_PASSWORD!,
+      });
+      this.tokenExpiry = now + (55 * 60 * 1000); // Assume 55 min validity
+      logger.info('Keycloak admin authentication successful');
+    } catch (error) {
+      logger.error('Keycloak admin authentication failed:', error);
+      throw new Error('Failed to authenticate with Keycloak admin');
+    }
   }
 
   async createUser({
     username,
     email,
     password,
+    firstName,
+    lastName,
     school_id,
     user_type,
+    phone,
+    dateOfBirth,
+    status = 'pending_approval'
   }: {
     username: string;
     email: string;
     password: string;
+    firstName: string;
+    lastName: string;
     school_id: string;
     user_type: string;
+    phone?: string;
+    dateOfBirth?: string;
+    status?: string;
   }) {
     await this.authenticate();
     const kcAdmin = await this.getAdmin();
 
-    const user = await kcAdmin.users.create({
-      username,
-      email,
-      enabled: true,
-      emailVerified: true,
-      credentials: [
-        {
-          type: 'password',
-          value: password,
-          temporary: false,
+    try {
+      // Create user in Keycloak
+      const userPayload = {
+        username,
+        email,
+        firstName,
+        lastName,
+        enabled: status === 'active',
+        emailVerified: true,
+        credentials: [
+          {
+            type: 'password',
+            value: password,
+            temporary: false,
+          },
+        ],
+        attributes: {
+          school_id: [school_id],
+          user_type: [user_type],
+          status: [status],
+          ...(phone && { phone: [phone] }),
+          ...(dateOfBirth && { date_of_birth: [dateOfBirth] }),
         },
-      ],
-      attributes: {
-        school_id: [school_id],
-        user_type: [user_type],
-      },
-    });
+      };
 
-    // Assign role based on user_type
-    if (user.id) {
+      const user = await kcAdmin.users.create(userPayload);
+      logger.info(`User created in Keycloak: ${username} (${email})`);
+
+      // Assign role based on user_type
+      if (user.id) {
+        await this.assignUserRole(user.id, user_type);
+      }
+
+      return user.id;
+    } catch (error) {
+      logger.error('Failed to create user in Keycloak:', error);
+      throw new Error(`User creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async assignUserRole(userId: string, roleName: string) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+
+    try {
       const roles = await kcAdmin.roles.find({ realm: process.env.KEYCLOAK_REALM });
-      const userRole = roles.find((role: any) => role.name === user_type);
+      const userRole = roles.find((role: any) => role.name === roleName);
       
       if (userRole && userRole.id) {
         await kcAdmin.users.addRealmRoleMappings({
-          id: user.id,
+          id: userId,
           roles: [{ id: userRole.id, name: userRole.name }],
         });
+        logger.info(`Role ${roleName} assigned to user ${userId}`);
+      } else {
+        logger.warn(`Role ${roleName} not found in Keycloak realm`);
       }
+    } catch (error) {
+      logger.error('Failed to assign role:', error);
+      throw new Error('Role assignment failed');
     }
+  }
 
-    return user.id;
+  async getUserByEmail(email: string) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+
+    try {
+      const users = await kcAdmin.users.find({ email, exact: true });
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      logger.error('Failed to get user by email:', error);
+      return null;
+    }
+  }
+
+  async getUserByUsername(username: string) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+
+    try {
+      const users = await kcAdmin.users.find({ username, exact: true });
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      logger.error('Failed to get user by username:', error);
+      return null;
+    }
+  }
+
+  async updateUserStatus(userId: string, status: 'active' | 'pending_approval' | 'inactive' | 'rejected') {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+
+    try {
+      await kcAdmin.users.update(
+        { id: userId },
+        {
+          enabled: status === 'active',
+          attributes: { status: [status] }
+        }
+      );
+      logger.info(`User ${userId} status updated to ${status}`);
+    } catch (error) {
+      logger.error('Failed to update user status:', error);
+      throw new Error('User status update failed');
+    }
   }
 
   async getUserProfile(accessToken: string) {
     try {
-      // Use Keycloak userinfo endpoint
       const response = await axios.get(
         `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
         {
@@ -98,7 +200,7 @@ export const keycloakAdminClient = new (class {
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to get user profile:', error);
+      logger.error('Failed to get user profile:', error);
       throw new Error('Failed to retrieve user profile');
     }
   }

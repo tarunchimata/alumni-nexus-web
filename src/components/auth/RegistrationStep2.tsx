@@ -1,18 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ArrowRight, ArrowLeft, Search, Building, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, Search, MapPin, Building, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { InstitutionRequestModal } from './InstitutionRequestModal';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Institution {
   id: number;
   institution_name: string;
   city: string;
+  district: string;
   state: string;
   udise_code: string;
+  institution_type: string;
   institution_category: string;
   management_type: string;
 }
@@ -27,242 +31,391 @@ interface RegistrationStep2Props {
 export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: RegistrationStep2Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(
-    data.institutionId ? { 
-      id: data.institutionId, 
-      institution_name: data.institutionName,
+    data.institutionId ? {
+      id: data.institutionId,
+      institution_name: data.institutionName || '',
       city: '',
+      district: '',
       state: '',
       udise_code: '',
+      institution_type: '',
       institution_category: '',
       management_type: ''
     } : null
   );
-  const [isSearching, setIsSearching] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
 
-  const searchInstitutions = useCallback(async (query: string) => {
-    if (query.length < 2) {
+  // New school request form
+  const [newSchoolForm, setNewSchoolForm] = useState({
+    institutionName: '',
+    city: '',
+    state: '',
+    contactInfo: '',
+    additionalDetails: '',
+    institutionType: 'School',
+    managementType: 'Private'
+  });
+
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      
+      searchTimeoutRef.current = setTimeout(() => {
+        searchInstitutions(searchQuery);
+      }, 300);
+    } else {
       setInstitutions([]);
-      return;
+      setShowResults(false);
     }
 
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const searchInstitutions = async (query: string) => {
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/institutions/search?q=${encodeURIComponent(query)}`, {
-        credentials: 'include',
+      const response = await fetch(`/api/institutions/search?q=${encodeURIComponent(query)}&limit=20`, {
+        credentials: 'include'
       });
-
+      
       if (response.ok) {
-        const results = await response.json();
-        setInstitutions(results);
+        const result = await response.json();
+        setInstitutions(result.institutions || []);
+        setShowResults(true);
+        console.log(`Search completed: ${result.institutions?.length || 0} results in ${result.meta?.responseTime || 0}ms`);
       } else {
-        toast({
-          title: 'Search failed',
-          description: 'Failed to search institutions. Please try again.',
-          variant: 'destructive',
-        });
+        throw new Error('Search failed');
       }
     } catch (error) {
-      console.error('Institution search error:', error);
+      console.error('Institution search failed:', error);
       toast({
-        title: 'Search error',
-        description: 'An error occurred while searching. Please try again.',
-        variant: 'destructive',
+        title: "Search Error",
+        description: "Failed to search institutions. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSearching(false);
     }
-  }, [toast]);
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    
-    // Clear previous timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-
-    // Set new timeout for debounced search
-    const timeout = setTimeout(() => {
-      searchInstitutions(value);
-    }, 300);
-    
-    setSearchTimeout(timeout);
   };
 
   const handleInstitutionSelect = (institution: Institution) => {
     setSelectedInstitution(institution);
     setSearchQuery(institution.institution_name);
-    setInstitutions([]);
+    setShowResults(false);
+  };
+
+  const handleSubmitNewSchool = async () => {
+    if (!newSchoolForm.institutionName || !newSchoolForm.city || !newSchoolForm.state) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
+      const response = await fetch('/api/institutions/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...newSchoolForm,
+          requestedBy: data.email || 'unknown@example.com'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Request Submitted",
+          description: result.message,
+        });
+        setShowAddSchoolModal(false);
+        setNewSchoolForm({
+          institutionName: '',
+          city: '',
+          state: '',
+          contactInfo: '',
+          additionalDetails: '',
+          institutionType: 'School',
+          managementType: 'Private'
+        });
+      } else {
+        throw new Error(result.error || 'Failed to submit request');
+      }
+    } catch (error) {
+      console.error('New school request failed:', error);
+      toast({
+        title: "Request Failed",
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingRequest(false);
+    }
   };
 
   const handleNext = () => {
     if (!selectedInstitution) {
       toast({
-        title: 'Institution required',
-        description: 'Please select your institution to continue.',
-        variant: 'destructive',
+        title: "School Selection Required",
+        description: "Please select your school from the search results or request to add a new one.",
+        variant: "destructive",
       });
       return;
     }
 
     onNext({
       institutionId: selectedInstitution.id,
-      institutionName: selectedInstitution.institution_name,
+      institutionName: selectedInstitution.institution_name
     });
   };
 
-  const handleRequestSuccess = () => {
-    setShowRequestModal(false);
-    toast({
-      title: 'Request submitted',
-      description: 'Your institution request has been submitted for review. We will add it to our database soon.',
-    });
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSelectedInstitution(null);
+    setInstitutions([]);
+    setShowResults(false);
   };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-    };
-  }, [searchTimeout]);
 
   return (
     <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Find Your Institution</h3>
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-semibold mb-2">Select Your Institution</h3>
         <p className="text-muted-foreground">
-          Search for your school or college from our database
+          Search for your school, college, or university below
         </p>
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="institutionSearch" className="flex items-center space-x-2">
-            <Search className="w-4 h-4" />
-            <span>Search Institution</span>
-          </Label>
-          <div className="relative">
-            <Input
-              id="institutionSearch"
-              placeholder="Type your school/college name, city, or UDISE code..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pr-10"
-            />
-            {isSearching && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-muted border-t-foreground rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
+      {/* Search Input */}
+      <div className="space-y-2">
+        <Label htmlFor="search" className="flex items-center space-x-2">
+          <Search className="w-4 h-4" />
+          <span>Search Institution</span>
+        </Label>
+        <div className="relative">
+          <Input
+            id="search"
+            placeholder="Type your institution name or city (e.g., 'Delhi Public School', 'Hyderabad')"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+          )}
         </div>
+        {searchQuery && (
+          <button
+            onClick={clearSearch}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Clear search
+          </button>
+        )}
+      </div>
 
-        {/* Search Results */}
-        {institutions.length > 0 && (
-          <div className="border rounded-lg max-h-60 overflow-y-auto">
-            {institutions.map((institution) => (
-              <button
-                key={institution.id}
-                onClick={() => handleInstitutionSelect(institution)}
-                className="w-full p-4 text-left hover:bg-muted/50 border-b last:border-b-0 focus:outline-none focus:bg-muted/50"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-start space-x-2">
-                    <Building className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{institution.institution_name}</p>
-                      <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                        <MapPin className="w-3 h-3" />
-                        <span>{institution.city}, {institution.state}</span>
-                        {institution.udise_code && (
-                          <span className="ml-2">UDISE: {institution.udise_code}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
-                        <span className="bg-muted px-2 py-1 rounded">
-                          {institution.institution_category}
+      {/* Selected Institution */}
+      {selectedInstitution && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <Building className="w-5 h-5 text-primary mt-1" />
+              <div className="flex-1">
+                <h4 className="font-semibold">{selectedInstitution.institution_name}</h4>
+                <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
+                  <MapPin className="w-3 h-3" />
+                  <span>{selectedInstitution.city}</span>
+                  {selectedInstitution.state && <span>, {selectedInstitution.state}</span>}
+                </div>
+                {selectedInstitution.institution_type && (
+                  <span className="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded mt-2">
+                    {selectedInstitution.institution_type}
+                  </span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Search Results */}
+      {showResults && institutions.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          <Label className="text-sm font-medium">Search Results</Label>
+          {institutions.map((institution) => (
+            <Card 
+              key={institution.id} 
+              className="cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => handleInstitutionSelect(institution)}
+            >
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm">{institution.institution_name}</h4>
+                    <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{institution.city}</span>
+                      {institution.district && institution.district !== institution.city && (
+                        <span>, {institution.district}</span>
+                      )}
+                      <span>, {institution.state}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-2">
+                      {institution.institution_type && (
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                          {institution.institution_type}
                         </span>
-                        <span className="bg-muted px-2 py-1 rounded">
+                      )}
+                      {institution.management_type && (
+                        <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
                           {institution.management_type}
                         </span>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        {/* Selected Institution */}
-        {selectedInstitution && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-start space-x-3">
-                <Building className="w-5 h-5 text-primary mt-1" />
-                <div className="flex-1">
-                  <p className="font-medium text-primary">Selected Institution</p>
-                  <p className="font-semibold">{selectedInstitution.institution_name}</p>
-                  {selectedInstitution.city && selectedInstitution.state && (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedInstitution.city}, {selectedInstitution.state}
-                    </p>
-                  )}
+      {/* No Results */}
+      {showResults && institutions.length === 0 && !isSearching && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 text-center">
+            <Building className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-muted-foreground mb-4">
+              No institutions found for "{searchQuery}"
+            </p>
+            <Dialog open={showAddSchoolModal} onOpenChange={setShowAddSchoolModal}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Request to Add School
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Request New Institution</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newSchoolName">Institution Name *</Label>
+                    <Input
+                      id="newSchoolName"
+                      placeholder="Enter institution name"
+                      value={newSchoolForm.institutionName}
+                      onChange={(e) => setNewSchoolForm(prev => ({ ...prev, institutionName: e.target.value }))}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newSchoolCity">City *</Label>
+                      <Input
+                        id="newSchoolCity"
+                        placeholder="City"
+                        value={newSchoolForm.city}
+                        onChange={(e) => setNewSchoolForm(prev => ({ ...prev, city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newSchoolState">State *</Label>
+                      <Input
+                        id="newSchoolState"
+                        placeholder="State"
+                        value={newSchoolForm.state}
+                        onChange={(e) => setNewSchoolForm(prev => ({ ...prev, state: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="contactInfo">Contact Information</Label>
+                    <Input
+                      id="contactInfo"
+                      placeholder="Phone number or email"
+                      value={newSchoolForm.contactInfo}
+                      onChange={(e) => setNewSchoolForm(prev => ({ ...prev, contactInfo: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="additionalDetails">Additional Details</Label>
+                    <Textarea
+                      id="additionalDetails"
+                      placeholder="Any additional information about the institution"
+                      value={newSchoolForm.additionalDetails}
+                      onChange={(e) => setNewSchoolForm(prev => ({ ...prev, additionalDetails: e.target.value }))}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleSubmitNewSchool}
+                      disabled={isSubmittingRequest}
+                      className="flex-1"
+                    >
+                      {isSubmittingRequest ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Plus className="w-4 h-4 mr-2" />
+                      )}
+                      Submit Request
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAddSchoolModal(false)}
+                      disabled={isSubmittingRequest}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* No Results */}
-        {searchQuery.length >= 2 && institutions.length === 0 && !isSearching && (
-          <Card className="border-dashed">
-            <CardContent className="p-6 text-center">
-              <Building className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-medium mb-2">Institution not found</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Can't find your institution in our database?
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowRequestModal(true)}
-                className="space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Request to Add Institution</span>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
         <Button 
-          type="button" 
           variant="outline" 
           onClick={onBack}
-          className="min-w-32"
+          disabled={isLoading}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
         
         <Button 
-          type="button" 
           onClick={handleNext}
-          disabled={!selectedInstitution || isLoading}
+          disabled={isLoading || !selectedInstitution}
           className="min-w-32"
         >
           {isLoading ? (
-            <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : (
             <>
               Next Step
@@ -271,15 +424,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
           )}
         </Button>
       </div>
-
-      {/* Institution Request Modal */}
-      <InstitutionRequestModal
-        isOpen={showRequestModal}
-        onClose={() => setShowRequestModal(false)}
-        onSuccess={handleRequestSuccess}
-        userEmail={data.email}
-        userName={`${data.firstName} ${data.lastName}`}
-      />
     </div>
   );
 };

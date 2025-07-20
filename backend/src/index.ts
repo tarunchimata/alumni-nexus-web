@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -18,13 +19,6 @@ import postRoutes from './routes/posts';
 import institutionsRoutes from './routes/institutions';
 import registrationRoutes from './routes/registration';
 
-// Log successful import of routes
-logger.info('Routes imported successfully', {
-  auth: typeof authRoutes,
-  oauth2: typeof oauth2Routes,
-  schools: typeof schoolRoutes
-});
-
 // Load environment variables
 dotenv.config();
 
@@ -42,11 +36,7 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 
-logger.info('OAuth2 environment variables validated successfully', {
-  keycloakUrl: process.env.KEYCLOAK_URL,
-  keycloakRealm: process.env.KEYCLOAK_REALM,
-  keycloakClientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID
-});
+logger.info('OAuth2 environment variables validated successfully');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,14 +58,10 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list or is a Lovable preview domain
     if (allowedOrigins.includes(origin) || /\.lovable\.app$/.test(origin)) {
       return callback(null, true);
     }
-    
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -92,16 +78,18 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Session management for registration flow
+// Enhanced session management for registration flow
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'my-school-buddies-registration-secret',
+  secret: process.env.SESSION_SECRET || 'my-school-buddies-registration-secret-2024',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.COOKIE_SECURE === 'true',
     httpOnly: true,
-    maxAge: 30 * 60 * 1000 // 30 minutes for registration flow
-  }
+    maxAge: 45 * 60 * 1000, // 45 minutes for registration flow
+    sameSite: 'lax'
+  },
+  rolling: true // Reset expiry on each request
 }));
 
 // Body parsing
@@ -114,14 +102,29 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// CSRF protection for auth routes (skip for OAuth2 routes)
+// CSRF protection (skip for OAuth2 routes and registration init)
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.COOKIE_SECURE === 'true',
   },
-  ignoreMethods: process.env.USE_OAUTH2 === 'true' ? ['GET', 'HEAD', 'OPTIONS', 'POST'] : ['GET', 'HEAD', 'OPTIONS'],
+  ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
+});
+
+// Registration-specific rate limiting
+const registrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 registration attempts per 15 minutes
+  message: 'Too many registration attempts, please try again later.',
+  keyGenerator: (req) => req.ip + ':registration',
+});
+
+// Institution search rate limiting
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 searches per minute
+  message: 'Too many search requests, please slow down.',
 });
 
 // Auth-specific rate limiting
@@ -139,8 +142,13 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    version: '1.0.0',
-    roles: ['platform_admin', 'school_admin', 'teacher', 'student', 'alumni'],
+    version: '2.0.0',
+    features: {
+      multiStepRegistration: true,
+      institutionSearch: true,
+      roleBasedAuth: true,
+      keycloakTheme: true
+    },
     oauth2: {
       keycloakUrl: process.env.KEYCLOAK_URL,
       realm: process.env.KEYCLOAK_REALM,
@@ -150,31 +158,25 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Test endpoint to verify backend is running and returning JSON
+// Test endpoint
 app.get('/api/test', (req, res) => {
   logger.info('Test endpoint requested');
   res.setHeader('Content-Type', 'application/json');
   res.json({ 
-    message: 'Backend is running',
+    message: 'My School Buddies Backend v2.0 - Multi-Step Registration Ready',
     timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.url,
-    oauth2Config: {
-      enabled: process.env.USE_OAUTH2 === 'true',
-      keycloakUrl: process.env.KEYCLOAK_URL,
-      realm: process.env.KEYCLOAK_REALM,
-      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID
-    }
+    sessionId: req.sessionID,
+    features: ['registration', 'institutions', 'auth', 'oauth2']
   });
 });
 
-// API Routes with middleware
+// API Routes with proper middleware
 app.use('/api/auth', authLimiter, csrfProtection, authRoutes);
-app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF protection
+app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF
 app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/institutions', institutionsRoutes);
-app.use('/api/registration', authLimiter, registrationRoutes);
+app.use('/api/institutions', searchLimiter, institutionsRoutes);
+app.use('/api/registration', registrationLimiter, registrationRoutes); // No CSRF for registration init
 
 // Error handling middleware
 app.use(errorHandler);
@@ -192,14 +194,17 @@ const startServer = async () => {
     await prisma.$connect();
     logger.info('Connected to PostgreSQL database');
 
+    // Verify institutions table exists
+    const institutionCount = await prisma.institutions.count();
+    logger.info(`Found ${institutionCount} institutions in database`);
+
     app.listen(PORT, () => {
-      logger.info(`🚀 Server running on port ${PORT}`);
+      logger.info(`🚀 My School Buddies Backend v2.0 running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
-      logger.info(`Test endpoint: http://localhost:${PORT}/api/test`);
-      logger.info(`OAuth2 token endpoint: http://localhost:${PORT}/api/oauth2/token`);
-      logger.info('Role-based authorization enabled');
-      logger.info('OAuth2 configuration validated and ready');
+      logger.info(`Multi-step registration enabled`);
+      logger.info(`Institution search API ready`);
+      logger.info('OAuth2 + Keycloak integration active');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

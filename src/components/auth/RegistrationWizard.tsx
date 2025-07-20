@@ -1,13 +1,14 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { RegistrationStep1 } from './RegistrationStep1';
 import { RegistrationStep2 } from './RegistrationStep2';
 import { RegistrationStep3 } from './RegistrationStep3';
 import { RegistrationStep4 } from './RegistrationStep4';
 import { Link } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface RegistrationData {
   // Step 1
@@ -28,14 +29,15 @@ interface RegistrationData {
   
   // Step 4
   role?: string;
-  acceptTerms?: boolean;
+  termsAccepted?: boolean;
 }
 
 export const RegistrationWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [registrationData, setRegistrationData] = useState<RegistrationData>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
+  const { toast } = useToast();
 
   const steps = [
     { number: 1, title: 'Basic Info', description: 'Personal information' },
@@ -56,45 +58,93 @@ export const RegistrationWizard = () => {
         
         if (response.ok) {
           const data = await response.json();
-          setSessionId(data.sessionId);
-          setCurrentStep(data.currentStep);
+          setCurrentStep(data.currentStep || 1);
+          setSessionInitialized(true);
+          console.log('Registration session initialized:', data);
+        } else {
+          throw new Error('Failed to initialize registration session');
         }
       } catch (error) {
         console.error('Failed to initialize registration:', error);
+        toast({
+          title: "Initialization Error",
+          description: "Failed to start registration. Please refresh the page.",
+          variant: "destructive",
+        });
       }
     };
 
     initRegistration();
-  }, []);
+  }, [toast]);
 
   const updateRegistrationData = (stepData: Partial<RegistrationData>) => {
     setRegistrationData(prev => ({ ...prev, ...stepData }));
   };
 
   const handleNext = async (stepData: Partial<RegistrationData>) => {
+    if (!sessionInitialized) {
+      toast({
+        title: "Session Error",
+        description: "Registration session not initialized. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
       updateRegistrationData(stepData);
       
-      // Submit step data to backend
-      const response = await fetch(`/api/registration/step${currentStep}`, {
+      // Determine API endpoint based on current step
+      let endpoint = '';
+      switch (currentStep) {
+        case 1:
+          endpoint = '/api/registration/basic';
+          break;
+        case 2:
+          endpoint = '/api/registration/school';
+          break;
+        case 3:
+          endpoint = '/api/registration/account';
+          break;
+        default:
+          throw new Error('Invalid step');
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(stepData),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
-        setCurrentStep(result.nextStep);
+        setCurrentStep(result.currentStep);
+        toast({
+          title: "Step Completed",
+          description: result.message,
+        });
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Step validation failed');
+        // Handle specific field errors
+        if (result.errors && Array.isArray(result.errors)) {
+          const errorMessage = result.errors.map((err: any) => err.msg).join(', ');
+          throw new Error(errorMessage);
+        } else if (result.error) {
+          throw new Error(result.error);
+        } else {
+          throw new Error('Step validation failed');
+        }
       }
     } catch (error) {
       console.error(`Step ${currentStep} failed:`, error);
-      // Handle error (show toast, etc.)
+      toast({
+        title: "Validation Error",
+        description: error instanceof Error ? error.message : 'Please check your information and try again.',
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +157,15 @@ export const RegistrationWizard = () => {
   };
 
   const handleComplete = async (stepData: Partial<RegistrationData>) => {
+    if (!sessionInitialized) {
+      toast({
+        title: "Session Error",
+        description: "Registration session not initialized. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -119,17 +178,35 @@ export const RegistrationWizard = () => {
         body: JSON.stringify(stepData),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
-        const result = await response.json();
-        // Redirect to pending approval page
-        window.location.href = '/registration/pending';
+        toast({
+          title: "Registration Successful!",
+          description: result.message,
+        });
+        
+        // Redirect to pending approval page after a short delay
+        setTimeout(() => {
+          window.location.href = '/auth/pending-approval';
+        }, 2000);
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Registration failed');
+        if (result.errors && Array.isArray(result.errors)) {
+          const errorMessage = result.errors.map((err: any) => err.msg).join(', ');
+          throw new Error(errorMessage);
+        } else if (result.error) {
+          throw new Error(result.error);
+        } else {
+          throw new Error('Registration failed');
+        }
       }
     } catch (error) {
       console.error('Registration completion failed:', error);
-      // Handle error
+      toast({
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +256,14 @@ export const RegistrationWizard = () => {
 
   const progressPercentage = (currentStep / steps.length) * 100;
 
+  if (!sessionInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
@@ -208,7 +293,7 @@ export const RegistrationWizard = () => {
             <div className="space-y-2">
               <Progress value={progressPercentage} className="h-2" />
               <div className="flex justify-between text-sm text-muted-foreground">
-                {steps.map((step, index) => (
+                {steps.map((step) => (
                   <div
                     key={step.number}
                     className={`flex items-center space-x-1 ${

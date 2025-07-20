@@ -1,11 +1,10 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ArrowLeft, CheckCircle, Loader2, GraduationCap, Users, BookOpen } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, CheckCircle, User, Building, Mail, Phone, UserCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 interface RegistrationStep4Props {
   data: any;
@@ -14,44 +13,44 @@ interface RegistrationStep4Props {
   isLoading: boolean;
 }
 
+const roles = [
+  {
+    value: 'student',
+    title: 'Student',
+    description: 'Current student at the institution',
+    icon: GraduationCap,
+    color: 'text-blue-600'
+  },
+  {
+    value: 'teacher',
+    title: 'Teacher',
+    description: 'Faculty member or educator',
+    icon: BookOpen,
+    color: 'text-green-600'
+  },
+  {
+    value: 'alumni',
+    title: 'Alumni',
+    description: 'Former student or graduate',
+    icon: Users,
+    color: 'text-purple-600'
+  }
+];
+
 export const RegistrationStep4 = ({ data, onComplete, onBack, isLoading }: RegistrationStep4Props) => {
-  const [formData, setFormData] = useState({
-    role: data.role || '',
-    acceptTerms: data.acceptTerms || false,
-  });
-
+  const [selectedRole, setSelectedRole] = useState(data.role || '');
+  const [termsAccepted, setTermsAccepted] = useState(data.termsAccepted || false);
   const [errors, setErrors] = useState<any>({});
-
-  const roles = [
-    {
-      value: 'student',
-      label: 'Student',
-      description: 'Currently studying at this institution',
-      icon: User,
-    },
-    {
-      value: 'teacher',
-      label: 'Teacher/Faculty',
-      description: 'Teaching or working at this institution',
-      icon: UserCheck,
-    },
-    {
-      value: 'alumni',
-      label: 'Alumni',
-      description: 'Former student of this institution',
-      icon: Building,
-    },
-  ];
 
   const validateForm = () => {
     const newErrors: any = {};
 
-    if (!formData.role) {
+    if (!selectedRole) {
       newErrors.role = 'Please select your role';
     }
 
-    if (!formData.acceptTerms) {
-      newErrors.acceptTerms = 'You must accept the terms and conditions';
+    if (!termsAccepted) {
+      newErrors.terms = 'You must accept the terms and conditions';
     }
 
     setErrors(newErrors);
@@ -62,54 +61,59 @@ export const RegistrationStep4 = ({ data, onComplete, onBack, isLoading }: Regis
     e.preventDefault();
     
     if (validateForm()) {
-      onComplete(formData);
+      onComplete({
+        role: selectedRole,
+        termsAccepted
+      });
     }
   };
 
-  const handleRoleChange = (value: string) => {
-    setFormData(prev => ({ ...prev, role: value }));
+  const handleRoleSelect = (role: string) => {
+    setSelectedRole(role);
     if (errors.role) {
       setErrors((prev: any) => ({ ...prev, role: '' }));
     }
   };
 
   const handleTermsChange = (checked: boolean) => {
-    setFormData(prev => ({ ...prev, acceptTerms: checked }));
-    if (errors.acceptTerms) {
-      setErrors((prev: any) => ({ ...prev, acceptTerms: '' }));
+    setTermsAccepted(checked);
+    if (errors.terms) {
+      setErrors((prev: any) => ({ ...prev, terms: '' }));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="text-center space-y-2">
-        <CheckCircle className="w-12 h-12 text-primary mx-auto" />
-        <h3 className="text-lg font-semibold">Almost Done!</h3>
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-semibold mb-2">Almost Done!</h3>
         <p className="text-muted-foreground">
-          Just a few final details to complete your registration
+          Select your role and accept our terms to complete registration
         </p>
       </div>
 
       {/* Registration Summary */}
       <Card className="bg-muted/30">
         <CardContent className="p-4">
-          <h4 className="font-medium mb-3">Registration Summary</h4>
+          <h4 className="font-semibold mb-3 flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            <span>Registration Summary</span>
+          </h4>
           <div className="space-y-2 text-sm">
-            <div className="flex items-center space-x-2">
-              <User className="w-4 h-4 text-muted-foreground" />
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Name:</span>
               <span>{data.firstName} {data.lastName}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Mail className="w-4 h-4 text-muted-foreground" />
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Email:</span>
               <span>{data.email}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <span>{data.phone}</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Institution:</span>
+              <span className="text-right">{data.institutionName}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Building className="w-4 h-4 text-muted-foreground" />
-              <span>{data.institutionName}</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Username:</span>
+              <span>{data.username}</span>
             </div>
           </div>
         </CardContent>
@@ -117,97 +121,107 @@ export const RegistrationStep4 = ({ data, onComplete, onBack, isLoading }: Regis
 
       {/* Role Selection */}
       <div className="space-y-3">
-        <Label className="text-base font-medium">What is your role at this institution?</Label>
-        <RadioGroup value={formData.role} onValueChange={handleRoleChange}>
-          <div className="space-y-3">
-            {roles.map((role) => {
-              const IconComponent = role.icon;
-              return (
-                <label
-                  key={role.value}
-                  className={`flex items-start space-x-3 p-4 border rounded-lg cursor-pointer transition-colors hover:bg-muted/50 ${
-                    formData.role === role.value 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border'
-                  }`}
-                >
-                  <RadioGroupItem value={role.value} className="mt-1" />
-                  <IconComponent className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <div className="font-medium">{role.label}</div>
-                    <div className="text-sm text-muted-foreground">{role.description}</div>
+        <Label className="text-base font-medium">Select Your Role</Label>
+        <div className="grid gap-3">
+          {roles.map((role) => {
+            const Icon = role.icon;
+            return (
+              <Card
+                key={role.value}
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  selectedRole === role.value
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'hover:border-muted-foreground/30'
+                }`}
+                onClick={() => handleRoleSelect(role.value)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${
+                      selectedRole === role.value ? 'bg-primary/10' : 'bg-muted'
+                    }`}>
+                      <Icon className={`w-5 h-5 ${
+                        selectedRole === role.value ? 'text-primary' : role.color
+                      }`} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{role.title}</h4>
+                      <p className="text-sm text-muted-foreground">{role.description}</p>
+                    </div>
+                    {selectedRole === role.value && (
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                    )}
                   </div>
-                </label>
-              );
-            })}
-          </div>
-        </RadioGroup>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
         {errors.role && (
           <p className="text-destructive text-sm">{errors.role}</p>
         )}
       </div>
 
       {/* Terms and Conditions */}
-      <div className="space-y-4">
-        <div className="flex items-start space-x-3">
+      <div className="space-y-3">
+        <div className="flex items-start space-x-3 p-4 border rounded-lg">
           <Checkbox
             id="terms"
-            checked={formData.acceptTerms}
+            checked={termsAccepted}
             onCheckedChange={handleTermsChange}
             className="mt-1"
           />
-          <div className="text-sm">
-            <Label htmlFor="terms" className="cursor-pointer">
-              I agree to the{' '}
-              <Link to="/terms" className="text-primary hover:underline" target="_blank">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link to="/privacy" className="text-primary hover:underline" target="_blank">
-                Privacy Policy
-              </Link>
+          <div className="flex-1">
+            <Label htmlFor="terms" className="text-sm font-medium cursor-pointer">
+              I agree to the Terms and Conditions and Privacy Policy
             </Label>
-            {errors.acceptTerms && (
-              <p className="text-destructive text-sm mt-1">{errors.acceptTerms}</p>
-            )}
+            <div className="text-xs text-muted-foreground mt-1 space-y-1">
+              <p>• Your account will be reviewed and approved by administrators</p>
+              <p>• You'll receive an email notification once approved</p>
+              <p>• Approval typically takes 1-2 business days</p>
+            </div>
           </div>
         </div>
-
-        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20">
-          <CardContent className="p-4">
-            <div className="flex items-start space-x-2">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0" />
-              <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                <p className="font-medium mb-1">Account Approval Required</p>
-                <p>
-                  Your account will be pending approval from your institution's admin. 
-                  You'll receive an email notification once your account is activated.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {errors.terms && (
+          <p className="text-destructive text-sm">{errors.terms}</p>
+        )}
       </div>
+
+      {/* Important Notice */}
+      <Card className="border-orange-200 bg-orange-50">
+        <CardContent className="p-4">
+          <div className="flex items-start space-x-2">
+            <div className="w-2 h-2 rounded-full bg-orange-500 mt-2 flex-shrink-0"></div>
+            <div className="text-sm">
+              <p className="font-medium text-orange-800 mb-1">Account Approval Required</p>
+              <p className="text-orange-700">
+                Your registration will be submitted for administrator approval. 
+                You'll receive an email notification once your account is activated.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
         <Button 
-          type="button" 
+          type="button"
           variant="outline" 
           onClick={onBack}
-          className="min-w-32"
+          disabled={isLoading}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
         
         <Button 
-          type="submit" 
-          disabled={isLoading}
-          className="min-w-32"
+          type="submit"
+          disabled={isLoading || !selectedRole || !termsAccepted}
+          className="min-w-40"
         >
           {isLoading ? (
-            <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : (
             <>
               Complete Registration
