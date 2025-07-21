@@ -42,8 +42,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('[Auth] Initializing authentication...');
       
-      // Check if user is authenticated
-      const isAuth = await oauth2Service.isAuthenticated();
+      // Initialize OAuth2 service
+      const isAuth = await oauth2Service.initialize();
       
       if (isAuth) {
         console.log('[Auth] User is authenticated, fetching user info...');
@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role: userInfo.role as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
             schoolId: userInfo.schoolId,
             avatar: userInfo.avatar,
+            status: userInfo.status as 'pending_approval' | 'active' | 'inactive' | 'rejected',
           });
           console.log('[Auth] User authenticated successfully:', userInfo.email);
         }
@@ -88,18 +89,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = () => {
     console.log('[Auth] Initiating registration...');
-    oauth2Service.login();
+    // For registration, redirect to the multi-step registration page
+    window.location.href = '/register';
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log('[Auth] Logging out...');
-    oauth2Service.logout();
-    setUser(null);
-    setToken(null);
-    setAuthenticated(false);
+    setIsLoading(true);
+    
+    try {
+      await oauth2Service.logout();
+      setUser(null);
+      setToken(null);
+      setAuthenticated(false);
+      
+      // Clear any cached data
+      oauth2Service.clearCache();
+      
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('[Auth] Logout failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Return a Promise to allow awaiting the auth refresh
   const refreshAuth = async (): Promise<void> => {
     console.log('[Auth] Manually refreshing auth state...');
     await initializeAuth();

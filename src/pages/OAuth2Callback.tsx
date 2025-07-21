@@ -1,251 +1,124 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { oauth2Service } from '@/lib/oauth2';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
-interface CallbackState {
-  status: 'loading' | 'success' | 'error' | 'warning';
-  message: string;
-  userInfo?: any;
-  errorDetails?: string;
-  debugInfo?: any;
-}
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { oauth2Service } from '@/lib/oauth2';
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const OAuth2Callback = () => {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, isLoading, refreshAuth } = useAuth();
-  const [state, setState] = useState<CallbackState>({
-    status: 'loading',
-    message: 'Processing login...',
-  });
+  const { refreshAuth } = useAuth();
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [message, setMessage] = useState('Processing login...');
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('🚀 [OAuth2Callback] Starting callback processing');
-      
       try {
-        // Parse URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const stateParam = urlParams.get('state');
-        const error = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
+        const code = searchParams.get('code');
+        const error = searchParams.get('error');
+        const state = searchParams.get('state');
 
-        console.log('📋 [OAuth2Callback] URL parameters:', {
-          hasCode: !!code,
-          hasState: !!stateParam,
-          hasError: !!error,
-          error,
-          errorDescription
-        });
-
-        // Handle OAuth2 errors from Keycloak
         if (error) {
-          console.error('❌ [OAuth2Callback] OAuth2 error:', { error, errorDescription });
-          setState({
-            status: 'error',
-            message: `Authentication failed: ${errorDescription || error}`,
-            errorDetails: 'The authentication server returned an error. Please try logging in again.',
-          });
+          setStatus('error');
+          setMessage(`Login failed: ${error}`);
+          setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
-        // Validate required parameters
         if (!code) {
-          console.error('❌ [OAuth2Callback] Missing authorization code');
-          setState({
-            status: 'error',
-            message: 'Missing authorization code from authentication server',
-            errorDetails: 'The login process was incomplete. Please try logging in again.',
-          });
+          setStatus('error');
+          setMessage('No authorization code received');
+          setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
-        if (!stateParam) {
-          console.error('❌ [OAuth2Callback] Missing state parameter');
-          setState({
-            status: 'error',
-            message: 'Missing state parameter from authentication server',
-            errorDetails: 'Security validation failed. Please try logging in again.',
-          });
-          return;
-        }
-
-        setState({
-          status: 'loading',
-          message: 'Exchanging authorization code for tokens...',
-        });
-
-        console.log('🔄 [OAuth2Callback] Starting token exchange');
-
-        // Exchange code for tokens
-        try {
-          await oauth2Service.exchangeCodeForTokens(code, stateParam);
-          console.log('✅ [OAuth2Callback] Token exchange completed');
-        } catch (tokenError) {
-          console.error('❌ [OAuth2Callback] Token exchange failed:', tokenError);
-          
-          let errorMessage = 'Token exchange failed';
-          let errorDetails = 'Please try logging in again.';
-          
-          if (tokenError instanceof Error) {
-            errorMessage = tokenError.message;
-            
-            if (tokenError.message.includes('state')) {
-              errorDetails = 'Security validation failed. Clear your browser cache and try logging in again.';
-            } else if (tokenError.message.includes('invalid_client')) {
-              errorDetails = 'Client configuration error. Please verify the client settings.';
-            } else if (tokenError.message.includes('invalid_grant')) {
-              errorDetails = 'Authorization code expired or invalid. Please try logging in again.';
-            }
-          }
-          
-          setState({
-            status: 'error',
-            message: errorMessage,
-            errorDetails,
-          });
-          return;
-        }
+        console.log('[OAuth2Callback] Processing authorization code...');
         
-        setState({
-          status: 'loading',
-          message: 'Refreshing authentication state...',
-        });
-
-        console.log('🔄 [OAuth2Callback] Tokens stored, refreshing auth state');
-
-        // Refresh authentication state immediately
-        await refreshAuth();
-
-        console.log('🎉 [OAuth2Callback] Authentication state refreshed');
-
-        setState({
-          status: 'loading',
-          message: 'Authentication successful! Redirecting to dashboard...',
-        });
-
-        // Wait for auth state to update in next render cycle
-        setTimeout(() => {
-          console.log('🔄 [OAuth2Callback] Checking auth state before redirect');
-          navigate('/dashboard', { replace: true });
-        }, 100);
-
+        // Handle the OAuth2 callback
+        const success = await oauth2Service.handleCallback(code);
+        
+        if (success) {
+          setStatus('success');
+          setMessage('Login successful! Redirecting...');
+          
+          // Refresh auth state to get user info
+          await refreshAuth();
+          
+          // Small delay to show success message
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 1500);
+        } else {
+          setStatus('error');
+          setMessage('Login failed. Please try again.');
+          setTimeout(() => navigate('/login'), 3000);
+        }
       } catch (error) {
-        console.error('💥 [OAuth2Callback] Unexpected error:', error);
-        
-        setState({
-          status: 'error',
-          message: 'Unexpected error during login processing',
-          errorDetails: 'An unexpected error occurred. Please try logging in again.',
-        });
+        console.error('[OAuth2Callback] Error:', error);
+        setStatus('error');
+        setMessage('An unexpected error occurred. Please try again.');
+        setTimeout(() => navigate('/login'), 3000);
       }
     };
 
     handleCallback();
-  }, [navigate, refreshAuth]);
-
-  // If user is already authenticated and loaded, redirect immediately
-  useEffect(() => {
-    if (!isLoading && user) {
-      console.log('🚀 [OAuth2Callback] User already authenticated, redirecting to dashboard');
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, isLoading, navigate]);
-
-  const handleRetry = () => {
-    console.log('[OAuth2Callback] User initiated retry, redirecting to login');
-    navigate('/login');
-  };
-
-  const handleGoHome = () => {
-    console.log('[OAuth2Callback] User chose to go home');
-    navigate('/');
-  };
-
-  const getIcon = () => {
-    switch (state.status) {
-      case 'loading':
-        return <Loader2 className="w-8 h-8 text-white animate-spin" />;
-      case 'success':
-        return <CheckCircle className="w-8 h-8 text-white" />;
-      case 'warning':
-        return <AlertTriangle className="w-8 h-8 text-white" />;
-      case 'error':
-        return <XCircle className="w-8 h-8 text-white" />;
-      default:
-        return <Loader2 className="w-8 h-8 text-white animate-spin" />;
-    }
-  };
-
-  const getTitle = () => {
-    switch (state.status) {
-      case 'loading':
-        return 'Processing Login';
-      case 'success':
-        return 'Login Successful';
-      case 'warning':
-        return 'Login Partially Successful';
-      case 'error':
-        return 'Login Failed';
-      default:
-        return 'Processing Login';
-    }
-  };
-
-  const getIconBgColor = () => {
-    switch (state.status) {
-      case 'success':
-        return 'bg-gradient-to-br from-green-500 to-emerald-600';
-      case 'warning':
-        return 'bg-gradient-to-br from-yellow-500 to-orange-600';
-      case 'error':
-        return 'bg-gradient-to-br from-red-500 to-rose-600';
-      default:
-        return 'bg-gradient-to-br from-blue-500 to-purple-600';
-    }
-  };
+  }, [searchParams, navigate, refreshAuth]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-0 shadow-xl">
-        <CardHeader className="text-center space-y-4">
-          <div className={`mx-auto w-16 h-16 rounded-full ${getIconBgColor()} flex items-center justify-center`}>
-            {getIcon()}
-          </div>
-          <CardTitle className="text-2xl">{getTitle()}</CardTitle>
-        </CardHeader>
-        
-        <CardContent className="text-center space-y-4">
-          <p className="text-gray-600">{state.message}</p>
+      <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8 text-center">
+        <div className="mb-6">
+          {status === 'processing' && (
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+          )}
+          {status === 'success' && (
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <XCircle className="w-8 h-8 text-red-600" />
+            </div>
+          )}
           
-          {state.errorDetails && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
-              <h4 className="font-medium text-red-900 mb-2">What can you do?</h4>
-              <p className="text-sm text-red-700">{state.errorDetails}</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {status === 'processing' && 'Processing Login'}
+            {status === 'success' && 'Login Successful'}
+            {status === 'error' && 'Login Failed'}
+          </h2>
+          
+          <p className="text-gray-600">
+            {message}
+          </p>
+        </div>
+        
+        {status === 'processing' && (
+          <div className="space-y-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
             </div>
-          )}
-
-          {(state.status === 'error' || state.status === 'warning') && (
-            <div className="space-y-3">
-              <button
-                onClick={handleRetry}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-colors"
-              >
-                Try Logging In Again
-              </button>
-              <button
-                onClick={handleGoHome}
-                className="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Go to Home Page
-              </button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            <p className="text-sm text-gray-500">
+              Verifying your credentials...
+            </p>
+          </div>
+        )}
+        
+        {status === 'success' && (
+          <div className="text-green-600 text-sm">
+            Redirecting to your dashboard...
+          </div>
+        )}
+        
+        {status === 'error' && (
+          <div className="text-red-600 text-sm">
+            Redirecting to login page...
+          </div>
+        )}
+      </div>
     </div>
   );
 };

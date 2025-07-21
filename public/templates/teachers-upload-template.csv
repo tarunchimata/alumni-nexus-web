@@ -1,0 +1,7 @@
+
+firstName,lastName,email,phone,dateOfBirth,subject,qualification,experience,employeeId,department,joiningDate
+Dr. Sunita,Sharma,sunita.sharma@school.edu,9876543220,1985-04-12,Mathematics,M.Sc. Mathematics,10,EMP001,Mathematics,2020-07-01
+Mr. Rajesh,Kumar,rajesh.kumar@school.edu,9876543221,1982-09-18,Physics,M.Sc. Physics,15,EMP002,Science,2018-06-15
+Mrs. Meera,Patel,meera.patel@school.edu,9876543222,1987-11-25,English,M.A. English,8,EMP003,English,2021-08-10
+Mr. Vikram,Singh,vikram.singh@school.edu,9876543223,1980-01-30,Chemistry,M.Sc. Chemistry,18,EMP004,Science,2016-04-20
+Ms. Anita,Verma,anita.verma@school.edu,9876543224,1990-06-08,History,M.A. History,5,EMP005,Social Studies,2022-09-05

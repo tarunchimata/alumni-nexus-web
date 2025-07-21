@@ -1,180 +1,341 @@
+/**
+ * Password Strength Meter for My School Buddies Keycloak Theme
+ * Production-ready with accessibility and mobile support
+ */
 
-// Password strength meter functionality
 (function() {
-    'use strict';
+  'use strict';
 
-    // Initialize password strength meter when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        initPasswordStrength();
+  // Password strength configuration
+  const strengthConfig = {
+    minLength: 8,
+    patterns: {
+      lowercase: /[a-z]/,
+      uppercase: /[A-Z]/,
+      numbers: /\d/,
+      symbols: /[@$!%*?&]/,
+      common: /^(password|123456|qwerty|abc123|letmein|monkey|dragon)$/i
+    },
+    messages: {
+      weak: 'Weak - Add more characters',
+      medium: 'Medium - Add special characters',
+      strong: 'Strong password',
+      veryStrong: 'Very strong password'
+    }
+  };
+
+  // Initialize password strength meter
+  function initPasswordStrength() {
+    const passwordFields = document.querySelectorAll('input[type="password"]');
+    
+    passwordFields.forEach(field => {
+      if (field.name === 'password' || field.name === 'password-new') {
+        createStrengthMeter(field);
+        addPasswordToggle(field);
+      }
     });
+  }
 
-    function initPasswordStrength() {
-        const passwordFields = document.querySelectorAll('input[type="password"]');
-        
-        passwordFields.forEach(function(field) {
-            if (field.name === 'password' || field.name === 'password-new') {
-                setupPasswordStrength(field);
-            }
-        });
-    }
+  // Create strength meter UI
+  function createStrengthMeter(passwordField) {
+    const container = document.createElement('div');
+    container.className = 'password-strength-container';
+    container.style.display = 'none';
+    
+    const bar = document.createElement('div');
+    bar.className = 'password-strength-bar';
+    
+    const fill = document.createElement('div');
+    fill.className = 'password-strength-fill';
+    
+    const text = document.createElement('div');
+    text.className = 'password-strength-text';
+    text.setAttribute('aria-live', 'polite');
+    
+    bar.appendChild(fill);
+    container.appendChild(bar);
+    container.appendChild(text);
+    
+    passwordField.parentNode.insertBefore(container, passwordField.nextSibling);
+    
+    // Add event listener
+    passwordField.addEventListener('input', function() {
+      updateStrengthMeter(this.value, fill, text, container);
+    });
+    
+    // Add focus/blur events
+    passwordField.addEventListener('focus', function() {
+      if (this.value.length > 0) {
+        container.style.display = 'block';
+      }
+    });
+    
+    passwordField.addEventListener('blur', function() {
+      if (this.value.length === 0) {
+        container.style.display = 'none';
+      }
+    });
+  }
 
-    function setupPasswordStrength(passwordField) {
-        passwordField.addEventListener('input', function(e) {
-            const password = e.target.value;
-            updatePasswordStrength(password);
-        });
-    }
-
-    function updatePasswordStrength(password) {
-        const strengthContainer = document.getElementById('password-strength');
-        const strengthFill = document.querySelector('.password-strength-fill');
-        const strengthText = document.querySelector('.password-strength-text');
-        
-        if (!strengthContainer || !strengthFill || !strengthText) {
-            return;
-        }
-        
-        if (password.length === 0) {
-            strengthContainer.style.display = 'none';
-            return;
-        }
-        
-        strengthContainer.style.display = 'block';
-        const strength = calculatePasswordStrength(password);
-        const percentage = Math.min((strength.score / 5) * 100, 100);
-        
-        strengthFill.style.width = percentage + '%';
-        strengthFill.className = 'password-strength-fill ' + strength.level;
-        strengthText.textContent = strength.text;
-        
-        // Add accessibility
-        strengthContainer.setAttribute('aria-live', 'polite');
-        strengthContainer.setAttribute('aria-label', 'Password strength: ' + strength.text);
-    }
-
-    function calculatePasswordStrength(password) {
-        let score = 0;
-        let feedback = [];
-        
-        // Length check
-        if (password.length >= 8) {
-            score += 1;
-        } else {
-            feedback.push('Use at least 8 characters');
-        }
-        
-        // Lowercase check
-        if (/[a-z]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Add lowercase letters');
-        }
-        
-        // Uppercase check
-        if (/[A-Z]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Add uppercase letters');
-        }
-        
-        // Number check
-        if (/\d/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Add numbers');
-        }
-        
-        // Special character check
-        if (/[@$!%*?&]/.test(password)) {
-            score += 1;
-        } else {
-            feedback.push('Add special characters');
-        }
-        
-        // Determine strength level
-        let level, text;
-        if (score < 2) {
-            level = 'weak';
-            text = 'Weak';
-        } else if (score < 4) {
-            level = 'medium';
-            text = 'Medium';
-        } else {
-            level = 'strong';
-            text = 'Strong';
-        }
-        
-        return {
-            score: score,
-            level: level,
-            text: text,
-            feedback: feedback
-        };
-    }
-
-    // Password visibility toggle
-    window.togglePassword = function(fieldId) {
-        const field = document.getElementById(fieldId);
-        const button = field.nextElementSibling;
-        
-        if (!button || !button.classList.contains('password-toggle')) {
-            return;
-        }
-        
-        const showIcon = button.querySelector('.password-show');
-        const hideIcon = button.querySelector('.password-hide');
-        
-        if (field.type === 'password') {
-            field.type = 'text';
-            showIcon.style.display = 'none';
-            hideIcon.style.display = 'inline';
-            button.setAttribute('aria-label', 'Hide password');
-        } else {
-            field.type = 'password';
-            showIcon.style.display = 'inline';
-            hideIcon.style.display = 'none';
-            button.setAttribute('aria-label', 'Show password');
-        }
+  // Calculate password strength
+  function calculateStrength(password) {
+    if (!password) return 0;
+    
+    let score = 0;
+    const checks = {
+      length: password.length >= strengthConfig.minLength,
+      lowercase: strengthConfig.patterns.lowercase.test(password),
+      uppercase: strengthConfig.patterns.uppercase.test(password),
+      numbers: strengthConfig.patterns.numbers.test(password),
+      symbols: strengthConfig.patterns.symbols.test(password),
+      notCommon: !strengthConfig.patterns.common.test(password)
     };
+    
+    // Base score from length
+    if (checks.length) score += 1;
+    if (password.length >= 12) score += 1;
+    
+    // Character variety
+    if (checks.lowercase) score += 1;
+    if (checks.uppercase) score += 1;
+    if (checks.numbers) score += 1;
+    if (checks.symbols) score += 1;
+    
+    // Penalty for common passwords
+    if (!checks.notCommon) score -= 2;
+    
+    // Bonus for very long passwords
+    if (password.length >= 16) score += 1;
+    
+    return Math.max(0, Math.min(5, score));
+  }
 
-    // Form validation helpers
-    window.validateForm = function(formId) {
-        const form = document.getElementById(formId);
-        if (!form) return true;
-        
-        const requiredFields = form.querySelectorAll('[required]');
-        let isValid = true;
-        
-        requiredFields.forEach(function(field) {
-            if (!field.value.trim()) {
-                field.setAttribute('aria-invalid', 'true');
-                isValid = false;
-            } else {
-                field.removeAttribute('aria-invalid');
-            }
-        });
-        
-        return isValid;
-    };
+  // Update strength meter display
+  function updateStrengthMeter(password, fill, text, container) {
+    if (password.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    
+    container.style.display = 'block';
+    const strength = calculateStrength(password);
+    const percentage = (strength / 5) * 100;
+    
+    fill.style.width = percentage + '%';
+    
+    // Update visual style and text
+    fill.className = 'password-strength-fill';
+    if (strength <= 2) {
+      fill.classList.add('weak');
+      text.textContent = strengthConfig.messages.weak;
+    } else if (strength <= 3) {
+      fill.classList.add('medium');
+      text.textContent = strengthConfig.messages.medium;
+    } else if (strength <= 4) {
+      fill.classList.add('strong');
+      text.textContent = strengthConfig.messages.strong;
+    } else {
+      fill.classList.add('strong');
+      text.textContent = strengthConfig.messages.veryStrong;
+    }
+    
+    // Update ARIA attributes
+    fill.setAttribute('aria-valuenow', strength);
+    fill.setAttribute('aria-valuemin', '0');
+    fill.setAttribute('aria-valuemax', '5');
+    fill.setAttribute('aria-label', `Password strength: ${text.textContent}`);
+  }
 
-    // Enhanced form submission
-    window.enhanceFormSubmission = function(formId) {
-        const form = document.getElementById(formId);
-        if (!form) return;
-        
-        form.addEventListener('submit', function(e) {
-            const submitButton = form.querySelector('[type="submit"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.textContent = 'Processing...';
-                
-                // Re-enable after 5 seconds as fallback
-                setTimeout(function() {
-                    submitButton.disabled = false;
-                    submitButton.textContent = submitButton.getAttribute('data-original-text') || 'Submit';
-                }, 5000);
-            }
-        });
-    };
+  // Add password toggle functionality
+  function addPasswordToggle(passwordField) {
+    // Skip if toggle already exists
+    if (passwordField.parentNode.querySelector('.password-toggle')) {
+      return;
+    }
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'password-field';
+    
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'password-toggle';
+    toggle.setAttribute('aria-label', 'Toggle password visibility');
+    
+    const showIcon = document.createElement('span');
+    showIcon.className = 'password-show';
+    showIcon.textContent = '👁';
+    
+    const hideIcon = document.createElement('span');
+    hideIcon.className = 'password-hide';
+    hideIcon.textContent = '🙈';
+    hideIcon.style.display = 'none';
+    
+    toggle.appendChild(showIcon);
+    toggle.appendChild(hideIcon);
+    
+    // Insert wrapper
+    passwordField.parentNode.insertBefore(wrapper, passwordField);
+    wrapper.appendChild(passwordField);
+    wrapper.appendChild(toggle);
+    
+    // Add click handler
+    toggle.addEventListener('click', function() {
+      const isPassword = passwordField.type === 'password';
+      
+      passwordField.type = isPassword ? 'text' : 'password';
+      showIcon.style.display = isPassword ? 'none' : 'inline';
+      hideIcon.style.display = isPassword ? 'inline' : 'none';
+      
+      // Update ARIA label
+      toggle.setAttribute('aria-label', 
+        isPassword ? 'Hide password' : 'Show password'
+      );
+      
+      // Keep focus on password field
+      passwordField.focus();
+    });
+  }
+
+  // Real-time validation feedback
+  function addValidationFeedback() {
+    const form = document.querySelector('#kc-form-login, #kc-register-form, #kc-passwd-update-form');
+    if (!form) return;
+    
+    const inputs = form.querySelectorAll('input[required]');
+    
+    inputs.forEach(input => {
+      input.addEventListener('blur', function() {
+        validateField(this);
+      });
+      
+      input.addEventListener('input', function() {
+        // Clear error state on input
+        this.setAttribute('aria-invalid', 'false');
+        const errorMsg = this.parentNode.querySelector('.error-message');
+        if (errorMsg) {
+          errorMsg.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // Validate individual field
+  function validateField(field) {
+    const value = field.value.trim();
+    let isValid = true;
+    let errorMessage = '';
+    
+    // Required field validation
+    if (field.hasAttribute('required') && !value) {
+      isValid = false;
+      errorMessage = 'This field is required';
+    }
+    
+    // Email validation
+    if (field.type === 'email' && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        isValid = false;
+        errorMessage = 'Please enter a valid email address';
+      }
+    }
+    
+    // Password validation
+    if (field.type === 'password' && value && field.name === 'password') {
+      if (value.length < strengthConfig.minLength) {
+        isValid = false;
+        errorMessage = `Password must be at least ${strengthConfig.minLength} characters`;
+      }
+    }
+    
+    // Username validation
+    if (field.name === 'username' && value) {
+      if (value.length < 3) {
+        isValid = false;
+        errorMessage = 'Username must be at least 3 characters';
+      }
+    }
+    
+    // Update field state
+    field.setAttribute('aria-invalid', !isValid);
+    
+    // Show/hide error message
+    let errorElement = field.parentNode.querySelector('.error-message');
+    if (!errorElement && !isValid) {
+      errorElement = document.createElement('span');
+      errorElement.className = 'error-message';
+      errorElement.setAttribute('aria-live', 'polite');
+      field.parentNode.appendChild(errorElement);
+    }
+    
+    if (errorElement) {
+      if (!isValid) {
+        errorElement.textContent = errorMessage;
+        errorElement.style.display = 'block';
+      } else {
+        errorElement.style.display = 'none';
+      }
+    }
+  }
+
+  // Form submission enhancement
+  function enhanceFormSubmission() {
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach(form => {
+      form.addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('input[type="submit"], button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.classList.add('btn-loading');
+          
+          // Re-enable after 5 seconds as fallback
+          setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-loading');
+          }, 5000);
+        }
+      });
+    });
+  }
+
+  // Mobile enhancements
+  function addMobileEnhancements() {
+    // Prevent zoom on iOS when focusing inputs
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
+      inputs.forEach(input => {
+        if (window.innerWidth < 768) {
+          input.style.fontSize = '16px';
+        }
+      });
+    }
+    
+    // Add touch-friendly spacing
+    if ('ontouchstart' in window) {
+      document.body.classList.add('touch-device');
+    }
+  }
+
+  // Initialize all features when DOM is ready
+  function init() {
+    initPasswordStrength();
+    addValidationFeedback();
+    enhanceFormSubmission();
+    addMobileEnhancements();
+  }
+
+  // Run initialization
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Export for global access if needed
+  window.MySchoolBuddiesAuth = {
+    calculateStrength: calculateStrength,
+    validateField: validateField
+  };
 
 })();
