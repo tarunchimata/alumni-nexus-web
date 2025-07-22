@@ -12,7 +12,7 @@ import PendingApproval from "@/pages/PendingApproval";
 import OAuth2Callback from "@/pages/OAuth2Callback";
 
 // Dashboards
-import PlatformAdminDashboard from "@/pages/dashboard/PlatformAdminDashboard";
+import PlatformAdminDashboard from "@/components/dashboards/PlatformAdminDashboard";
 import SchoolAdminDashboard from "@/pages/dashboard/SchoolAdminDashboard";  
 import TeacherDashboard from "@/pages/dashboard/TeacherDashboard";
 import StudentDashboard from "@/pages/dashboard/StudentDashboard";
