@@ -18,6 +18,7 @@ import schoolRoutes from './routes/schools';
 import postRoutes from './routes/posts';
 import institutionsRoutes from './routes/institutions';
 import registrationRoutes from './routes/registration';
+import dashboardRoutes from './routes/dashboards';
 
 // Load environment variables
 dotenv.config();
@@ -177,6 +178,7 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/institutions', searchLimiter, institutionsRoutes);
 app.use('/api/registration', registrationLimiter, registrationRoutes); // No CSRF for registration init
+app.use('/api/dashboards', dashboardRoutes); // Real dashboard data routes
 
 // Error handling middleware
 app.use(errorHandler);

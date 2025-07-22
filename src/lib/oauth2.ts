@@ -1,6 +1,4 @@
-
-// Enhanced OAuth2 service with proper session management
-import { logger } from './utils/logger';
+import axios from 'axios';
 
 interface UserInfo {
   id: string;
@@ -14,146 +12,152 @@ interface UserInfo {
 }
 
 class OAuth2Service {
-  private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  private initialized = false;
-  private userInfo: UserInfo | null = null;
-  private accessToken: string | null = null;
+  private userInfoCache: UserInfo | null = null;
+  private accessTokenCache: string | null = null;
+  private baseApiUrl: string;
 
-  async initialize(): Promise<boolean> {
-    if (this.initialized) {
-      return this.isAuthenticated();
-    }
-
-    try {
-      const isAuth = await this.checkAuthStatus();
-      this.initialized = true;
-      return isAuth;
-    } catch (error) {
-      console.error('[OAuth2] Initialization failed:', error);
-      this.initialized = true;
-      return false;
-    }
+  constructor() {
+    this.baseApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   }
 
-  private async checkAuthStatus(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/auth/profile`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const userInfo = await response.json();
-        this.userInfo = userInfo;
-        this.accessToken = 'cookie-based'; // Placeholder since we use httpOnly cookies
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('[OAuth2] Auth status check failed:', error);
-      return false;
-    }
+  async initialize(): Promise<boolean> {
+    console.log('[OAuth2] Initializing authentication...');
+    return await this.isAuthenticated();
   }
 
   async isAuthenticated(): Promise<boolean> {
-    if (!this.initialized) {
-      return await this.initialize();
-    }
-
-    // Check if we have user info cached
-    if (this.userInfo) {
-      return true;
-    }
-
-    // Recheck auth status
-    return await this.checkAuthStatus();
+    const token = await this.getAccessToken();
+    return !!token;
   }
 
   async getUserInfo(): Promise<UserInfo | null> {
-    if (!this.userInfo) {
-      await this.checkAuthStatus();
+    if (this.userInfoCache) {
+      return this.userInfoCache;
     }
-    return this.userInfo;
+
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
+
+      const response = await axios.get(`${this.baseApiUrl}/api/oauth2/userinfo`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.userInfoCache = response.data;
+      return response.data;
+    } catch (error) {
+      console.error('[OAuth2] Failed to get user info:', error);
+      return null;
+    }
   }
 
   async getAccessToken(): Promise<string | null> {
-    if (!this.accessToken) {
-      await this.checkAuthStatus();
+    if (this.accessTokenCache) {
+      return this.accessTokenCache;
     }
-    return this.accessToken;
+
+    const storedToken = localStorage.getItem('oauth2_access_token');
+    if (storedToken && !this.isTokenExpired()) {
+      this.accessTokenCache = storedToken;
+      return storedToken;
+    }
+
+    return null;
   }
 
-  login(): void {
-    const redirectUri = `${window.location.origin}/oauth2/callback`;
-    const loginUrl = `${this.baseUrl}/api/oauth2/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = loginUrl;
+  async login(): Promise<void> {
+    const codeVerifier = this.generateCodeVerifier();
+    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+    const state = this.generateState();
+
+    localStorage.setItem('oauth2_code_verifier', codeVerifier);
+    localStorage.setItem('oauth2_state', state);
+
+    const authParams = new URLSearchParams({
+      client_id: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
+      redirect_uri: import.meta.env.VITE_OAUTH2_REDIRECT_URI,
+      response_type: 'code',
+      scope: 'openid profile email',
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256'
+    });
+
+    const authUrl = `${import.meta.env.VITE_KEYCLOAK_URL}/realms/${import.meta.env.VITE_KEYCLOAK_REALM}/protocol/openid-connect/auth?${authParams}`;
+    window.location.href = authUrl;
+  }
+
+  async handleCallback(code: string, state?: string): Promise<boolean> {
+    try {
+      const codeVerifier = localStorage.getItem('oauth2_code_verifier');
+      if (!codeVerifier) {
+        throw new Error('Missing code verifier');
+      }
+
+      const response = await axios.post(`${this.baseApiUrl}/api/oauth2/token`, {
+        code,
+        code_verifier: codeVerifier,
+        redirectUri: import.meta.env.VITE_OAUTH2_REDIRECT_URI
+      });
+
+      const tokens = response.data;
+      localStorage.setItem('oauth2_access_token', tokens.access_token);
+      localStorage.setItem('oauth2_refresh_token', tokens.refresh_token);
+      localStorage.setItem('oauth2_expires_at', (Date.now() + (tokens.expires_in * 1000)).toString());
+
+      localStorage.removeItem('oauth2_code_verifier');
+      localStorage.removeItem('oauth2_state');
+
+      this.accessTokenCache = tokens.access_token;
+      return true;
+    } catch (error) {
+      console.error('[OAuth2] Callback failed:', error);
+      this.clearCache();
+      return false;
+    }
   }
 
   async logout(): Promise<void> {
-    try {
-      await fetch(`${this.baseUrl}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('[OAuth2] Logout failed:', error);
-    } finally {
-      this.userInfo = null;
-      this.accessToken = null;
-      this.initialized = false;
-    }
-  }
-
-  async handleCallback(code: string): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/oauth2/callback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ code }),
-      });
-
-      if (response.ok) {
-        await this.checkAuthStatus();
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('[OAuth2] Callback handling failed:', error);
-      return false;
-    }
-  }
-
-  async refreshToken(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await this.checkAuthStatus();
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('[OAuth2] Token refresh failed:', error);
-      return false;
-    }
+    this.clearCache();
+    const logoutUrl = `${import.meta.env.VITE_KEYCLOAK_URL}/realms/${import.meta.env.VITE_KEYCLOAK_REALM}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = logoutUrl;
   }
 
   clearCache(): void {
-    this.userInfo = null;
-    this.accessToken = null;
-    this.initialized = false;
+    this.userInfoCache = null;
+    this.accessTokenCache = null;
+    localStorage.removeItem('oauth2_access_token');
+    localStorage.removeItem('oauth2_refresh_token');
+    localStorage.removeItem('oauth2_expires_at');
+  }
+
+  private isTokenExpired(): boolean {
+    const expiresAt = localStorage.getItem('oauth2_expires_at');
+    if (!expiresAt) return true;
+    return Date.now() >= parseInt(expiresAt) - 300000; // 5 min buffer
+  }
+
+  private generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array)).replace(/[+/]/g, (m) => ({ '+': '-', '/': '_' }[m]!)).replace(/=/g, '');
+  }
+
+  private async generateCodeChallenge(verifier: string): Promise<string> {
+    const data = new TextEncoder().encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/[+/]/g, (m) => ({ '+': '-', '/': '_' }[m]!)).replace(/=/g, '');
+  }
+
+  private generateState(): string {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array)).replace(/[+/]/g, (m) => ({ '+': '-', '/': '_' }[m]!)).replace(/=/g, '');
   }
 }
 
