@@ -1,5 +1,5 @@
 // API utilities and configuration
-import { getToken, updateToken } from './keycloak';
+import { oauth2Service } from './oauth2';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
   (process.env.NODE_ENV === 'production' 
@@ -16,14 +16,7 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    // Update token if needed
-    try {
-      await updateToken(30);
-    } catch (error) {
-      console.warn('Token update failed:', error);
-    }
-
-    const token = getToken();
+    const token = await oauth2Service.getAccessToken();
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -85,7 +78,7 @@ export class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
-    const token = getToken();
+    const token = await oauth2Service.getAccessToken();
     const formData = new FormData();
     formData.append('file', file);
 
@@ -169,5 +162,12 @@ export const endpoints = {
   admin: {
     stats: '/api/admin/stats',
     health: '/api/admin/health',
+  },
+  dashboards: {
+    platformAdmin: '/api/dashboards/platform-admin',
+    schoolAdmin: '/api/dashboards/school-admin',
+    teacher: '/api/dashboards/teacher',
+    student: '/api/dashboards/student',
+    alumni: '/api/dashboards/alumni',
   },
 };

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient, endpoints } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,14 +51,8 @@ const AlumniDashboard = () => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/dashboards/alumni`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      setDashboardData(response.data);
+      const data = await apiClient.get<AlumniDashboardData>(endpoints.dashboards.alumni);
+      setDashboardData(data);
     } catch (error) {
       console.error('Failed to fetch alumni dashboard data:', error);
       setError('Failed to load dashboard data. Please try again.');
