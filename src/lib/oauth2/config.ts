@@ -17,16 +17,22 @@ export class OAuth2ConfigService {
 
   private getRedirectUri(): string {
     const envRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
-    const defaultRedirectUri = 'https://preview--alumni-nexus-web.lovable.app/oauth2/callback';
     
-    return envRedirectUri || defaultRedirectUri;
+    if (!envRedirectUri) {
+      console.error('[OAuth2] Missing VITE_OAUTH2_REDIRECT_URI environment variable');
+      throw new Error('VITE_OAUTH2_REDIRECT_URI environment variable is required');
+    }
+    
+    console.log('[OAuth2] Using redirect URI:', envRedirectUri);
+    return envRedirectUri;
   }
 
   private validateConfiguration(): void {
     const requiredVars = {
       VITE_KEYCLOAK_URL: this.config.keycloakUrl,
       VITE_KEYCLOAK_REALM: this.config.realm,
-      VITE_KEYCLOAK_CLIENT_ID: this.config.clientId
+      VITE_KEYCLOAK_CLIENT_ID: this.config.clientId,
+      VITE_OAUTH2_REDIRECT_URI: this.config.redirectUri
     };
 
     const missing = Object.entries(requiredVars)

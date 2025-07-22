@@ -1,3 +1,4 @@
+
 import type { TokenResponse, UserInfo, KeycloakErrorResponse } from './types';
 import { OAuth2ConfigService } from './config';
 import { PKCEService } from './pkce';
@@ -40,23 +41,57 @@ export class OAuth2Service {
       code_challenge_method: 'S256',
     });
 
-    return `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/auth?${params}`;
+    const authUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/auth?${params}`;
+    
+    this.log('Building OAuth2 authorization URL', {
+      keycloakUrl: this.config.getKeycloakUrl(),
+      realm: this.config.getRealm(),
+      clientId: this.config.getClientId(),
+      redirectUri: this.config.getRedirectUriValue(),
+      authUrl: authUrl.substring(0, 100) + '...'
+    });
+
+    return authUrl;
   }
 
   async login(): Promise<void> {
     try {
+      this.log('Initiating OAuth2 login flow');
       const authUrl = await this.buildAuthUrl();
+      this.log('Redirecting to Keycloak login page', { url: authUrl.substring(0, 100) + '...' });
       window.location.href = authUrl;
     } catch (error) {
       this.log('Login initiation failed', error);
+      console.error('[OAuth2] Login failed:', error);
       throw error;
+    }
+  }
+
+  async handleCallback(code: string, receivedState?: string): Promise<boolean> {
+    try {
+      this.log('Handling OAuth2 callback', { hasCode: !!code, hasState: !!receivedState });
+      
+      if (receivedState) {
+        const { state: storedState } = this.storage.getOAuth2State();
+        if (!storedState || storedState !== receivedState) {
+          throw new Error('State mismatch - possible security issue');
+        }
+      }
+
+      const tokens = await this.exchangeCodeForTokens(code, receivedState || '');
+      this.log('Token exchange successful', { hasAccessToken: !!tokens.access_token });
+      return true;
+    } catch (error) {
+      this.log('Callback handling failed', error);
+      console.error('[OAuth2] Callback failed:', error);
+      return false;
     }
   }
 
   async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
     const { state: storedState, codeVerifier } = this.storage.getOAuth2State();
 
-    if (!storedState || !receivedState || storedState !== receivedState) {
+    if (receivedState && (!storedState || storedState !== receivedState)) {
       this.storage.clearOAuth2State();
       throw new Error('Authentication state mismatch detected. Please try logging in again.');
     }
@@ -67,7 +102,6 @@ export class OAuth2Service {
 
     this.storage.clearOAuth2State();
 
-    // Remove client_secret for public client
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.config.getClientId(),
@@ -77,6 +111,12 @@ export class OAuth2Service {
     });
 
     const keycloakTokenUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
+
+    this.log('Exchanging authorization code for tokens', {
+      tokenUrl: keycloakTokenUrl,
+      clientId: this.config.getClientId(),
+      redirectUri: this.config.getRedirectUriValue()
+    });
 
     try {
       const response = await fetch(keycloakTokenUrl, {
@@ -98,12 +138,14 @@ export class OAuth2Service {
           errorDetails = { error: 'parse_error', error_description: responseText };
         }
 
+        this.log('Token exchange failed', { status: response.status, error: errorDetails });
         const errorMessage = this.getErrorMessage(response.status, errorDetails);
         throw new Error(errorMessage);
       }
 
       const tokens: TokenResponse = JSON.parse(responseText);
       this.storage.storeTokens(tokens);
+      this.log('Tokens stored successfully');
       return tokens;
 
     } catch (fetchError) {
@@ -170,7 +212,6 @@ export class OAuth2Service {
 
       const refreshUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
 
-      // Remove client_secret for public client
       const refreshParams = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: this.config.getClientId(),
@@ -278,16 +319,35 @@ export class OAuth2Service {
     }
   }
 
+  async initialize(): Promise<boolean> {
+    try {
+      this.log('Initializing OAuth2 service');
+      const isAuth = await this.isAuthenticated();
+      this.log('OAuth2 initialization complete', { isAuthenticated: isAuth });
+      return isAuth;
+    } catch (error) {
+      this.log('OAuth2 initialization failed', error);
+      return false;
+    }
+  }
+
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getAccessToken();
     return !!token;
   }
 
   async logout(): Promise<void> {
+    this.log('Logging out user');
     this.storage.clearTokens();
     this.storage.clearOAuth2State();
     
     const logoutUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    this.log('Redirecting to Keycloak logout', { logoutUrl });
     window.location.href = logoutUrl;
+  }
+
+  clearCache(): void {
+    this.storage.clearTokens();
+    this.storage.clearOAuth2State();
   }
 }

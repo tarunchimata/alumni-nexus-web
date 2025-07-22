@@ -4,7 +4,7 @@
   "enabled": true,
   "displayName": "My School Buddies",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>My School Buddies</span></div>",
-  "loginTheme": "keycloak",
+  "loginTheme": "myschoolbuddies",
   "accountTheme": "keycloak",
   "adminTheme": "keycloak",
   "emailTheme": "keycloak",
@@ -70,17 +70,19 @@
       "redirectUris": [
         "http://localhost:8080/*",
         "http://localhost:3000/*",
+        "https://af2e8248-1641-4e05-8aee-ee17b3865cd8.lovableproject.com/*",
         "https://myschoolbuddies.com/*",
         "https://*.myschoolbuddies.com/*"
       ],
       "webOrigins": [
         "http://localhost:8080",
         "http://localhost:3000",
+        "https://af2e8248-1641-4e05-8aee-ee17b3865cd8.lovableproject.com",
         "https://myschoolbuddies.com",
         "https://*.myschoolbuddies.com"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:3000/*##https://myschoolbuddies.com/*",
+        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:3000/*##https://af2e8248-1641-4e05-8aee-ee17b3865cd8.lovableproject.com/*##https://myschoolbuddies.com/*",
         "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
