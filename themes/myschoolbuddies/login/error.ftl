@@ -17,7 +17,11 @@
                 <div id="kc-error-message">
                     <div class="alert alert-error">
                         <p class="instruction">
-                            ${kcSanitize(message.summary)?no_esc}
+                            <#if message?? && message.summary??>
+                                ${kcSanitize(message.summary)?no_esc}
+                            <#else>
+                                ${kcSanitize("An unexpected error occurred. Please try again.")?no_esc}
+                            </#if>
                         </p>
                     </div>
                     

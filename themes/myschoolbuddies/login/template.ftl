@@ -1,3 +1,4 @@
+
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" class="${properties.kcHtmlClass!}">
@@ -93,7 +94,7 @@
 
       <#-- App-initiated actions should not see warning messages about the need to complete the action -->
       <#-- during login.                                                                               -->
-      <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+      <#if displayMessage && message?has_content && message.summary?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
           <div class="alert alert-${message.type}">
               <#if message.type = 'success'><span class="${properties.kcFeedbackSuccessIcon!}"></span></#if>
               <#if message.type = 'warning'><span class="${properties.kcFeedbackWarningIcon!}"></span></#if>

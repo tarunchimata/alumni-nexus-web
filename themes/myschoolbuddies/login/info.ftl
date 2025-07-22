@@ -4,8 +4,10 @@
     <#if section = "header">
         <#if messageHeader??>
             ${messageHeader}
-        <#else>
+        <#elseif message?? && message.summary??>
             ${message.summary}
+        <#else>
+            ${kcSanitize("Information")?no_esc}
         </#if>
     <#elseif section = "form">
         <div id="kc-form">
@@ -19,7 +21,11 @@
 
                 <div id="kc-info-message">
                     <p class="instruction">
-                        ${kcSanitize(message.summary)?no_esc}
+                        <#if message?? && message.summary??>
+                            ${kcSanitize(message.summary)?no_esc}
+                        <#else>
+                            ${kcSanitize("Please check the information and try again.")?no_esc}
+                        </#if>
                         <#if requiredActions??>
                             <#list requiredActions as reqActionItem>
                                 ${kcSanitize(msg("requiredAction.${reqActionItem}"))?no_esc}
