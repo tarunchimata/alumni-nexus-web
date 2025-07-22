@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, School, Settings, Database, TrendingUp, Shield, AlertTriangle, CheckCircle, Clock, UserPlus } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 interface DashboardData {
   stats: {
@@ -40,7 +41,7 @@ const PlatformAdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  
 
   useEffect(() => {
     fetchDashboardData();
@@ -63,10 +64,18 @@ const PlatformAdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading dashboard...</p>
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1">
+          <DashboardHeader />
+          <main className="p-6">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading dashboard...</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -74,19 +83,38 @@ const PlatformAdminDashboard = () => {
 
   if (error || !dashboardData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
-          <p className="text-destructive">{error || 'Failed to load dashboard'}</p>
-          <Button onClick={fetchDashboardData} className="mt-4">
-            Try Again
-          </Button>
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1">
+          <DashboardHeader />
+          <main className="p-6">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                <p className="text-destructive">{error || 'Failed to load dashboard'}</p>
+                <Button onClick={fetchDashboardData} className="mt-4">
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
   }
 
   return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
+      <div className="flex-1">
+        <DashboardHeader />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900">Platform Administration</h2>
+              <p className="text-gray-600">Manage the entire platform and all schools</p>
+            </div>
+
     <div className="space-y-6">
       {/* Real Stats Cards from Database */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -332,6 +360,10 @@ const PlatformAdminDashboard = () => {
             ))}
           </CardContent>
         </Card>
+      </div>
+    </div>
+          </div>
+        </main>
       </div>
     </div>
   );
