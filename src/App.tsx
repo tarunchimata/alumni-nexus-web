@@ -12,9 +12,11 @@ import PendingApproval from "@/pages/PendingApproval";
 import OAuth2Callback from "@/pages/OAuth2Callback";
 
 // Dashboards
-import PlatformDashboard from "@/pages/dashboard/PlatformDashboard";
-import SchoolDashboard from "@/pages/dashboard/SchoolDashboard";  
-import UserDashboard from "@/pages/dashboard/UserDashboard";
+import PlatformAdminDashboard from "@/pages/dashboard/PlatformAdminDashboard";
+import SchoolAdminDashboard from "@/pages/dashboard/SchoolAdminDashboard";  
+import TeacherDashboard from "@/pages/dashboard/TeacherDashboard";
+import StudentDashboard from "@/pages/dashboard/StudentDashboard";
+import AlumniDashboard from "@/pages/dashboard/AlumniDashboard";
 
 // Profile and Settings
 import Profile from "@/pages/Profile";
@@ -69,18 +71,20 @@ const DashboardRoute = () => {
     return <Navigate to="/auth/pending-approval" replace />;
   }
 
-  // Role-based redirects
+  // Role-based redirects to the correct paths
   switch (user.role) {
     case 'platform_admin':
-      return <Navigate to="/dashboard/platform" replace />;
+      return <Navigate to="/admin/platform" replace />;
     case 'school_admin':
-      return <Navigate to="/dashboard/school" replace />;
+      return <Navigate to="/admin/school" replace />;
     case 'teacher':
+      return <Navigate to="/dashboard/teacher" replace />;
     case 'student':
+      return <Navigate to="/dashboard/student" replace />;
     case 'alumni':
-      return <Navigate to="/dashboard/user" replace />;
+      return <Navigate to="/dashboard/alumni" replace />;
     default:
-      return <UserDashboard />;
+      return <Navigate to="/dashboard/student" replace />;
   }
 };
 
@@ -98,29 +102,45 @@ function App() {
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
 
-              {/* Dashboard Routes */}
+              {/* Dashboard Routes - Updated to match required paths */}
               <Route path="/dashboard" element={<DashboardRoute />} />
               <Route 
-                path="/dashboard/platform" 
+                path="/admin/platform" 
                 element={
                   <ProtectedRoute>
-                    <PlatformDashboard />
+                    <PlatformAdminDashboard />
                   </ProtectedRoute>
                 } 
               />
               <Route 
-                path="/dashboard/school" 
+                path="/admin/school" 
                 element={
                   <ProtectedRoute>
-                    <SchoolDashboard />
+                    <SchoolAdminDashboard />
                   </ProtectedRoute>
                 } 
               />
               <Route 
-                path="/dashboard/user" 
+                path="/dashboard/teacher" 
                 element={
                   <ProtectedRoute>
-                    <UserDashboard />
+                    <TeacherDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/student" 
+                element={
+                  <ProtectedRoute>
+                    <StudentDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/alumni" 
+                element={
+                  <ProtectedRoute>
+                    <AlumniDashboard />
                   </ProtectedRoute>
                 } 
               />

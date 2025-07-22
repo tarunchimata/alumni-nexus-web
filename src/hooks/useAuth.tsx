@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { oauth2Service } from "@/lib/oauth2";
 
@@ -51,17 +50,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const authToken = await oauth2Service.getAccessToken();
         
         if (userInfo) {
+          // Extract role from Keycloak realm roles
+          const role = extractRoleFromKeycloakToken(authToken);
+          
           setUser({
             id: userInfo.id,
             email: userInfo.email,
             firstName: userInfo.firstName,
             lastName: userInfo.lastName,
-            role: userInfo.role as 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin',
+            role: role,
             schoolId: userInfo.schoolId,
             avatar: userInfo.avatar,
             status: userInfo.status as 'pending_approval' | 'active' | 'inactive' | 'rejected',
           });
-          console.log('[Auth] User authenticated successfully:', userInfo.email);
+          console.log('[Auth] User authenticated successfully:', userInfo.email, 'Role:', role);
         }
         
         setToken(authToken || null);
@@ -82,6 +84,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const extractRoleFromKeycloakToken = (token: string | null): 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin' => {
+    if (!token) return 'student';
+    
+    try {
+      // Decode JWT token to extract realm roles
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const realmRoles = payload.realm_access?.roles || [];
+      
+      console.log('[Auth] Keycloak realm roles:', realmRoles);
+      
+      // Map Keycloak roles to our application roles
+      if (realmRoles.includes('platform_admin')) return 'platform_admin';
+      if (realmRoles.includes('school_admin')) return 'school_admin';
+      if (realmRoles.includes('teacher')) return 'teacher';
+      if (realmRoles.includes('alumni')) return 'alumni';
+      if (realmRoles.includes('student')) return 'student';
+      
+      // Default fallback
+      return 'student';
+    } catch (error) {
+      console.error('[Auth] Failed to extract role from token:', error);
+      return 'student';
+    }
+  };
+
   const login = () => {
     console.log('[Auth] Initiating login...');
     oauth2Service.login();
@@ -89,7 +116,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = () => {
     console.log('[Auth] Initiating registration...');
-    // For registration, redirect to the multi-step registration page
     window.location.href = '/register';
   };
 
@@ -103,10 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setAuthenticated(false);
       
-      // Clear any cached data
       oauth2Service.clearCache();
-      
-      // Redirect to home page
       window.location.href = '/';
     } catch (error) {
       console.error('[Auth] Logout failed:', error);
