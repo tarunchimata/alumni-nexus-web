@@ -49,7 +49,22 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        institutionId: true,
+        schoolName: true,
+        udiseSchoolCode: true,
+        schoolCategory: true,
+        schoolType: true,
+        management: true,
+        stateName: true,
+        districtName: true,
+        locationType: true,
+        status: true,
+        createdAt: true,
+        // Legacy compatibility
+        id: true,
+        name: true,
+        udiseCode: true,
         _count: {
           select: { users: true, classes: true },
         },

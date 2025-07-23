@@ -11,21 +11,42 @@ datasource db {
 }
 
 model School {
-  id             Int      @id @default(autoincrement())
-  name           String   @db.VarChar(255)
-  udiseCode      String   @unique @map("udise_code") @db.VarChar(50)
-  schoolType     SchoolType @map("school_type")
-  managementType ManagementType @map("management_type")
-  address        String
-  contactNumber  String?  @map("contact_number") @db.VarChar(20)
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  // Primary key for new structure
+  institutionId         String   @id @map("institution_id") @db.VarChar(30)
+  schoolName            String   @map("school_name")
+  udiseSchoolCode       String?  @map("udise_school_code") @db.VarChar(20)
+  schoolCategory        String?  @map("school_category") @db.VarChar(50)
+  schoolType            String?  @map("school_type") @db.VarChar(20)
+  management            String?  @map("management") @db.VarChar(100)
+  yearOfEstablishment   String?  @map("year_of_establishment") @db.VarChar(10)
+  status                String?  @map("status") @db.VarChar(50)
+  locationType          String?  @map("location_type") @db.VarChar(20)
+  classFrom             String?  @map("class_from") @db.VarChar(10)
+  classTo               String?  @map("class_to") @db.VarChar(10)
+  affBoardSec           String?  @map("aff_board_sec") @db.VarChar(100)
+  affBoardHSec          String?  @map("aff_board_h_sec") @db.VarChar(100)
+  stateName             String   @map("state_name") @db.VarChar(100)
+  districtName          String?  @map("district_name") @db.VarChar(100)
+  subDistrictName       String?  @map("sub_district_name") @db.VarChar(100)
+  villageName           String?  @map("village_name") @db.VarChar(100)
+  pincode               String?  @map("pincode") @db.VarChar(10)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Legacy compatibility fields (computed columns)
+  id                    Int      @unique @default(autoincrement())
+  name                  String?  @db.VarChar(255) // Computed from schoolName
+  udiseCode             String?  @map("udise_code") @db.VarChar(50) // Computed from udiseSchoolCode
+  schoolTypeLegacy      String?  @map("school_type_legacy") @db.VarChar(50) // Computed from schoolCategory
+  managementType        String?  @map("management_type") @db.VarChar(50) // Computed from management
+  address               String?  // Computed from location fields
+  contactNumber         String?  @map("contact_number") @db.VarChar(20)
+  isActive              Boolean  @default(true) @map("is_active")
 
   // Relations
-  users          User[]
-  classes        Class[]
-  groups         Group[]
+  users                 User[]
+  classes               Class[]
+  groups                Group[]
 
   @@map("schools")
 }

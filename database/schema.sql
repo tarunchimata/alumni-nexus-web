@@ -9,18 +9,52 @@ DROP TABLE IF EXISTS classes CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS schools CASCADE;
 
--- Schools table
+-- Schools table with comprehensive structure for CSV import
 CREATE TABLE schools (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    udise_code VARCHAR(50) UNIQUE NOT NULL,
-    school_type VARCHAR(50) NOT NULL CHECK (school_type IN ('Primary', 'Secondary', 'Higher Secondary')),
-    management_type VARCHAR(50) NOT NULL CHECK (management_type IN ('Government', 'Private')),
-    address TEXT NOT NULL,
-    contact_number VARCHAR(20),
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    institution_id         VARCHAR(30) PRIMARY KEY, -- Generated: 'INC-IN-<state_code>-<number>'
+    school_name            TEXT NOT NULL,
+    udise_school_code      VARCHAR(20),             
+    school_category        VARCHAR(50),             
+    school_type            VARCHAR(20),             
+    management             VARCHAR(100),            
+    year_of_establishment  VARCHAR(10),             
+    status                 VARCHAR(50),             
+    location_type          VARCHAR(20),             
+    class_from             VARCHAR(10),             
+    class_to               VARCHAR(10),             
+    aff_board_sec          VARCHAR(100),            
+    aff_board_h_sec        VARCHAR(100),            
+    state_name             VARCHAR(100) NOT NULL,
+    district_name          VARCHAR(100),
+    sub_district_name      VARCHAR(100),
+    village_name           VARCHAR(100),
+    pincode                VARCHAR(10),
+    created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Legacy compatibility fields (kept for existing relations)
+    id                     SERIAL UNIQUE NOT NULL,
+    name                   VARCHAR(255) GENERATED ALWAYS AS (school_name) STORED,
+    udise_code             VARCHAR(50) GENERATED ALWAYS AS (udise_school_code) STORED,
+    school_type_legacy     VARCHAR(50) GENERATED ALWAYS AS (
+        CASE 
+            WHEN school_category LIKE '%Primary%' THEN 'Primary'
+            WHEN school_category LIKE '%Secondary%' AND school_category NOT LIKE '%Higher%' THEN 'Secondary'
+            WHEN school_category LIKE '%Higher Secondary%' THEN 'Higher Secondary'
+            ELSE 'Primary'
+        END
+    ) STORED,
+    management_type        VARCHAR(50) GENERATED ALWAYS AS (
+        CASE 
+            WHEN management LIKE '%Government%' OR management LIKE '%State%' THEN 'Government'
+            ELSE 'Private'
+        END
+    ) STORED,
+    address               TEXT GENERATED ALWAYS AS (
+        CONCAT_WS(', ', village_name, sub_district_name, district_name, state_name, pincode)
+    ) STORED,
+    contact_number        VARCHAR(20),
+    is_active             BOOLEAN DEFAULT true
 );
 
 -- Users table
@@ -85,6 +119,11 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_keycloak_id ON users(keycloak_id);
 CREATE INDEX idx_users_school_id ON users(school_id);
 CREATE INDEX idx_schools_udise_code ON schools(udise_code);
+CREATE INDEX idx_schools_institution_id ON schools(institution_id);
+CREATE INDEX idx_schools_udise_school_code ON schools(udise_school_code);
+CREATE INDEX idx_schools_state_name ON schools(state_name);
+CREATE INDEX idx_schools_district_name ON schools(district_name);
+CREATE INDEX idx_schools_school_name ON schools(school_name);
 CREATE INDEX idx_classes_school_id ON classes(school_id);
 CREATE INDEX idx_user_class_groups_user_id ON user_class_groups(user_id);
 CREATE INDEX idx_user_class_groups_class_id ON user_class_groups(class_id);
