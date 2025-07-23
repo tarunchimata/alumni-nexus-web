@@ -32,6 +32,11 @@ declare global {
       session: {
         id: string;
         registration?: RegistrationSession;
+        save: (callback?: (err: any) => void) => void;
+        destroy: (callback?: (err: any) => void) => void;
+        reload: (callback?: (err: any) => void) => void;
+        regenerate: (callback?: (err: any) => void) => void;
+        touch: () => void;
         [key: string]: any;
       };
     }

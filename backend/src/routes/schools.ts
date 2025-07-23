@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
-import { AuthenticatedRequest, authenticateToken, requireRole, requirePermission } from '../middleware/auth';
+import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import multer from 'multer';

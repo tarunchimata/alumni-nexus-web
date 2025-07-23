@@ -1,6 +1,4 @@
 
-#!/usr/bin/env ts-node
-
 /**
  * School CSV Import Script for My School Buddies
  * Imports school data from CSV into the schools table with proper institution_id generation
