@@ -34,25 +34,11 @@ CREATE TABLE schools (
     
     -- Legacy compatibility fields (kept for existing relations)
     id                     SERIAL UNIQUE NOT NULL,
-    name                   VARCHAR(255) GENERATED ALWAYS AS (school_name) STORED,
-    udise_code             VARCHAR(50) GENERATED ALWAYS AS (udise_school_code) STORED,
-    school_type_legacy     VARCHAR(50) GENERATED ALWAYS AS (
-        CASE 
-            WHEN school_category LIKE '%Primary%' THEN 'Primary'
-            WHEN school_category LIKE '%Secondary%' AND school_category NOT LIKE '%Higher%' THEN 'Secondary'
-            WHEN school_category LIKE '%Higher Secondary%' THEN 'Higher Secondary'
-            ELSE 'Primary'
-        END
-    ) STORED,
-    management_type        VARCHAR(50) GENERATED ALWAYS AS (
-        CASE 
-            WHEN management LIKE '%Government%' OR management LIKE '%State%' THEN 'Government'
-            ELSE 'Private'
-        END
-    ) STORED,
-    address               TEXT GENERATED ALWAYS AS (
-        CONCAT_WS(', ', village_name, sub_district_name, district_name, state_name, pincode)
-    ) STORED,
+    name                   VARCHAR(255),
+    udise_code             VARCHAR(50),
+    school_type_legacy     VARCHAR(50),
+    management_type        VARCHAR(50),
+    address               TEXT,
     contact_number        VARCHAR(20),
     is_active             BOOLEAN DEFAULT true
 );
@@ -130,17 +116,3 @@ CREATE INDEX idx_user_class_groups_class_id ON user_class_groups(class_id);
 CREATE INDEX idx_messages_class_id ON messages(class_id);
 CREATE INDEX idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at);
-
--- Update timestamp trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create triggers for updated_at columns
-CREATE TRIGGER update_schools_updated_at BEFORE UPDATE ON schools FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_classes_updated_at BEFORE UPDATE ON classes FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

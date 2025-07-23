@@ -199,9 +199,20 @@ async function importSchools(csvFilePath: string) {
               }
             }
 
-            // Create school record
+            // Create school record with computed legacy fields
             await prisma.school.create({
-              data: schoolData
+              data: {
+                ...schoolData,
+                // Computed legacy fields
+                name: schoolData.schoolName,
+                udiseCode: schoolData.udiseSchoolCode,
+                schoolTypeLegacy: schoolData.schoolCategory?.includes('Primary') ? 'Primary' : 
+                                 schoolData.schoolCategory?.includes('Secondary') && !schoolData.schoolCategory?.includes('Higher') ? 'Secondary' :
+                                 schoolData.schoolCategory?.includes('Higher Secondary') ? 'Higher Secondary' : 'Primary',
+                managementType: schoolData.management?.includes('Government') || schoolData.management?.includes('State') ? 'Government' : 'Private',
+                address: [schoolData.villageName, schoolData.subDistrictName, schoolData.districtName, schoolData.stateName, schoolData.pincode]
+                          .filter(Boolean).join(', ')
+              }
             });
 
             successCount++;
