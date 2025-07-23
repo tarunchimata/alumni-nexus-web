@@ -92,11 +92,9 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
 router.post('/',
   requireRole('platform_admin'),
   [
-    body('name').trim().isLength({ min: 2 }).withMessage('School name is required'),
-    body('udiseCode').trim().isLength({ min: 1 }).withMessage('UDISE code is required'),
-    body('schoolType').isIn(['Primary', 'Secondary', 'Higher_Secondary']).withMessage('Invalid school type'),
-    body('managementType').isIn(['Government', 'Private']).withMessage('Invalid management type'),
-    body('address').trim().isLength({ min: 5 }).withMessage('Address is required'),
+    body('schoolName').trim().isLength({ min: 2 }).withMessage('School name is required'),
+    body('stateName').trim().isLength({ min: 2 }).withMessage('State name is required'),
+    body('institutionId').trim().isLength({ min: 1 }).withMessage('Institution ID is required'),
   ],
   async (req: AuthenticatedRequest, res) => {
     try {
@@ -105,20 +103,26 @@ router.post('/',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, udiseCode, schoolType, managementType, address, contactNumber } = req.body;
+      const { schoolName, stateName, institutionId, udiseSchoolCode, districtName, address, contactNumber } = req.body;
 
       const school = await prisma.school.create({
         data: {
-          name,
-          udiseCode,
-          schoolType,
-          managementType,
+          institutionId,
+          schoolName,
+          stateName,
+          udiseSchoolCode,
+          districtName,
           address,
           contactNumber,
+          // Legacy fields
+          name: schoolName,
+          udiseCode: udiseSchoolCode,
+          schoolTypeLegacy: 'Primary',
+          managementType: 'Government',
         },
       });
 
-      logger.info(`School created by ${req.user!.email}: ${school.name}`);
+      logger.info(`School created by ${req.user!.email}: ${school.schoolName}`);
       res.status(201).json(school);
     } catch (error) {
       logger.error('School creation error:', error);
@@ -151,12 +155,18 @@ router.post('/bulk',
               try {
                 const school = await prisma.school.create({
                   data: {
-                    name: row.name,
-                    udiseCode: row.udise_code,
-                    schoolType: row.school_type,
-                    managementType: row.management_type,
+                    institutionId: row.institution_id || `INC-IN-XX-${Date.now()}`,
+                    schoolName: row.school_name || row.name,
+                    stateName: row.state_name || row.state,
+                    udiseSchoolCode: row.udise_code,
+                    districtName: row.district_name || row.district,
                     address: row.address,
                     contactNumber: row.contact_number,
+                    // Legacy fields
+                    name: row.school_name || row.name,
+                    udiseCode: row.udise_code,
+                    schoolTypeLegacy: row.school_type || 'Primary',
+                    managementType: row.management_type || 'Government',
                   },
                 });
                 createdSchools.push(school);

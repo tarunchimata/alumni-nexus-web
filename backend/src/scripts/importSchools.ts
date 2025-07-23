@@ -1,3 +1,4 @@
+
 #!/usr/bin/env ts-node
 
 /**
@@ -53,24 +54,9 @@ const STATE_CODES: Record<string, string> = {
   'Andaman and Nicobar Islands': 'AN'
 };
 
+// Generic CSV row interface - will be adapted based on actual CSV structure
 interface CSVRow {
-  'State Name': string;
-  'District': string;
-  'Sub District': string;
-  'Village': string;
-  'Pincode': string;
-  'School Name': string;
-  'UDISE Code': string;
-  'School Category': string;
-  'School Type': string;
-  'School Management': string;
-  'Year of Establishment': string;
-  'School Status': string;
-  'School Location Type': string;
-  'Class From': string;
-  'Class To': string;
-  'Affiliated Board Sec.': string;
-  'Affiliated Board H. Sec.': string;
+  [key: string]: string;
 }
 
 interface SchoolData {
@@ -121,27 +107,71 @@ async function generateInstitutionId(stateName: string): Promise<string> {
   return `INC-IN-${stateCode}-${nextNumber.toString().padStart(5, '0')}`;
 }
 
-// Clean and standardize data
+// Clean and standardize data - flexible column mapping
 function cleanData(row: CSVRow): SchoolData {
+  // Map common column variations to our standard fields
+  const getField = (possibleNames: string[]): string => {
+    for (const name of possibleNames) {
+      if (row[name] !== undefined && row[name] !== '') {
+        return row[name].trim();
+      }
+    }
+    return '';
+  };
+
+  const schoolName = getField([
+    'School Name', 'school_name', 'SchoolName', 'SCHOOL_NAME',
+    'School', 'school', 'Name', 'name'
+  ]);
+
+  const stateName = getField([
+    'State Name', 'state_name', 'StateName', 'STATE_NAME',
+    'State', 'state', 'STATE'
+  ]);
+
+  const districtName = getField([
+    'District', 'district', 'DISTRICT', 'District Name', 'district_name'
+  ]);
+
+  const udiseCode = getField([
+    'UDISE Code', 'udise_code', 'UDISE_CODE', 'UdiseCode', 'UDISE'
+  ]);
+
+  const schoolCategory = getField([
+    'School Category', 'school_category', 'SchoolCategory', 'Category', 'category'
+  ]);
+
+  const schoolType = getField([
+    'School Type', 'school_type', 'SchoolType', 'Type', 'type'
+  ]);
+
+  const management = getField([
+    'School Management', 'school_management', 'Management', 'management'
+  ]);
+
+  const pincode = getField([
+    'Pincode', 'pincode', 'PIN', 'pin', 'Pin Code', 'pin_code'
+  ]);
+
   return {
     institutionId: '', // Will be generated
-    schoolName: row['School Name']?.trim() || '',
-    udiseSchoolCode: row['UDISE Code']?.trim() || undefined,
-    schoolCategory: row['School Category']?.trim() || undefined,
-    schoolType: row['School Type']?.trim() || undefined,
-    management: row['School Management']?.trim() || undefined,
-    yearOfEstablishment: row['Year of Establishment']?.trim() || undefined,
-    status: row['School Status']?.trim() || undefined,
-    locationType: row['School Location Type']?.trim() || undefined,
-    classFrom: row['Class From']?.trim() || undefined,
-    classTo: row['Class To']?.trim() || undefined,
-    affBoardSec: row['Affiliated Board Sec.']?.trim() || undefined,
-    affBoardHSec: row['Affiliated Board H. Sec.']?.trim() || undefined,
-    stateName: row['State Name']?.trim() || '',
-    districtName: row['District']?.trim() || undefined,
-    subDistrictName: row['Sub District']?.trim() || undefined,
-    villageName: row['Village']?.trim() || undefined,
-    pincode: row['Pincode']?.trim()?.substring(0, 6) || undefined, // Trim to 6 digits
+    schoolName,
+    udiseSchoolCode: udiseCode || undefined,
+    schoolCategory: schoolCategory || undefined,
+    schoolType: schoolType || undefined,
+    management: management || undefined,
+    yearOfEstablishment: getField(['Year of Establishment', 'year_of_establishment', 'Year', 'year']) || undefined,
+    status: getField(['School Status', 'status', 'Status']) || undefined,
+    locationType: getField(['School Location Type', 'location_type', 'Location']) || undefined,
+    classFrom: getField(['Class From', 'class_from', 'ClassFrom']) || undefined,
+    classTo: getField(['Class To', 'class_to', 'ClassTo']) || undefined,
+    affBoardSec: getField(['Affiliated Board Sec.', 'affiliated_board_sec', 'BoardSec']) || undefined,
+    affBoardHSec: getField(['Affiliated Board H. Sec.', 'affiliated_board_hsec', 'BoardHSec']) || undefined,
+    stateName,
+    districtName: districtName || undefined,
+    subDistrictName: getField(['Sub District', 'sub_district', 'SubDistrict']) || undefined,
+    villageName: getField(['Village', 'village', 'Village Name', 'village_name']) || undefined,
+    pincode: pincode?.substring(0, 6) || undefined, // Trim to 6 digits
   };
 }
 
@@ -166,6 +196,12 @@ async function importSchools(csvFilePath: string) {
       .on('end', async () => {
         logger.info(`Processing ${results.length} rows from CSV...`);
 
+        // Log first few rows to understand CSV structure
+        if (results.length > 0) {
+          logger.info('CSV columns detected:', Object.keys(results[0]));
+          logger.info('First row sample:', results[0]);
+        }
+
         for (const row of results) {
           rowCount++;
           try {
@@ -176,7 +212,7 @@ async function importSchools(csvFilePath: string) {
               errors.push({
                 row: rowCount,
                 error: 'Missing required fields: schoolName or stateName',
-                data: schoolData
+                data: { schoolName: schoolData.schoolName, stateName: schoolData.stateName }
               });
               continue;
             }

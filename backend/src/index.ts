@@ -166,7 +166,7 @@ app.get('/api/test', (req, res) => {
   res.json({ 
     message: 'My School Buddies Backend v2.0 - Multi-Step Registration Ready',
     timestamp: new Date().toISOString(),
-    sessionId: req.sessionID,
+    sessionId: req.session.id,
     features: ['registration', 'institutions', 'auth', 'oauth2']
   });
 });
@@ -196,9 +196,9 @@ const startServer = async () => {
     await prisma.$connect();
     logger.info('Connected to PostgreSQL database');
 
-    // Verify institutions table exists
-    const institutionCount = await prisma.institutions.count();
-    logger.info(`Found ${institutionCount} institutions in database`);
+    // Verify schools table exists
+    const schoolCount = await prisma.school.count();
+    logger.info(`Found ${schoolCount} schools in database`);
 
     app.listen(PORT, () => {
       logger.info(`🚀 My School Buddies Backend v2.0 running on port ${PORT}`);

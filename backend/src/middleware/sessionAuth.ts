@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 
@@ -24,9 +25,16 @@ export interface RegistrationSession {
   startTime: Date;
 }
 
-declare module 'express-session' {
-  interface SessionData {
-    registration?: RegistrationSession;
+// Extend Express Request interface for session support
+declare global {
+  namespace Express {
+    interface Request {
+      session: {
+        id: string;
+        registration?: RegistrationSession;
+        [key: string]: any;
+      };
+    }
   }
 }
 

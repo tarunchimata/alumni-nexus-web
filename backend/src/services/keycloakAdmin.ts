@@ -8,7 +8,7 @@ async function getKeycloakAdminClient() {
   if (!KcAdminClient) {
     try {
       const keycloakModule = await import('@keycloak/keycloak-admin-client');
-      KcAdminClient = keycloakModule.default || keycloakModule.KcAdminClient || keycloakModule;
+      KcAdminClient = keycloakModule.default || keycloakModule;
     } catch (error) {
       logger.error('Failed to import Keycloak admin client:', error);
       throw new Error('Keycloak admin client not available');
@@ -17,7 +17,7 @@ async function getKeycloakAdminClient() {
   return KcAdminClient;
 }
 
-export const keycloakAdminClient = new (class {
+export class KeycloakAdminService {
   private kcAdmin: any = null;
   private tokenExpiry: number = 0;
 
@@ -204,4 +204,6 @@ export const keycloakAdminClient = new (class {
       throw new Error('Failed to retrieve user profile');
     }
   }
-})();
+}
+
+export const keycloakAdminClient = new KeycloakAdminService();
