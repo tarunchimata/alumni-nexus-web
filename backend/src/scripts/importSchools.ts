@@ -236,7 +236,24 @@ async function importSchools(csvFilePath: string) {
             // Create school record with computed legacy fields
             await prisma.school.create({
               data: {
-                ...schoolData,
+                institutionId: schoolData.institutionId,
+                schoolName: schoolData.schoolName,
+                udiseSchoolCode: schoolData.udiseSchoolCode,
+                schoolCategory: schoolData.schoolCategory,
+                schoolType: schoolData.schoolType,
+                management: schoolData.management,
+                yearOfEstablishment: schoolData.yearOfEstablishment,
+                status: schoolData.status,
+                locationType: schoolData.locationType,
+                classFrom: schoolData.classFrom,
+                classTo: schoolData.classTo,
+                affBoardSec: schoolData.affBoardSec,
+                affBoardHSec: schoolData.affBoardHSec,
+                stateName: schoolData.stateName,
+                districtName: schoolData.districtName,
+                subDistrictName: schoolData.subDistrictName,
+                villageName: schoolData.villageName,
+                pincode: schoolData.pincode,
                 // Computed legacy fields
                 name: schoolData.schoolName,
                 udiseCode: schoolData.udiseSchoolCode,

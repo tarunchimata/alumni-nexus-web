@@ -16,14 +16,14 @@ router.get('/platform-admin', requireRole('platform_admin'), async (req: Authent
     // Get real stats from database
     const [totalUsers, totalSchools, pendingApprovals, systemHealth] = await Promise.all([
       // Total users count
-      prisma.users.count(),
+      prisma.user.count(),
       
       // Total schools count  
-      prisma.schools.count(),
+      prisma.school.count(),
       
       // Pending approvals (users with pending status)
-      prisma.users.count({
-        where: { status: 'pending_approval' }
+      prisma.user.count({
+        where: { isActive: true } // Using isActive instead of status
       }),
       
       // System health check (simplified - check if DB connection works)
@@ -31,7 +31,7 @@ router.get('/platform-admin', requireRole('platform_admin'), async (req: Authent
     ]);
 
     // Get recent activity
-    const recentUsers = await prisma.users.findMany({
+    const recentUsers = await prisma.user.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -39,21 +39,21 @@ router.get('/platform-admin', requireRole('platform_admin'), async (req: Authent
         firstName: true,
         lastName: true,
         email: true,
-        userType: true,
-        status: true,
+        role: true,
+        isActive: true,
         createdAt: true
       }
     });
 
     // Get pending schools
-    const pendingSchools = await prisma.schools.findMany({
-      where: { status: 'pending' },
+    const pendingSchools = await prisma.school.findMany({
+      where: { isActive: false },
       take: 5,
       select: {
         id: true,
         name: true,
         createdAt: true,
-        status: true
+        isActive: true
       }
     });
 
@@ -95,46 +95,46 @@ router.get('/school-admin', requireRole(['school_admin']), async (req: Authentic
     // Get school-specific stats
     const [totalStudents, totalAlumni, totalTeachers, pendingApprovals] = await Promise.all([
       // Students in this school
-      prisma.users.count({
+      prisma.user.count({
         where: { 
-          schoolId: schoolId,
-          userType: 'student',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'student',
+          isActive: true
         }
       }),
       
       // Alumni from this school
-      prisma.users.count({
+      prisma.user.count({
         where: { 
-          schoolId: schoolId,
-          userType: 'alumni',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'alumni',
+          isActive: true
         }
       }),
       
       // Teachers in this school
-      prisma.users.count({
+      prisma.user.count({
         where: { 
-          schoolId: schoolId,
-          userType: 'teacher',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'teacher',
+          isActive: true
         }
       }),
       
       // Pending approvals for this school
-      prisma.users.count({
+      prisma.user.count({
         where: { 
-          schoolId: schoolId,
-          status: 'pending_approval'
+          schoolId: parseInt(schoolId),
+          isActive: false
         }
       })
     ]);
 
     // Get recent registrations for this school
-    const recentRegistrations = await prisma.users.findMany({
+    const recentRegistrations = await prisma.user.findMany({
       where: { 
-        schoolId: schoolId,
-        status: 'pending_approval'
+        schoolId: parseInt(schoolId),
+        isActive: false
       },
       take: 10,
       orderBy: { createdAt: 'desc' },
@@ -143,19 +143,19 @@ router.get('/school-admin', requireRole(['school_admin']), async (req: Authentic
         firstName: true,
         lastName: true,
         email: true,
-        userType: true,
+        role: true,
         createdAt: true
       }
     });
 
     // Get school information
-    const school = await prisma.schools.findUnique({
-      where: { id: schoolId },
+    const school = await prisma.school.findUnique({
+      where: { id: parseInt(schoolId) },
       select: {
         id: true,
         name: true,
         address: true,
-        status: true
+        isActive: true
       }
     });
 
@@ -200,11 +200,11 @@ router.get('/teacher', requireRole(['teacher']), async (req: AuthenticatedReques
     // For now, get students from same school
     const [studentsInSchool, totalStudents] = await Promise.all([
       // Active students in same school
-      prisma.users.findMany({
+      prisma.user.findMany({
         where: {
-          schoolId: schoolId,
-          userType: 'student',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'student',
+          isActive: true
         },
         take: 20,
         select: {
@@ -217,18 +217,18 @@ router.get('/teacher', requireRole(['teacher']), async (req: AuthenticatedReques
       }),
       
       // Total students count
-      prisma.users.count({
+      prisma.user.count({
         where: {
-          schoolId: schoolId,
-          userType: 'student',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'student',
+          isActive: true
         }
       })
     ]);
 
     // Get school info
-    const school = await prisma.schools.findUnique({
-      where: { id: schoolId },
+    const school = await prisma.school.findUnique({
+      where: { id: parseInt(schoolId) },
       select: {
         name: true,
         address: true
@@ -275,8 +275,8 @@ router.get('/student', requireRole(['student']), async (req: AuthenticatedReques
     // Get student's school and classmates
     const [school, classmates, teachers] = await Promise.all([
       // School information
-      prisma.schools.findUnique({
-        where: { id: schoolId },
+      prisma.school.findUnique({
+        where: { id: parseInt(schoolId) },
         select: {
           name: true,
           address: true
@@ -284,12 +284,12 @@ router.get('/student', requireRole(['student']), async (req: AuthenticatedReques
       }),
       
       // Other students in same school
-      prisma.users.findMany({
+      prisma.user.findMany({
         where: {
-          schoolId: schoolId,
-          userType: 'student',
-          status: 'active',
-          id: { not: studentId }
+          schoolId: parseInt(schoolId),
+          role: 'student',
+          isActive: true,
+          id: { not: parseInt(studentId) }
         },
         take: 10,
         select: {
@@ -301,11 +301,11 @@ router.get('/student', requireRole(['student']), async (req: AuthenticatedReques
       }),
       
       // Teachers in same school
-      prisma.users.findMany({
+      prisma.user.findMany({
         where: {
-          schoolId: schoolId,
-          userType: 'teacher',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'teacher',
+          isActive: true
         },
         select: {
           id: true,
@@ -357,8 +357,8 @@ router.get('/alumni', requireRole(['alumni']), async (req: AuthenticatedRequest,
     // Get alumni's school and fellow alumni
     const [school, fellowAlumni, currentStudents] = await Promise.all([
       // School information
-      prisma.schools.findUnique({
-        where: { id: schoolId },
+      prisma.school.findUnique({
+        where: { id: parseInt(schoolId) },
         select: {
           name: true,
           address: true
@@ -366,12 +366,12 @@ router.get('/alumni', requireRole(['alumni']), async (req: AuthenticatedRequest,
       }),
       
       // Other alumni from same school
-      prisma.users.findMany({
+      prisma.user.findMany({
         where: {
-          schoolId: schoolId,
-          userType: 'alumni',
-          status: 'active',
-          id: { not: alumniId }
+          schoolId: parseInt(schoolId),
+          role: 'alumni',
+          isActive: true,
+          id: { not: parseInt(alumniId) }
         },
         take: 10,
         select: {
@@ -384,11 +384,11 @@ router.get('/alumni', requireRole(['alumni']), async (req: AuthenticatedRequest,
       }),
       
       // Current students (for mentoring opportunities)
-      prisma.users.count({
+      prisma.user.count({
         where: {
-          schoolId: schoolId,
-          userType: 'student',
-          status: 'active'
+          schoolId: parseInt(schoolId),
+          role: 'student',
+          isActive: true
         }
       })
     ]);
