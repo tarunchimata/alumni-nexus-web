@@ -135,29 +135,93 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  logger.info('Health check requested');
-  res.setHeader('Content-Type', 'application/json');
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: '2.0.0',
-    features: {
-      multiStepRegistration: true,
-      institutionSearch: true,
-      roleBasedAuth: true,
-      keycloakTheme: true
-    },
-    oauth2: {
-      keycloakUrl: process.env.KEYCLOAK_URL,
-      realm: process.env.KEYCLOAK_REALM,
-      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
-      configured: !!(process.env.KEYCLOAK_URL && process.env.KEYCLOAK_REALM && process.env.KEYCLOAK_FRONTEND_CLIENT_ID)
-    }
-  });
+// Enhanced health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    logger.info('Health check requested');
+    
+    // Check database connection
+    const dbStatus = await checkDatabaseConnection();
+    
+    const healthData = {
+      status: dbStatus ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'My School Buddies Backend',
+      version: '2.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      database: {
+        status: dbStatus ? 'connected' : 'disconnected',
+        url: process.env.DATABASE_URL ? '***configured***' : 'not configured'
+      },
+      keycloak: {
+        url: process.env.KEYCLOAK_URL || 'not configured',
+        realm: process.env.KEYCLOAK_REALM || 'not configured',
+        configured: !!(process.env.KEYCLOAK_URL && process.env.KEYCLOAK_REALM && process.env.KEYCLOAK_FRONTEND_CLIENT_ID)
+      },
+      features: {
+        multiStepRegistration: true,
+        institutionSearch: true,
+        roleBasedAuth: true,
+        keycloakTheme: true,
+        oauth2Integration: true
+      }
+    };
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.status(dbStatus ? 200 : 503).json(healthData);
+  } catch (error) {
+    logger.error('Health check failed:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'My School Buddies Backend',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
+
+// Readiness check endpoint
+app.get('/ready', async (req, res) => {
+  try {
+    const dbStatus = await checkDatabaseConnection();
+    
+    if (dbStatus) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).json({
+        status: 'ready',
+        timestamp: new Date().toISOString(),
+        message: 'Service is ready to accept requests'
+      });
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(503).json({
+        status: 'not ready',
+        timestamp: new Date().toISOString(),
+        message: 'Service is not ready - database connection failed'
+      });
+    }
+  } catch (error) {
+    logger.error('Readiness check failed:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(503).json({
+      status: 'not ready',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Database connection check function
+async function checkDatabaseConnection(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1 as health_check`;
+    return true;
+  } catch (error) {
+    logger.error('Database health check failed:', error);
+    return false;
+  }
+}
 
 // Test endpoint
 app.get('/api/test', (req, res) => {

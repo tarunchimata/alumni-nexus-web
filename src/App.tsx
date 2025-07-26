@@ -21,6 +21,7 @@ import AlumniDashboard from "@/pages/dashboard/AlumniDashboard";
 // Profile and Settings
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
+import Health from "@/pages/Health";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -162,6 +163,9 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+
+              {/* Health check endpoint */}
+              <Route path="/health" element={<Health />} />
 
               {/* Catch-all redirect */}
               <Route path="*" element={<Navigate to="/" replace />} />
