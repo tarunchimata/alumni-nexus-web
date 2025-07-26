@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, School, Settings, Database, TrendingUp, Shield, AlertTriangle, CheckCircle, Clock, UserPlus } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Sidebar } from "@/components/layout/Sidebar";
+import CSVImport from "@/components/CSVImport";
 
 interface DashboardData {
   stats: {
@@ -314,6 +315,23 @@ const PlatformAdminDashboard = () => {
                 <div className="text-sm font-medium">73%</div>
                 <div className="text-xs text-green-600">↗ +5%</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Bulk Data Import</CardTitle>
+            <CardDescription>Upload CSV files to import schools and users</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="text-sm font-medium mb-3">Import Schools</h3>
+              <CSVImport type="schools" onSuccess={fetchDashboardData} />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium mb-3">Import Users</h3>
+              <CSVImport type="users" onSuccess={fetchDashboardData} />
             </div>
           </CardContent>
         </Card>

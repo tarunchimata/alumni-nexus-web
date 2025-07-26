@@ -19,6 +19,13 @@ const OAuth2Callback = () => {
         const error = searchParams.get('error');
         const state = searchParams.get('state');
 
+        console.log('[OAuth2Callback] Received callback with:', { 
+          hasCode: !!code, 
+          hasError: !!error, 
+          hasState: !!state,
+          error: error 
+        });
+
         if (error) {
           setStatus('error');
           setMessage(`Login failed: ${error}`);
@@ -35,15 +42,19 @@ const OAuth2Callback = () => {
 
         console.log('[OAuth2Callback] Processing authorization code...');
         
-        // Handle the OAuth2 callback
-        const success = await oauth2Service.handleCallback(code);
+        // Handle the OAuth2 callback with state parameter
+        const success = await oauth2Service.handleCallback(code, state || undefined);
         
         if (success) {
           setStatus('success');
           setMessage('Login successful! Redirecting...');
           
+          console.log('[OAuth2Callback] Token exchange successful, refreshing auth...');
+          
           // Refresh auth state to get user info
           await refreshAuth();
+          
+          console.log('[OAuth2Callback] Auth refreshed, redirecting to dashboard...');
           
           // Small delay to show success message
           setTimeout(() => {
@@ -57,7 +68,7 @@ const OAuth2Callback = () => {
       } catch (error) {
         console.error('[OAuth2Callback] Error:', error);
         setStatus('error');
-        setMessage('An unexpected error occurred. Please try again.');
+        setMessage(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setTimeout(() => navigate('/login'), 3000);
       }
     };
