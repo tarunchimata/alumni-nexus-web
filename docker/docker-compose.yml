@@ -21,7 +21,7 @@ services:
       - SENDGRID_FROM_EMAIL=noreply@myschoolbuddies.com
       - SENDGRID_FROM_NAME=My School Buddies
       - JWT_SECRET=production-jwt-secret-change-this
-      - CORS_ORIGIN=http://localhost:3000,http://localhost:8080
+      - CORS_ORIGIN=https://school.hostingmanager.in,https://api.hostingmanager.in
       - LOG_LEVEL=info
     volumes:
       - backend_logs:/app/logs
@@ -44,10 +44,11 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
-      - REACT_APP_KEYCLOAK_URL=https://login.hostingmanager.in
-      - REACT_APP_KEYCLOAK_REALM=myschoolbuddies-realm
-      - REACT_APP_KEYCLOAK_CLIENT_ID=frontend-client
+      - VITE_API_URL=https://api.hostingmanager.in/api
+      - VITE_KEYCLOAK_URL=https://login.hostingmanager.in
+      - VITE_KEYCLOAK_REALM=myschoolbuddies-realm
+      - VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client
+      - VITE_OAUTH2_REDIRECT_URI=https://school.hostingmanager.in/oauth2/callback
     depends_on:
       backend:
         condition: service_healthy
