@@ -74,16 +74,26 @@ export class OAuth2Service {
       if (receivedState) {
         const { state: storedState } = this.storage.getOAuth2State();
         if (!storedState || storedState !== receivedState) {
+          this.log('State mismatch detected', { received: receivedState, stored: storedState });
           throw new Error('State mismatch - possible security issue');
         }
       }
 
       const tokens = await this.exchangeCodeForTokens(code, receivedState || '');
-      this.log('Token exchange successful', { hasAccessToken: !!tokens.access_token });
+      this.log('Token exchange successful', { 
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token 
+      });
+
+      // Store tokens properly
+      this.storage.storeTokens(tokens);
+      
       return true;
     } catch (error) {
       this.log('Callback handling failed', error);
       console.error('[OAuth2] Callback failed:', error);
+      // Clear state on error
+      this.storage.clearOAuth2State();
       return false;
     }
   }

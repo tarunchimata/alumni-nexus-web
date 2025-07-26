@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
@@ -17,9 +16,9 @@ router.use(authenticateToken);
 // Get all schools - accessible by all authenticated users
 router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
-    const { page = 1, limit = 10, search, schoolType, managementType } = req.query;
+    const { page = 1, limit = 1000, search, schoolType, managementType } = req.query;
     
-    const where: any = { isActive: true };
+    const where: any = { status: 'active' };
     
     // School admins and teachers can only see their own school
     if (req.user && !req.user.roles.includes('platform_admin')) {
@@ -29,15 +28,15 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
         // User has no school access
         return res.json({
           schools: [],
-          pagination: { page: 1, limit: 10, total: 0, pages: 0 },
+          pagination: { page: 1, limit: Number(limit), total: 0, pages: 0 },
         });
       }
     }
     
     if (search) {
       where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { udiseCode: { contains: search as string, mode: 'insensitive' } },
+        { schoolName: { contains: search as string, mode: 'insensitive' } },
+        { udiseSchoolCode: { contains: search as string, mode: 'insensitive' } },
       ];
     }
     
@@ -48,8 +47,9 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       where,
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
-      orderBy: { createdAt: 'desc' },
+      orderBy: { schoolName: 'asc' },
       select: {
+        id: true,
         institutionId: true,
         schoolName: true,
         udiseSchoolCode: true,
@@ -61,8 +61,7 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
         locationType: true,
         status: true,
         createdAt: true,
-        // Legacy compatibility
-        id: true,
+        // Legacy compatibility fields
         name: true,
         udiseCode: true,
         _count: {
@@ -73,8 +72,21 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
 
     const total = await prisma.school.count({ where });
 
+    logger.info(`Schools fetched: ${schools.length} of ${total} total`);
+
     res.json({
-      schools,
+      schools: schools.map(school => ({
+        id: school.id,
+        name: school.schoolName || school.name,
+        udiseCode: school.udiseSchoolCode || school.udiseCode,
+        districtName: school.districtName,
+        stateName: school.stateName,
+        schoolType: school.schoolType,
+        management: school.management,
+        status: school.status,
+        userCount: school._count.users,
+        classCount: school._count.classes,
+      })),
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -114,6 +126,7 @@ router.post('/',
           districtName,
           address,
           contactNumber,
+          status: 'active',
           // Legacy fields
           name: schoolName,
           udiseCode: udiseSchoolCode,
@@ -162,6 +175,7 @@ router.post('/bulk',
                     districtName: row.district_name || row.district,
                     address: row.address,
                     contactNumber: row.contact_number,
+                    status: 'active',
                     // Legacy fields
                     name: row.school_name || row.name,
                     udiseCode: row.udise_code,
