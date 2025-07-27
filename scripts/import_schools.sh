@@ -46,7 +46,7 @@
 
 # === 🛠️ CONFIGURATION ===
 
-WORK_DIR="/path/to/your/project/backend"      # 🔧 Change this to your backend folder
+WORK_DIR="$(pwd)/backend"                     # 🔧 Backend folder (auto-detected)
 LOG_DIR="/var/log/school-import"              # 📂 Log storage directory
 LOG_FILE="$LOG_DIR/import.log"                # 🧾 Output log file
 PID_FILE="$LOG_DIR/import.pid"                # 🧠 PID tracking file
@@ -54,16 +54,20 @@ PID_FILE="$LOG_DIR/import.pid"                # 🧠 PID tracking file
 # === 🤖 IMPORT MODE SELECTION ===
 
 echo "📋 Choose import mode:"
-echo "  1️⃣  100 records per batch (Standard)"
-echo "  2️⃣  1000 records per batch (Optimized for 1M+ records)"
-read -rp "👉 Enter your choice (1 or 2): " CHOICE
+echo "  1️⃣  Standard (100 records/batch)"
+echo "  2️⃣  Bulk (300 records/batch - legacy)"
+echo "  3️⃣  Optimized (200 records/batch - recommended for 1M+ records)"
+read -rp "👉 Enter your choice (1, 2, or 3): " CHOICE
 
 if [ "$CHOICE" == "1" ]; then
   SCRIPT_NAME="import-schools"
   BATCH_SIZE="100"
 elif [ "$CHOICE" == "2" ]; then
   SCRIPT_NAME="import-schools-bulk"
-  BATCH_SIZE="1000"
+  BATCH_SIZE="300"
+elif [ "$CHOICE" == "3" ]; then
+  SCRIPT_NAME="import-schools-optimized"
+  BATCH_SIZE="200"
 else
   echo "❌ Invalid choice. Exiting."
   exit 1

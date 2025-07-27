@@ -15,6 +15,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "import-schools": "ts-node src/scripts/importSchools.ts",
     "import-schools-bulk": "ts-node src/scripts/importSchoolsBulk.ts",
+    "import-schools-optimized": "ts-node src/scripts/importSchoolsOptimized.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },

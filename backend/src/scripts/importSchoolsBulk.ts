@@ -1,6 +1,6 @@
 /**
  * Optimized School CSV Import Script for Large Datasets (1M+ records)
- * Uses batch processing and transactions for better performance
+ * Uses connection pooling, batch processing, and retry logic for production imports
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -8,7 +8,15 @@ import fs from 'fs';
 import csv from 'csv-parser';
 import { logger } from '../utils/logger';
 
-const prisma = new PrismaClient();
+// Enhanced Prisma client with optimized connection pooling
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + '?connection_limit=20&pool_timeout=30&connect_timeout=60'
+    }
+  },
+  log: ['error', 'warn']
+});
 
 // State code mapping for institution_id generation
 const STATE_CODES: Record<string, string> = {
@@ -36,10 +44,35 @@ interface SchoolData {
   contactNumber?: string;
 }
 
-const BATCH_SIZE = 1000; // Process 1000 records per batch
+const BATCH_SIZE = 300; // Reduced batch size for better connection management
+const MAX_RETRIES = 3; // Retry failed batches
+const RETRY_DELAY = 5000; // 5 seconds between retries
 
 // Pre-generate institution IDs for each state to avoid database queries
 const stateCounters = new Map<string, number>();
+
+// Progress tracking
+interface ImportProgress {
+  totalProcessed: number;
+  totalSuccess: number;
+  totalErrors: number;
+  startTime: number;
+  estimatedTotal: number;
+}
+
+// Connection health check
+async function checkConnectionHealth(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error) {
+    logger.warn('Database connection health check failed:', error);
+    return false;
+  }
+}
+
+// Sleep utility for retry delays
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function initializeStateCounters() {
   logger.info('Initializing state counters...');
@@ -98,9 +131,17 @@ function cleanData(row: any): SchoolData {
   };
 }
 
-async function processBatch(schools: SchoolData[]): Promise<{ success: number; errors: any[] }> {
+async function processBatchWithRetry(schools: SchoolData[], retryCount = 0): Promise<{ success: number; errors: any[] }> {
   const errors: any[] = [];
   let success = 0;
+
+  // Check connection health before processing
+  const isHealthy = await checkConnectionHealth();
+  if (!isHealthy && retryCount < MAX_RETRIES) {
+    logger.warn(`Connection unhealthy, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+    await sleep(RETRY_DELAY);
+    return processBatchWithRetry(schools, retryCount + 1);
+  }
 
   try {
     const validSchools = schools.filter(school => {
@@ -111,37 +152,86 @@ async function processBatch(schools: SchoolData[]): Promise<{ success: number; e
       return true;
     });
 
-    // Use createMany for better performance
-    await prisma.school.createMany({
-      data: validSchools.map(school => ({
-        institutionId: school.institutionId,
-        schoolName: school.schoolName,
-        udiseSchoolCode: school.udiseSchoolCode,
-        schoolCategory: school.schoolCategory,
-        schoolType: school.schoolType,
-        management: school.management,
-        stateName: school.stateName,
-        districtName: school.districtName,
-        address: school.address,
-        contactNumber: school.contactNumber,
-        status: 'active',
-        // Legacy fields
-        name: school.schoolName,
-        udiseCode: school.udiseSchoolCode,
-        schoolTypeLegacy: school.schoolCategory?.includes('Primary') ? 'Primary' : 
-                         school.schoolCategory?.includes('Higher Secondary') ? 'Higher Secondary' : 'Secondary',
-        managementType: school.management?.includes('Government') ? 'Government' : 'Private'
-      })),
-      skipDuplicates: true // Skip duplicates instead of failing
-    });
+    if (validSchools.length === 0) {
+      return { success: 0, errors };
+    }
 
-    success = validSchools.length;
+    // Process in smaller chunks if batch is large
+    const chunkSize = Math.min(100, validSchools.length);
+    const chunks = [];
+    for (let i = 0; i < validSchools.length; i += chunkSize) {
+      chunks.push(validSchools.slice(i, i + chunkSize));
+    }
+
+    for (const chunk of chunks) {
+      try {
+        await prisma.school.createMany({
+          data: chunk.map(school => ({
+            institutionId: school.institutionId,
+            schoolName: school.schoolName,
+            udiseSchoolCode: school.udiseSchoolCode,
+            schoolCategory: school.schoolCategory,
+            schoolType: school.schoolType,
+            management: school.management,
+            stateName: school.stateName,
+            districtName: school.districtName,
+            address: school.address,
+            contactNumber: school.contactNumber,
+            status: 'active',
+            // Legacy fields
+            name: school.schoolName,
+            udiseCode: school.udiseSchoolCode,
+            schoolTypeLegacy: school.schoolCategory?.includes('Primary') ? 'Primary' : 
+                             school.schoolCategory?.includes('Higher Secondary') ? 'Higher Secondary' : 'Secondary',
+            managementType: school.management?.includes('Government') ? 'Government' : 'Private'
+          })),
+          skipDuplicates: true
+        });
+        
+        success += chunk.length;
+        
+        // Small delay between chunks to prevent connection exhaustion
+        if (chunks.length > 1) {
+          await sleep(100);
+        }
+        
+      } catch (chunkError: any) {
+        logger.error(`Chunk processing error: ${chunkError.message}`);
+        errors.push({ error: chunkError.message, chunk: chunk.length });
+      }
+    }
+
   } catch (error: any) {
     logger.error('Batch processing error:', error);
+    
+    // Retry on connection errors
+    if ((error.code === 'P2024' || error.message.includes('connection')) && retryCount < MAX_RETRIES) {
+      logger.warn(`Retrying batch due to connection error... (${retryCount + 1}/${MAX_RETRIES})`);
+      await sleep(RETRY_DELAY);
+      return processBatchWithRetry(schools, retryCount + 1);
+    }
+    
     errors.push({ error: error.message, batch: schools.length });
   }
 
   return { success, errors };
+}
+
+// Progress reporting with ETA
+function reportProgress(progress: ImportProgress) {
+  const { totalProcessed, totalSuccess, totalErrors, startTime, estimatedTotal } = progress;
+  const elapsed = Date.now() - startTime;
+  const rate = totalProcessed / (elapsed / 1000); // records per second
+  const eta = estimatedTotal > 0 ? (estimatedTotal - totalProcessed) / rate : 0;
+  
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours}h ${minutes}m ${secs}s`;
+  };
+
+  logger.info(`Progress: ${totalProcessed}/${estimatedTotal || '?'} (${((totalProcessed / (estimatedTotal || totalProcessed)) * 100).toFixed(1)}%) | Success: ${totalSuccess} | Errors: ${totalErrors} | Rate: ${rate.toFixed(1)}/sec | ETA: ${formatTime(eta)}`);
 }
 
 async function importSchoolsBulk(csvFilePath: string) {
@@ -149,51 +239,93 @@ async function importSchoolsBulk(csvFilePath: string) {
     throw new Error(`CSV file not found: ${csvFilePath}`);
   }
 
+  // Count total lines for progress estimation
+  const lineCount = await new Promise<number>((resolve, reject) => {
+    let count = 0;
+    fs.createReadStream(csvFilePath)
+      .on('data', (chunk) => {
+        count += chunk.toString().split('\n').length - 1;
+      })
+      .on('end', () => resolve(count - 1)) // -1 for header
+      .on('error', reject);
+  });
+
   await initializeStateCounters();
   
-  logger.info('Starting optimized bulk school import...');
+  logger.info(`Starting optimized bulk school import for ${lineCount} records...`);
   
-  const results: any[] = [];
-  let batch: SchoolData[] = [];
+  let allData: SchoolData[] = [];
   let totalProcessed = 0;
   let totalSuccess = 0;
   let totalErrors = 0;
+  const startTime = Date.now();
 
-  return new Promise<void>((resolve, reject) => {
+  // Read all data synchronously first (more memory efficient for large files)
+  await new Promise<void>((resolve, reject) => {
     fs.createReadStream(csvFilePath)
       .pipe(csv())
-      .on('data', async (data: any) => {
+      .on('data', (data: any) => {
         const schoolData = cleanData(data);
-        batch.push(schoolData);
-
-        if (batch.length >= BATCH_SIZE) {
-          const { success, errors } = await processBatch(batch);
-          totalProcessed += batch.length;
-          totalSuccess += success;
-          totalErrors += errors.length;
-          
-          logger.info(`Processed ${totalProcessed} records - Success: ${totalSuccess}, Errors: ${totalErrors}`);
-          
-          batch = [];
-        }
+        allData.push(schoolData);
       })
-      .on('end', async () => {
-        // Process remaining batch
-        if (batch.length > 0) {
-          const { success, errors } = await processBatch(batch);
-          totalProcessed += batch.length;
-          totalSuccess += success;
-          totalErrors += errors.length;
-        }
-
-        logger.info(`Import completed: ${totalSuccess} schools created, ${totalErrors} errors from ${totalProcessed} total records`);
+      .on('end', () => {
+        logger.info(`Loaded ${allData.length} records from CSV, starting batch processing...`);
         resolve();
       })
-      .on('error', (error) => {
-        logger.error('CSV parsing error:', error);
-        reject(error);
-      });
+      .on('error', reject);
   });
+
+  // Process in batches with connection management
+  for (let i = 0; i < allData.length; i += BATCH_SIZE) {
+    const batch = allData.slice(i, i + BATCH_SIZE);
+    
+    try {
+      const { success, errors } = await processBatchWithRetry(batch);
+      totalProcessed += batch.length;
+      totalSuccess += success;
+      totalErrors += errors.length;
+
+      // Report progress every 5 batches
+      if ((i / BATCH_SIZE) % 5 === 0 || i + BATCH_SIZE >= allData.length) {
+        reportProgress({
+          totalProcessed,
+          totalSuccess,
+          totalErrors,
+          startTime,
+          estimatedTotal: allData.length
+        });
+      }
+
+      // Connection health maintenance - disconnect and reconnect every 50 batches
+      if ((i / BATCH_SIZE) % 50 === 0 && i > 0) {
+        logger.info('Performing connection maintenance...');
+        await prisma.$disconnect();
+        await sleep(2000);
+        // Prisma will auto-reconnect on next query
+      }
+
+      // Memory cleanup
+      if (totalProcessed % 10000 === 0 && global.gc) {
+        global.gc();
+      }
+
+    } catch (error: any) {
+      logger.error(`Critical error processing batch ${i / BATCH_SIZE}:`, error);
+      totalErrors += batch.length;
+      
+      // Continue with next batch instead of failing completely
+      if (error.code === 'P2024') {
+        logger.warn('Connection pool exhausted, waiting before continuing...');
+        await sleep(10000);
+      }
+    }
+  }
+
+  // Final cleanup
+  allData = [];
+  
+  logger.info(`Import completed: ${totalSuccess} schools created, ${totalErrors} errors from ${totalProcessed} total records`);
+  logger.info(`Success rate: ${((totalSuccess / totalProcessed) * 100).toFixed(2)}%`);
 }
 
 // Main execution
