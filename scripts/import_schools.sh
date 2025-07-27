@@ -47,10 +47,9 @@
 # === 🛠️ CONFIGURATION ===
 
 <<<<<<< HEAD
-WORK_DIR="../project/backend"      # 🔧 Change this to your backend folder
-Commit 
+#WORK_DIR="../project/backend"      # 🔧 Change this to your backend folder
+#Commit 
 WORK_DIR="$(pwd)/backend"                     # 🔧 Backend folder (auto-detected)
->>>>>>> 9340387b6867baa659aaa1ca88a6fba81e065700
 LOG_DIR="/var/log/school-import"              # 📂 Log storage directory
 LOG_FILE="$LOG_DIR/import.log"                # 🧾 Output log file
 PID_FILE="$LOG_DIR/import.pid"                # 🧠 PID tracking file
