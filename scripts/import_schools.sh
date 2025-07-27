@@ -45,8 +45,6 @@
 ################################################################################
 
 # === 🛠️ CONFIGURATION ===
-
-<<<<<<< HEAD
 #WORK_DIR="../project/backend"      # 🔧 Change this to your backend folder
 #Commit 
 WORK_DIR="$(pwd)/backend"                     # 🔧 Backend folder (auto-detected)
