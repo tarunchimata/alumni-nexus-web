@@ -16,6 +16,9 @@
     "import-schools": "ts-node src/scripts/importSchools.ts",
     "import-schools-bulk": "ts-node src/scripts/importSchoolsBulk.ts",
     "import-schools-optimized": "ts-node src/scripts/importSchoolsOptimized.ts",
+    "import-users": "ts-node src/scripts/importUsers.ts",
+    "import-users-bulk": "ts-node src/scripts/importUsersBulk.ts",
+    "import-users-optimized": "ts-node src/scripts/importUsersOptimized.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },
