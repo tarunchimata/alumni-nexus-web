@@ -19,6 +19,7 @@
     "import-users": "ts-node src/scripts/importUsers.ts",
     "import-users-bulk": "ts-node src/scripts/importUsersBulk.ts",
     "import-users-optimized": "ts-node src/scripts/importUsersOptimized.ts",
+    "generate-users": "ts-node src/scripts/generateUsers.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },
