@@ -1,0 +1,11 @@
+firstName,lastName,email,phone,dateOfBirth,graduationYear,degree,currentCompany,currentPosition,city,country,school_udise_code
+"Ravi","Sharma","ravi.sharma@techcorp.com","9876543230","1992-03-15","2010","Computer Science","TechCorp Solutions","Software Engineer","Bangalore","India","DPS001"
+"Anjali","Patel","anjali.patel@consulting.com","9876543231","1991-07-22","2009","Business Administration","Global Consulting","Business Analyst","Mumbai","India","DPS001"
+"Vikash","Kumar","vikash.kumar@startup.com","9876543232","1993-11-08","2011","Electronics Engineering","InnovateTech","Product Manager","Delhi","India","GSSS002"
+"Neha","Singh","neha.singh@medical.com","9876543233","1990-05-18","2008","Medicine","City Hospital","Doctor","Chennai","India","SMCS003"
+"Arjun","Verma","arjun.verma@finance.com","9876543234","1989-09-30","2007","Finance","Investment Bank","Financial Analyst","Mumbai","India","KV004"
+"Priyanka","Joshi","priyanka.joshi@university.edu","9876543235","1988-12-12","2006","Literature","State University","Professor","Pune","India","DAV005"
+"Rahul","Agarwal","rahul.agarwal@design.com","9876543236","1994-04-25","2012","Fine Arts","Creative Agency","Graphic Designer","Bangalore","India","JNV006"
+"Sunita","Yadav","sunita.yadav@law.com","9876543237","1987-08-14","2005","Law","Legal Associates","Lawyer","Delhi","India","MS007"
+"Amit","Gupta","amit.gupta@research.org","9876543238","1985-01-20","2003","Physics","Research Institute","Research Scientist","Bangalore","India","SV008"
+"Meera","Khanna","meera.khanna@usa.com","9876543239","1992-06-18","2010","Computer Engineering","Tech Giant","Software Developer","San Francisco","USA","RIS009"
