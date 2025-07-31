@@ -1,6 +1,7 @@
 #!/usr/bin/env ts-node
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { UserRole } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -42,8 +43,8 @@ interface SchoolInfo {
   id: string;
   schoolName: string;
   udiseSchoolCode: string;
-  state: string;
-  district: string;
+  stateName: string;
+  districtName: string;
 }
 
 // ASCII Art Banner
@@ -169,20 +170,20 @@ const loadSchoolCache = async (): Promise<void> => {
   try {
     const schools = await prisma.school.findMany({
       select: {
-        id: true,
+        institutionId: true,
         schoolName: true,
         udiseSchoolCode: true,
-        state: true,
-        district: true
+        stateName: true,
+        districtName: true
       }
     });
 
     schoolCache = schools.map(school => ({
-      id: school.id,
+      id: school.institutionId,
       schoolName: school.schoolName,
-      udiseSchoolCode: school.udiseSchoolCode,
-      state: school.state || 'Unknown',
-      district: school.district || 'Unknown'
+      udiseSchoolCode: school.udiseSchoolCode || 'UNKNOWN',
+      stateName: school.stateName || 'Unknown',
+      districtName: school.districtName || 'Unknown'
     }));
 
     console.log(chalk.green(`✅ Loaded ${schoolCache.length} schools`));
@@ -387,7 +388,7 @@ const collectUserInput = async (): Promise<UserGenerationConfig> => {
         name: 'count',
         message: `🔢 How many ${role.replace('_', ' ')}s to generate?`,
         default: defaultCount,
-        validate: (input) => input > 0 || 'Please enter a positive number'
+        validate: (input) => (input && input > 0) || 'Please enter a positive number'
       }
     ]);
 
@@ -411,7 +412,7 @@ const collectUserInput = async (): Promise<UserGenerationConfig> => {
   let specificSchoolId: string | undefined;
   if (schoolStrategy.assignment === 'specific') {
     const schoolChoices = schoolCache.map(school => ({
-      name: `${school.schoolName} (${school.udiseSchoolCode}) - ${school.district}, ${school.state}`,
+      name: `${school.schoolName} (${school.udiseSchoolCode}) - ${school.districtName}, ${school.stateName}`,
       value: school.udiseSchoolCode
     }));
 
