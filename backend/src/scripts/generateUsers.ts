@@ -41,7 +41,8 @@ interface GeneratedUser {
 }
 
 interface SchoolInfo {
-  id: string;
+  id: number;
+  institutionId: string;
   schoolName: string;
   udiseSchoolCode: string;
   stateName: string;
@@ -79,6 +80,7 @@ const loadSchoolCache = async (): Promise<void> => {
   try {
     const schools = await prisma.school.findMany({
       select: {
+        id: true,
         institutionId: true,
         schoolName: true,
         udiseSchoolCode: true,
@@ -88,7 +90,8 @@ const loadSchoolCache = async (): Promise<void> => {
     });
 
     schoolCache = schools.map(school => ({
-      id: school.institutionId,
+      id: school.id,
+      institutionId: school.institutionId,
       schoolName: school.schoolName,
       udiseSchoolCode: school.udiseSchoolCode || 'UNKNOWN',
       stateName: school.stateName || 'Unknown',
@@ -151,7 +154,7 @@ const generateUsers = async (config: UserGenerationConfig): Promise<Map<UserRole
       let schoolUdiseCode: string;
 
       if (config.schoolAssignment === 'specific' && config.specificSchoolId) {
-        const school = schoolCache.find(s => s.id === config.specificSchoolId || s.udiseSchoolCode === config.specificSchoolId);
+        const school = schoolCache.find(s => s.institutionId === config.specificSchoolId || s.udiseSchoolCode === config.specificSchoolId);
         schoolUdiseCode = school?.udiseSchoolCode || schoolCache[0]?.udiseSchoolCode || 'DEFAULT001';
       } else if (schoolCache.length > 0) {
         // Random school assignment
@@ -252,14 +255,17 @@ const insertIntoDatabase = async (usersByRole: Map<UserRole, GeneratedUser[]>): 
       // Create user in database
       await prisma.user.create({
         data: {
+          keycloakId: `temp_${user.email}_${Date.now()}`, // temporary - should be set when user logs in
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
           phoneNumber: user.phoneNumber,
           dateOfBirth: new Date(user.dateOfBirth),
-          schoolId: school.institutionId,
-          isApproved: true,
+          schoolId: school.id,
+          udiseCode: user.schoolUdiseCode,
+          isActive: true,
+          isVerified: false,
           // Add admission/graduation years if applicable
           ...(user.admissionYear && { admissionYear: parseInt(user.admissionYear) }),
           ...(user.graduationYear && { graduationYear: parseInt(user.graduationYear) })
