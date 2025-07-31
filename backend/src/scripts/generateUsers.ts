@@ -184,11 +184,15 @@ const exportToCSV = async (usersByRole: Map<UserRole, GeneratedUser[]>, config: 
   const exportedFiles: string[] = [];
   
   try {
-    // Ensure output directory exists
-    const outputDir = path.dirname(config.outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-      logger.info(`Created output directory: ${outputDir}`);
+    // Ensure output directory exists with robust error handling
+    const outputDir = path.resolve(process.cwd(), path.dirname(config.outputPath));
+    
+    try {
+      await fs.mkdir(outputDir, { recursive: true, mode: 0o755 });
+      console.log(chalk.green(`✅ Created/verified output directory: ${outputDir}`));
+    } catch (dirError) {
+      console.error(chalk.red(`❌ Failed to create directory: ${outputDir}`), dirError);
+      throw dirError;
     }
 
     // CSV header
@@ -200,12 +204,26 @@ const exportToCSV = async (usersByRole: Map<UserRole, GeneratedUser[]>, config: 
 
     if (allUsers.length > 0) {
       const combinedCSV = csvHeader + allUsers.map(user => 
-        `"${user.email}","${user.firstName}","${user.lastName}","${user.role}","${user.schoolUdiseCode}","${user.phoneNumber}","${user.dateOfBirth}","${user.admissionYear}","${user.graduationYear}"`
+        `"${user.email}","${user.firstName}","${user.lastName}","${user.role}","${user.schoolUdiseCode}","${user.phoneNumber}","${user.dateOfBirth}","${user.admissionYear || ''}","${user.graduationYear || ''}"`
       ).join('\n');
 
-      fs.writeFileSync(config.outputPath, combinedCSV);
-      exportedFiles.push(config.outputPath);
-      logger.info(`Exported combined CSV: ${config.outputPath}`);
+      const filePath = path.resolve(config.outputPath);
+      
+      try {
+        await fs.writeFile(filePath, combinedCSV, 'utf8');
+        
+        // Verify file was written
+        const stats = await fs.stat(filePath);
+        if (stats.size > 0) {
+          exportedFiles.push(filePath);
+          console.log(chalk.green(`✅ Exported combined CSV: ${filePath} (${stats.size} bytes)`));
+        } else {
+          console.error(chalk.red(`❌ File written but empty: ${filePath}`));
+        }
+      } catch (writeError) {
+        console.error(chalk.red(`❌ Failed to write combined CSV: ${filePath}`), writeError);
+        throw writeError;
+      }
     }
 
     // Generate separate files per role if requested
@@ -213,24 +231,36 @@ const exportToCSV = async (usersByRole: Map<UserRole, GeneratedUser[]>, config: 
       const baseDir = path.dirname(config.outputPath);
       const baseName = path.basename(config.outputPath, '.csv');
 
-      usersByRole.forEach((users, role) => {
+      for (const [role, users] of usersByRole) {
         if (users.length > 0) {
-          const roleFileName = path.join(baseDir, `${baseName}_${role}s.csv`);
+          const roleFileName = path.resolve(baseDir, `${baseName}_${role}s.csv`);
           const roleCSV = csvHeader + users.map(user => 
-            `"${user.email}","${user.firstName}","${user.lastName}","${user.role}","${user.schoolUdiseCode}","${user.phoneNumber}","${user.dateOfBirth}","${user.admissionYear}","${user.graduationYear}"`
+            `"${user.email}","${user.firstName}","${user.lastName}","${user.role}","${user.schoolUdiseCode}","${user.phoneNumber}","${user.dateOfBirth}","${user.admissionYear || ''}","${user.graduationYear || ''}"`
           ).join('\n');
           
-          fs.writeFileSync(roleFileName, roleCSV);
-          exportedFiles.push(roleFileName);
-          logger.info(`Exported ${role} CSV: ${roleFileName}`);
+          try {
+            await fs.writeFile(roleFileName, roleCSV, 'utf8');
+            
+            // Verify file was written
+            const stats = await fs.stat(roleFileName);
+            if (stats.size > 0) {
+              exportedFiles.push(roleFileName);
+              console.log(chalk.green(`✅ Exported ${role} CSV: ${roleFileName} (${stats.size} bytes)`));
+            } else {
+              console.error(chalk.red(`❌ File written but empty: ${roleFileName}`));
+            }
+          } catch (writeError) {
+            console.error(chalk.red(`❌ Failed to write ${role} CSV: ${roleFileName}`), writeError);
+            throw writeError;
+          }
         }
-      });
+      }
     }
 
     return exportedFiles;
   } catch (error) {
-    logger.error('Failed to export CSV files:', error);
-    throw new Error(`CSV export failed: ${error}`);
+    console.error(chalk.red('❌ CSV export failed:'), error);
+    throw new Error(`CSV export failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
@@ -263,9 +293,7 @@ const insertIntoDatabase = async (usersByRole: Map<UserRole, GeneratedUser[]>): 
           phoneNumber: user.phoneNumber,
           dateOfBirth: new Date(user.dateOfBirth),
           schoolId: school.id,
-          udiseCode: user.schoolUdiseCode,
           isActive: true,
-          isVerified: false,
           // Add admission/graduation years if applicable
           ...(user.admissionYear && { admissionYear: parseInt(user.admissionYear) }),
           ...(user.graduationYear && { graduationYear: parseInt(user.graduationYear) })

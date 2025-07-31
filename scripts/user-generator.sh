@@ -58,11 +58,26 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if backend dependencies are installed
-    if [ ! -d "backend/node_modules" ]; then
-        echo -e "${YELLOW}📦 Installing backend dependencies...${NC}"
-        cd backend && npm install && cd ..
+    # Auto-install backend dependencies
+    echo -e "${BLUE}📦 Checking backend dependencies...${NC}"
+    cd backend
+    
+    # Check if package.json exists
+    if [ ! -f "package.json" ]; then
+        echo -e "${RED}❌ Backend package.json not found${NC}"
+        exit 1
     fi
+    
+    # Always run npm install to ensure all dependencies are up to date
+    echo -e "${YELLOW}📥 Installing/updating backend dependencies...${NC}"
+    npm install
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Failed to install backend dependencies${NC}"
+        exit 1
+    fi
+    
+    cd ..
     
     # Check if the generate script exists
     if [ ! -f "backend/src/scripts/generateUsers.ts" ]; then
