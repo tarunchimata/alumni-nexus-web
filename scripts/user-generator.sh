@@ -109,7 +109,7 @@ interactive_generation() {
     echo ""
     
     cd backend
-    npm run ts-node src/scripts/generateUsers.ts
+    npm run generate-users
     cd ..
     
     echo ""
@@ -157,7 +157,7 @@ const inputs = [
     'N'      // Skip direct insert
 ].join('\n');
 
-const child = exec('npm run ts-node src/scripts/generateUsers.ts', (error, stdout, stderr) => {
+const child = exec('npm run generate-users', (error, stdout, stderr) => {
     if (error) {
         console.error('Generation failed:', error);
         process.exit(1);
@@ -266,7 +266,7 @@ show_help() {
     echo -e "   • Ready for import via ${WHITE}./scripts/import_data.sh${NC}"
     echo ""
     echo -e "${CYAN}🔧 Manual Usage:${NC}"
-    echo -e "   ${WHITE}cd backend && npm run ts-node src/scripts/generateUsers.ts${NC}"
+    echo -e "   ${WHITE}cd backend && npm run generate-users${NC}"
     echo ""
     echo -e "${CYAN}📖 More Information:${NC}"
     echo -e "   • Check ${WHITE}IMPORT_GUIDE.md${NC} for detailed instructions"
