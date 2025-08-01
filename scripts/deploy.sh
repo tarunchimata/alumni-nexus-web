@@ -199,7 +199,7 @@ build_application() {
     # Build frontend
     print_info "Building frontend..."
     npm ci
-    npm run build
+    npx vite build
     print_status "Frontend build completed"
     
     # Build backend
