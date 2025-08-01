@@ -77,10 +77,10 @@ export const HeroCarousel = () => {
   };
 
   return (
-    <div className="relative h-[70vh] min-h-[600px] overflow-hidden rounded-2xl">
+    <div className="relative h-screen w-full overflow-hidden">
       {/* Slides Container */}
       <div 
-        className="flex transition-transform duration-700 ease-in-out h-full"
+        className="flex transition-transform duration-1000 ease-in-out h-full"
         style={{ transform: `translateX(-${currentSlide * 100}%)` }}
       >
         {slides.map((slide, index) => (
@@ -90,44 +90,53 @@ export const HeroCarousel = () => {
           >
             {/* Background Image */}
             <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
               style={{ backgroundImage: `url(${slide.image})` }}
             />
             
-            {/* Overlay - Enhanced for better text readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
+            {/* Dynamic Overlay - Enhanced for better text readability */}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             
             {/* Content */}
-            <div className="relative h-full flex items-center">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                <div className="max-w-2xl">
-                  <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">
-                    {slide.title}
-                  </h1>
-                  <p className="text-xl md:text-2xl text-blue-100 mb-4 font-medium">
-                    {slide.subtitle}
-                  </p>
-                  <p className="text-lg text-gray-200 mb-8 leading-relaxed">
-                    {slide.description}
-                  </p>
+            <div className="relative h-full flex items-center justify-center">
+              <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 w-full">
+                <div className="max-w-4xl mx-auto text-center">
+                  <div className="animate-in slide-in-from-bottom-4 duration-1000 delay-300">
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight tracking-tight">
+                      {slide.title}
+                    </h1>
+                  </div>
+                  <div className="animate-in slide-in-from-bottom-4 duration-1000 delay-500">
+                    <p className="text-2xl md:text-3xl lg:text-4xl text-orange-200 mb-6 font-medium leading-relaxed">
+                      {slide.subtitle}
+                    </p>
+                  </div>
+                  <div className="animate-in slide-in-from-bottom-4 duration-1000 delay-700">
+                    <p className="text-xl md:text-2xl text-gray-200 mb-12 leading-relaxed max-w-3xl mx-auto">
+                      {slide.description}
+                    </p>
+                  </div>
                   
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link to="/login">
-                      <Button 
-                        size="lg" 
-                        className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold shadow-xl"
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
-                    <Link to="/register">
-                      <Button 
-                        size="lg" 
-                        className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hover:from-blue-700 hover:to-purple-800 px-8 py-4 text-lg font-semibold shadow-xl border-0"
-                      >
-                        Join as a School
-                      </Button>
-                    </Link>
+                  <div className="animate-in slide-in-from-bottom-4 duration-1000 delay-900">
+                    <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                      <Link to="/login">
+                        <Button 
+                          size="lg" 
+                          className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-orange-500/25 transform hover:scale-105 transition-all duration-300 rounded-xl border-0"
+                        >
+                          Get Started
+                        </Button>
+                      </Link>
+                      <Link to="/register">
+                        <Button 
+                          size="lg" 
+                          className="bg-white/10 backdrop-blur-md text-white hover:bg-white/20 px-12 py-6 text-xl font-bold shadow-2xl border border-white/30 hover:border-white/50 transform hover:scale-105 transition-all duration-300 rounded-xl"
+                        >
+                          Join as a School
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -139,30 +148,30 @@ export const HeroCarousel = () => {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all duration-200 backdrop-blur-sm"
+        className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all duration-300 backdrop-blur-md border border-white/20 hover:border-white/40 hover:scale-110"
         aria-label="Previous slide"
       >
-        <ChevronLeft className="w-6 h-6" />
+        <ChevronLeft className="w-8 h-8" />
       </button>
       
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all duration-200 backdrop-blur-sm"
+        className="absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all duration-300 backdrop-blur-md border border-white/20 hover:border-white/40 hover:scale-110"
         aria-label="Next slide"
       >
-        <ChevronRight className="w-6 h-6" />
+        <ChevronRight className="w-8 h-8" />
       </button>
 
       {/* Slide Indicators */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex space-x-4">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-200 ${
+            className={`transition-all duration-300 rounded-full ${
               index === currentSlide 
-                ? 'bg-white scale-125' 
-                : 'bg-white/50 hover:bg-white/75'
+                ? 'w-12 h-4 bg-white shadow-lg' 
+                : 'w-4 h-4 bg-white/50 hover:bg-white/75 hover:scale-110'
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />
@@ -172,10 +181,10 @@ export const HeroCarousel = () => {
       {/* Auto-play Toggle */}
       <button
         onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-        className="absolute top-4 right-4 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all duration-200 backdrop-blur-sm"
+        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all duration-300 backdrop-blur-md border border-white/20 hover:border-white/40"
         aria-label={isAutoPlaying ? "Pause slideshow" : "Play slideshow"}
       >
-        <Play className={`w-4 h-4 ${isAutoPlaying ? 'opacity-100' : 'opacity-50'}`} />
+        <Play className={`w-5 h-5 transition-opacity duration-300 ${isAutoPlaying ? 'opacity-100' : 'opacity-50'}`} />
       </button>
     </div>
   );

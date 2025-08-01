@@ -17,6 +17,10 @@ NC='\033[0m' # No Color
 MODE="dev"
 SKIP_BUILD=false
 SKIP_DB=false
+FORCE_RESET=false
+ENABLE_DEMO_USERS=true
+LOG_DIR="logs"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Print colored output
 print_status() {
@@ -35,6 +39,31 @@ print_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
+# Logging function
+log_message() {
+    local level=$1
+    local message=$2
+    local log_file="${LOG_DIR}/deploy_${TIMESTAMP}.log"
+    
+    mkdir -p "$LOG_DIR"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message" >> "$log_file"
+    
+    case $level in
+        "ERROR")
+            print_error "$message"
+            ;;
+        "WARNING") 
+            print_warning "$message"
+            ;;
+        "INFO")
+            print_info "$message"
+            ;;
+        "SUCCESS")
+            print_status "$message"
+            ;;
+    esac
+}
+
 # Function to show usage
 show_usage() {
     echo "Usage: $0 [COMMAND] [OPTIONS]"
@@ -49,36 +78,68 @@ show_usage() {
     echo "  restart     Restart all services"
     echo "  logs        Show application logs"
     echo "  health      Check service health"
-    echo "  db-setup    Set up database schema"
+    echo "  db-setup    Set up database schema (safe mode)"
+    echo "  db-reset    Reset database (destructive)"
+    echo "  backup      Create database backup"
+    echo "  rollback    Rollback to previous backup"
     echo "  demo-users  Create demo users"
     echo "  clean       Clean up containers and volumes"
     echo ""
     echo "Options:"
-    echo "  --skip-build    Skip build step"
-    echo "  --skip-db       Skip database setup"
-    echo "  -h, --help      Show this help message"
+    echo "  --skip-build        Skip build step"
+    echo "  --skip-db           Skip database setup"
+    echo "  --force-reset       Force database reset (dangerous)"
+    echo "  --no-demo-users     Skip demo user creation"
+    echo "  --environment ENV   Set environment (dev/staging/prod)"
+    echo "  -h, --help          Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  NODE_ENV            Set deployment environment"
+    echo "  FORCE_RESET         Enable destructive database operations"
+    echo "  ENABLE_DEMO_USERS   Control demo user creation"
 }
 
 # Function to check prerequisites
 check_prerequisites() {
-    print_info "Checking prerequisites..."
+    log_message "INFO" "Checking prerequisites..."
+    
+    # Check Node.js version
+    if command -v node &> /dev/null; then
+        NODE_VERSION=$(node --version | sed 's/v//')
+        REQUIRED_VERSION="20.19.0"
+        
+        if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$NODE_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
+            log_message "WARNING" "Node.js version $NODE_VERSION detected. Recommended: $REQUIRED_VERSION+"
+        else
+            log_message "SUCCESS" "Node.js version $NODE_VERSION is compatible"
+        fi
+    else
+        log_message "ERROR" "Node.js is not installed"
+        exit 1
+    fi
     
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed"
+        log_message "ERROR" "Docker is not installed"
         exit 1
     fi
     
     if ! command -v docker-compose &> /dev/null; then
-        print_error "Docker Compose is not installed"
+        log_message "ERROR" "Docker Compose is not installed"
         exit 1
     fi
     
     if ! command -v npm &> /dev/null; then
-        print_error "npm is not installed"
+        log_message "ERROR" "npm is not installed"
         exit 1
     fi
     
-    print_status "Prerequisites check passed"
+    # Check disk space (minimum 2GB)
+    available_space=$(df . | tail -1 | awk '{print $4}')
+    if [ "$available_space" -lt 2097152 ]; then  # 2GB in KB
+        log_message "WARNING" "Low disk space detected. Available: $(($available_space/1024))MB"
+    fi
+    
+    log_message "SUCCESS" "Prerequisites check passed"
 }
 
 # Function to set up environment
@@ -154,36 +215,96 @@ validate_environment() {
     fi
 }
 
-# Function to set up database
+# Function to set up database safely
 setup_database() {
     if [ "$SKIP_DB" = true ]; then
-        print_warning "Skipping database setup"
+        log_message "WARNING" "Skipping database setup"
         return
     fi
     
-    print_info "Setting up database..."
+    log_message "INFO" "Setting up database safely..."
     
-    if [ -f "database/schema.sql" ]; then
-        # Load environment variables
-        set -a
-        source backend/.env
-        set +a
+    if [ -f "scripts/safe-database-setup.sh" ]; then
+        local db_options=""
         
-        print_info "Loading database schema..."
-        PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f database/schema.sql || {
-            print_warning "Schema load failed or already exists"
-        }
-        
-        if [ -f "database/seed-data.sql" ]; then
-            print_info "Loading seed data..."
-            PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f database/seed-data.sql || {
-                print_warning "Seed data load failed or already exists"
-            }
+        if [ "$FORCE_RESET" = true ]; then
+            db_options="$db_options --force-reset"
         fi
         
-        print_status "Database setup completed"
+        if [ "$ENABLE_DEMO_USERS" != true ]; then
+            db_options="$db_options --no-demo-users"
+        fi
+        
+        if [ -n "$MODE" ]; then
+            db_options="$db_options --environment $MODE"
+        fi
+        
+        ./scripts/safe-database-setup.sh $db_options
+        log_message "SUCCESS" "Safe database setup completed"
     else
-        print_warning "Database schema file not found"
+        log_message "WARNING" "Safe database setup script not found, using legacy method"
+        
+        # Fallback to legacy method
+        if [ -f "database/schema.sql" ]; then
+            set -a
+            source backend/.env
+            set +a
+            
+            log_message "INFO" "Loading database schema..."
+            PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f database/schema.sql || {
+                log_message "WARNING" "Schema load failed or already exists"
+            }
+            
+            if [ -f "database/seed-data.sql" ] && [ "$ENABLE_DEMO_USERS" = true ]; then
+                log_message "INFO" "Loading seed data..."
+                PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f database/seed-data.sql || {
+                    log_message "WARNING" "Seed data load failed or already exists"
+                }
+            fi
+            
+            log_message "SUCCESS" "Legacy database setup completed"
+        else
+            log_message "WARNING" "Database schema file not found"
+        fi
+    fi
+}
+
+# Function to reset database (destructive)
+reset_database() {
+    log_message "WARNING" "Database reset requested (destructive operation)"
+    
+    if [ -f "scripts/safe-database-setup.sh" ]; then
+        FORCE_RESET=true ./scripts/safe-database-setup.sh --force-reset --environment "$MODE"
+        log_message "SUCCESS" "Database reset completed"
+    else
+        log_message "ERROR" "Safe database setup script not found"
+        exit 1
+    fi
+}
+
+# Function to backup database
+backup_database() {
+    log_message "INFO" "Creating database backup..."
+    
+    if [ -f "scripts/backup-database.sh" ]; then
+        ./scripts/backup-database.sh
+        log_message "SUCCESS" "Database backup completed"
+    else
+        log_message "ERROR" "Backup script not found"
+        exit 1
+    fi
+}
+
+# Function to rollback database
+rollback_database() {
+    log_message "WARNING" "Database rollback requested"
+    
+    if [ -f "scripts/rollback.sh" ]; then
+        ./scripts/rollback.sh --latest
+        log_message "SUCCESS" "Database rollback completed"
+    else
+        log_message "ERROR" "Rollback script not found"
+        exit 1
     fi
 }
 
@@ -251,26 +372,72 @@ restart_services() {
 
 # Function to check health
 check_health() {
-    print_info "Checking service health..."
+    log_message "INFO" "Checking service health..."
     
-    # Check backend
-    if curl -f http://localhost:3001/health > /dev/null 2>&1; then
-        print_status "Backend service is healthy"
-    else
-        print_error "Backend service is not responding"
-    fi
+    local backend_healthy=false
+    local frontend_healthy=false
+    local database_healthy=false
+    
+    # Check backend health with retry
+    for i in {1..5}; do
+        if curl -f http://localhost:3001/health > /dev/null 2>&1; then
+            backend_healthy=true
+            break
+        fi
+        log_message "INFO" "Backend health check attempt $i/5 failed, retrying..."
+        sleep 5
+    done
     
     # Check frontend
     if curl -f http://localhost:3000 > /dev/null 2>&1; then
-        print_status "Frontend service is healthy"
+        frontend_healthy=true
+    fi
+    
+    # Check database connection
+    if [ -f "backend/.env" ]; then
+        set -a
+        source backend/.env
+        set +a
+        
+        export PGPASSWORD="$DB_PASSWORD"
+        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
+            database_healthy=true
+        fi
+        unset PGPASSWORD
+    fi
+    
+    # Report health status
+    if [ "$backend_healthy" = true ]; then
+        log_message "SUCCESS" "Backend service is healthy"
     else
-        print_error "Frontend service is not responding"
+        log_message "ERROR" "Backend service is not responding"
+    fi
+    
+    if [ "$frontend_healthy" = true ]; then
+        log_message "SUCCESS" "Frontend service is healthy"
+    else
+        log_message "ERROR" "Frontend service is not responding"
+    fi
+    
+    if [ "$database_healthy" = true ]; then
+        log_message "SUCCESS" "Database connection is healthy"
+    else
+        log_message "ERROR" "Database connection failed"
     fi
     
     # Show running containers
     echo ""
-    print_info "Running containers:"
+    log_message "INFO" "Running containers:"
     cd docker && docker-compose ps && cd ..
+    
+    # Overall health status
+    if [ "$backend_healthy" = true ] && [ "$frontend_healthy" = true ] && [ "$database_healthy" = true ]; then
+        log_message "SUCCESS" "All services are healthy"
+        return 0
+    else
+        log_message "ERROR" "Some services are unhealthy"
+        return 1
+    fi
 }
 
 # Function to show logs
@@ -311,30 +478,45 @@ cleanup() {
 show_menu() {
     while true; do
         echo ""
-        echo "================================"
-        echo "  My School Buddies Deployment  "
-        echo "================================"
+        echo "================================================"
+        echo "    🎓 My School Buddies Deployment Hub 🎓    "
+        echo "================================================"
         echo ""
-        echo "1. 🚀 Deploy Development Environment"
-        echo "2. 🌟 Deploy Production Environment"
-        echo "3. 🔨 Build Application"
-        echo "4. ▶️  Start Services"
-        echo "5. ⏹️  Stop Services"
-        echo "6. 🔄 Restart Services"
-        echo "7. 📊 Check Health"
-        echo "8. 📝 Show Logs"
-        echo "9. 🗄️  Setup Database"
-        echo "10. 👥 Create Demo Users"
-        echo "11. 🧹 Clean Up"
-        echo "12. ❌ Exit"
+        echo "🚀 DEPLOYMENT:"
+        echo "  1. Deploy Development Environment"
+        echo "  2. Deploy Production Environment" 
+        echo "  3. Build Application Only"
         echo ""
-        read -p "Select an option [1-12]: " choice
+        echo "🔧 SERVICE MANAGEMENT:"
+        echo "  4. Start Services"
+        echo "  5. Stop Services"
+        echo "  6. Restart Services"
+        echo "  7. Check Health Status"
+        echo "  8. Show Application Logs"
+        echo ""
+        echo "💾 DATABASE OPERATIONS:"
+        echo "  9. Setup Database (Safe Mode)"
+        echo "  10. Reset Database (Destructive)"
+        echo "  11. Create Database Backup"
+        echo "  12. Rollback to Previous Backup"
+        echo "  13. Create Demo Users"
+        echo ""
+        echo "🧹 MAINTENANCE:"
+        echo "  14. Clean Up Resources"
+        echo "  15. View Deployment Logs"
+        echo "  16. Exit"
+        echo ""
+        echo "Current Environment: $MODE | Demo Users: $ENABLE_DEMO_USERS"
+        echo ""
+        read -p "Select an option [1-16]: " choice
         
         case $choice in
             1)
+                MODE="dev"
                 deploy_dev
                 ;;
             2)
+                MODE="prod"
                 deploy_prod
                 ;;
             3)
@@ -359,19 +541,35 @@ show_menu() {
                 setup_database
                 ;;
             10)
-                create_demo_users
+                reset_database
                 ;;
             11)
-                cleanup
+                backup_database
                 ;;
             12)
-                print_status "Goodbye!"
+                rollback_database
+                ;;
+            13)
+                create_demo_users
+                ;;
+            14)
+                cleanup
+                ;;
+            15)
+                echo "📋 Recent deployment logs:"
+                ls -la logs/deploy_*.log 2>/dev/null | tail -5 || echo "No deployment logs found"
+                ;;
+            16)
+                log_message "SUCCESS" "Deployment session ended"
                 exit 0
                 ;;
             *)
-                print_error "Invalid option. Please try again."
+                log_message "ERROR" "Invalid option. Please try again."
                 ;;
         esac
+        
+        echo ""
+        read -p "Press Enter to continue..."
     done
 }
 
@@ -427,6 +625,18 @@ while [[ $# -gt 0 ]]; do
             SKIP_DB=true
             shift
             ;;
+        --force-reset)
+            FORCE_RESET=true
+            shift
+            ;;
+        --no-demo-users)
+            ENABLE_DEMO_USERS=false
+            shift
+            ;;
+        --environment)
+            MODE="$2"
+            shift 2
+            ;;
         -h|--help)
             show_usage
             exit 0
@@ -438,15 +648,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Initialize logging
+mkdir -p "$LOG_DIR"
+log_message "INFO" "Deployment script started with command: ${COMMAND:-menu}"
+
 # Main script logic
 case "${COMMAND:-menu}" in
     menu)
         show_menu
         ;;
     dev)
+        MODE="dev"
         deploy_dev
         ;;
     prod)
+        MODE="prod"
         deploy_prod
         ;;
     build)
@@ -471,6 +687,15 @@ case "${COMMAND:-menu}" in
     db-setup)
         setup_database
         ;;
+    db-reset)
+        reset_database
+        ;;
+    backup)
+        backup_database
+        ;;
+    rollback)
+        rollback_database
+        ;;
     demo-users)
         create_demo_users
         ;;
@@ -478,7 +703,7 @@ case "${COMMAND:-menu}" in
         cleanup
         ;;
     *)
-        print_error "Unknown command: $COMMAND"
+        log_message "ERROR" "Unknown command: $COMMAND"
         show_usage
         exit 1
         ;;
