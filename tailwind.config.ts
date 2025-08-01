@@ -61,7 +61,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Colorful education theme colors
+				'education-blue': 'hsl(var(--education-blue))',
+				'education-purple': 'hsl(var(--education-purple))',
+				'education-green': 'hsl(var(--education-green))',
+				'education-orange': 'hsl(var(--education-orange))',
+				'education-pink': 'hsl(var(--education-pink))',
+				'education-teal': 'hsl(var(--education-teal))'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

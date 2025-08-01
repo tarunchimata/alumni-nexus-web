@@ -17,14 +17,16 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 217 91% 60%;
+    --primary: 25 95% 53%;
     --primary-foreground: 210 40% 98%;
     
-    /* Education-focused theme colors */
+    /* Vibrant colorful theme colors matching your logo */
     --education-blue: 217 91% 60%;
     --education-purple: 262 83% 58%;
     --education-green: 142 71% 45%;
     --education-orange: 25 95% 53%;
+    --education-pink: 330 81% 60%;
+    --education-teal: 180 83% 47%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -40,7 +42,7 @@ All colors MUST be HSL.
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --ring: 25 95% 53%;
 
     --radius: 0.5rem;
 

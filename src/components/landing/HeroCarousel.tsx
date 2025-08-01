@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroSlide1 from "@/assets/hero-slide-1.jpg";
-import heroSlide2 from "@/assets/hero-slide-2.jpg";
-import heroSlide3 from "@/assets/hero-slide-3.jpg";
-import heroSlide4 from "@/assets/hero-slide-4.jpg";
+// Replace these with your uploaded images
+const heroSlide1 = "/lovable-uploads/c9d5106e-d80f-4665-b2f7-e45d1098b9b0.png"; // Mountain friends
+const heroSlide2 = "/lovable-uploads/91d3c6db-5e0c-495f-88f4-8ae52c566191.png"; // Students walking  
+const heroSlide3 = "/lovable-uploads/552ef61e-d182-4b65-9549-cef89ccd17b6.png"; // Students by water
+const heroSlide4 = "/lovable-uploads/ced088ed-9a27-4806-933a-d020962ead8d.png"; // Students on pier
+const heroSlide5 = "/lovable-uploads/9f3f4de5-d0a4-4026-9573-947e1123d93a.png"; // Students in circle
 
 const slides = [
   {
@@ -13,12 +15,12 @@ const slides = [
     image: heroSlide1,
     title: "Bridging Alumni and Schools",
     subtitle: "Connect graduates with current students and faculty",
-    description: "Foster meaningful relationships between alumni and your school community for mentorship, career guidance, and lifelong connections."
+    description: "Build lasting friendships and meaningful connections that span across generations of your school community."
   },
   {
     id: 2,
     image: heroSlide2,
-    title: "100% Verified School Records",
+    title: "100% Verified School Records", 
     subtitle: "Secure and authenticated institutional data",
     description: "Every school and user profile is verified through official channels, ensuring authenticity and trust in your educational network."
   },
@@ -26,15 +28,22 @@ const slides = [
     id: 3,
     image: heroSlide3,
     title: "Secure, Role-Based Access",
-    subtitle: "Protected environment with proper permissions",
+    subtitle: "Protected environment with proper permissions", 
     description: "Advanced security protocols with distinct access levels for administrators, teachers, students, and alumni."
   },
   {
     id: 4,
     image: heroSlide4,
-    title: "Bulk Import for Institutions",
-    subtitle: "Seamlessly onboard your entire school community",
-    description: "Import thousands of student, teacher, and alumni records instantly with our automated bulk upload system."
+    title: "Student Community Hub",
+    subtitle: "Connect, learn, and grow together",
+    description: "Join your classmates in a vibrant community where education meets friendship and collaboration."
+  },
+  {
+    id: 5,
+    image: heroSlide5,
+    title: "Building Lifelong Connections",
+    subtitle: "Academic excellence through community",
+    description: "Experience the power of collaborative learning in beautiful campus environments designed for growth."
   }
 ];
 
@@ -85,8 +94,8 @@ export const HeroCarousel = () => {
               style={{ backgroundImage: `url(${slide.image})` }}
             />
             
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+            {/* Overlay - Enhanced for better text readability */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
             
             {/* Content */}
             <div className="relative h-full flex items-center">
@@ -106,7 +115,7 @@ export const HeroCarousel = () => {
                     <Link to="/login">
                       <Button 
                         size="lg" 
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 text-lg font-semibold"
+                        className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold shadow-xl"
                       >
                         Get Started
                       </Button>
@@ -114,8 +123,7 @@ export const HeroCarousel = () => {
                     <Link to="/register">
                       <Button 
                         size="lg" 
-                        variant="outline" 
-                        className="border-2 border-white text-white hover:bg-white hover:text-gray-900 px-8 py-4 text-lg font-semibold"
+                        className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hover:from-blue-700 hover:to-purple-800 px-8 py-4 text-lg font-semibold shadow-xl border-0"
                       >
                         Join as a School
                       </Button>
