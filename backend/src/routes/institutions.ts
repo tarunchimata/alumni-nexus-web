@@ -9,7 +9,7 @@ const router = express.Router();
 // GET /api/institutions/search?q=query
 router.get('/search', [
   query('q').isString().isLength({ min: 2 }).withMessage('Search query must be at least 2 characters'),
-], async (req, res) => {
+], async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -21,38 +21,39 @@ router.get('/search', [
   try {
     const startTime = Date.now();
     
-    const institutions = await prisma.institutions.findMany({
+    const institutions = await prisma.school.findMany({
       where: {
         AND: [
-          { status: 'Active' },
+          { isActive: true },
           {
             OR: [
-              { institution_name: { contains: query, mode: 'insensitive' } },
-              { city: { contains: query, mode: 'insensitive' } },
-              { district: { contains: query, mode: 'insensitive' } },
-              { state: { contains: query, mode: 'insensitive' } },
-              { udise_code: { contains: query, mode: 'insensitive' } },
-              { institution_code: { contains: query, mode: 'insensitive' } }
+              { schoolName: { contains: query, mode: 'insensitive' } },
+              { villageName: { contains: query, mode: 'insensitive' } },
+              { districtName: { contains: query, mode: 'insensitive' } },
+              { stateName: { contains: query, mode: 'insensitive' } },
+              { udiseCode: { contains: query, mode: 'insensitive' } },
+              { institutionId: { contains: query, mode: 'insensitive' } }
             ]
           }
         ]
       },
       select: {
         id: true,
-        institution_name: true,
-        city: true,
-        district: true,
-        state: true,
-        udise_code: true,
-        institution_type: true,
-        institution_category: true,
-        management_type: true
+        institutionId: true,
+        schoolName: true,
+        villageName: true,
+        districtName: true,
+        stateName: true,
+        udiseCode: true,
+        schoolType: true,
+        schoolCategory: true,
+        managementType: true
       },
       take: limit,
       orderBy: [
         // Prioritize exact matches in name
-        { institution_name: 'asc' },
-        { city: 'asc' }
+        { schoolName: 'asc' },
+        { villageName: 'asc' }
       ]
     });
 
@@ -61,11 +62,11 @@ router.get('/search', [
     logger.info(`Institution search completed: "${query}" - ${institutions.length} results in ${responseTime}ms`);
     
     // Add search relevance scoring
-    const scoredResults = institutions.map(institution => {
+    const scoredResults = institutions.map((institution: any) => {
       let score = 0;
       const queryLower = query.toLowerCase();
-      const nameLower = institution.institution_name.toLowerCase();
-      const cityLower = institution.city?.toLowerCase() || '';
+      const nameLower = institution.schoolName.toLowerCase();
+      const cityLower = institution.villageName?.toLowerCase() || '';
       
       // Exact name match gets highest score
       if (nameLower === queryLower) score += 100;
@@ -83,10 +84,10 @@ router.get('/search', [
     });
 
     // Sort by relevance score
-    scoredResults.sort((a, b) => b._score - a._score);
+    scoredResults.sort((a: any, b: any) => b._score - a._score);
     
     res.json({
-      institutions: scoredResults.map(({ _score, ...institution }) => institution),
+      institutions: scoredResults.map(({ _score, ...institution }: any) => institution),
       meta: {
         total: institutions.length,
         query,
@@ -110,7 +111,7 @@ router.post('/request', [
   body('additionalDetails').optional().isString(),
   body('institutionType').optional().isIn(['School', 'College', 'University', 'Institute']),
   body('managementType').optional().isIn(['Government', 'Private', 'Aided'])
-], async (req, res) => {
+], async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -128,12 +129,12 @@ router.post('/request', [
   } = req.body;
   
   try {
-    // Check if similar institution already exists or is requested
-    const existingInstitution = await prisma.institutions.findFirst({
+    // Check if similar institution already exists in schools table
+    const existingInstitution = await prisma.school.findFirst({
       where: {
-        institution_name: { contains: institutionName, mode: 'insensitive' },
-        city: { contains: city, mode: 'insensitive' },
-        state: { contains: state, mode: 'insensitive' }
+        schoolName: { contains: institutionName, mode: 'insensitive' },
+        villageName: { contains: city, mode: 'insensitive' },
+        stateName: { contains: state, mode: 'insensitive' }
       }
     });
     
@@ -141,49 +142,32 @@ router.post('/request', [
       return res.status(400).json({ 
         error: 'Similar institution already exists',
         institution: {
-          name: existingInstitution.institution_name,
-          city: existingInstitution.city,
-          state: existingInstitution.state,
+          name: existingInstitution.schoolName,
+          city: existingInstitution.villageName,
+          state: existingInstitution.stateName,
           id: existingInstitution.id
         }
       });
     }
 
-    // Check for duplicate requests
-    const existingRequest = await prisma.institution_requests.findFirst({
-      where: {
-        institution_name: { contains: institutionName, mode: 'insensitive' },
-        city: { contains: city, mode: 'insensitive' },
-        state: { contains: state, mode: 'insensitive' },
-        status: { in: ['pending', 'under_review'] }
-      }
-    });
-
-    if (existingRequest) {
-      return res.status(400).json({ 
-        error: 'Similar institution request already pending',
-        requestId: existingRequest.id,
-        status: existingRequest.status
-      });
-    }
-    
-    // Create institution request
-    const institutionRequest = await prisma.institution_requests.create({
+    // For now, directly add to schools table instead of institution_requests
+    // This is a simplified approach since institution_requests table doesn't exist
+    const newSchool = await prisma.school.create({
       data: {
-        institution_name: institutionName,
-        city,
-        state,
-        requested_by: requestedBy,
-        contact_info: contactInfo,
-        additional_details: additionalDetails,
-        institution_type: institutionType,
-        management_type: managementType,
-        status: 'pending'
+        institutionId: `REQ_${Date.now()}`,
+        schoolName: institutionName,
+        villageName: city,
+        stateName: state,
+        schoolType: institutionType,
+        managementType: managementType,
+        status: 'Pending Approval',
+        isActive: false,
+        contactNumber: contactInfo
       }
     });
     
     logger.info(`New institution requested: ${institutionName} by ${requestedBy}`, {
-      requestId: institutionRequest.id,
+      schoolId: newSchool.id,
       city,
       state
     });
@@ -191,7 +175,7 @@ router.post('/request', [
     res.json({ 
       message: 'Institution request submitted successfully. Our team will review it within 2-3 business days.',
       request: {
-        id: institutionRequest.id,
+        id: newSchool.id,
         institutionName,
         city,
         state,
@@ -206,10 +190,13 @@ router.post('/request', [
 });
 
 // GET /api/institutions/requests - Get all institution requests (admin only)
-router.get('/requests', async (req, res) => {
+router.get('/requests', async (req: any, res: any) => {
   try {
-    const requests = await prisma.institution_requests.findMany({
-      orderBy: { created_at: 'desc' },
+    const requests = await prisma.school.findMany({
+      where: {
+        status: 'Pending Approval'
+      },
+      orderBy: { createdAt: 'desc' },
       take: 50
     });
     

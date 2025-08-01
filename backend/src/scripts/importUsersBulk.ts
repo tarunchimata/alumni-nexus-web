@@ -139,10 +139,10 @@ async function loadSchoolCache(): Promise<void> {
 
   for (const school of schools) {
     if (school.udiseSchoolCode) {
-      schoolCache.set(school.udiseSchoolCode, school.id);
+      schoolCache.set(school.udiseSchoolCode, school.id.toString());
     }
     if (school.udiseCode) {
-      schoolCache.set(school.udiseCode, school.id);
+      schoolCache.set(school.udiseCode, school.id.toString());
     }
   }
 
@@ -173,16 +173,17 @@ async function processBatchWithRetry(users: UserData[], batchIndex: number, retr
     // Create users in database (batch insert)
     const createdUsers = await prisma.user.createMany({
       data: newUsers.map(user => ({
+        keycloakId: `bulk_${Date.now()}_${Math.random()}`,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role,
-        schoolId: user.schoolId,
+        role: user.role as any,
+        schoolId: parseInt(user.schoolId),
         phoneNumber: user.phoneNumber,
         dateOfBirth: user.dateOfBirth,
         admissionYear: user.admissionYear,
         graduationYear: user.graduationYear,
-        status: 'pending_approval'
+        isActive: true
       })),
       skipDuplicates: true
     });

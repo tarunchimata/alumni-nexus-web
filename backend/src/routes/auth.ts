@@ -22,7 +22,7 @@ router.post(
     body('school_id').isString().withMessage('School ID is required'),
     body('user_type').isIn(['platform_admin', 'school_admin', 'teacher', 'student', 'alumni']).withMessage('Valid user type is required'),
   ],
-  async (req, res) => {
+  async (req: any, res: any) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -35,6 +35,8 @@ router.post(
         username,
         email,
         password,
+        firstName: username.split('@')[0] || 'User',
+        lastName: 'Account',
         school_id,
         user_type,
       });
@@ -77,7 +79,7 @@ router.post(
     body('username').isString().withMessage('Username is required'),
     body('password').isString().withMessage('Password is required'),
   ],
-  async (req, res) => {
+  async (req: any, res: any) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });

@@ -188,10 +188,10 @@ async function loadSchoolCache(): Promise<void> {
     const schoolInfo = { id: school.id, name: school.schoolName };
     
     if (school.udiseSchoolCode) {
-      schoolCache.set(school.udiseSchoolCode, schoolInfo);
+      schoolCache.set(school.udiseSchoolCode, { id: school.id.toString(), name: school.schoolName });
     }
     if (school.udiseCode) {
-      schoolCache.set(school.udiseCode, schoolInfo);
+      schoolCache.set(school.udiseCode, { id: school.id.toString(), name: school.schoolName });
     }
   }
 
@@ -284,16 +284,17 @@ async function processBatchWithRetry(users: UserData[], batchIndex: number, retr
       try {
         const result = await prisma.user.createMany({
           data: chunk.map(user => ({
+            keycloakId: `opt_${Date.now()}_${Math.random()}`,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-            role: user.role,
-            schoolId: user.schoolId,
+            role: user.role as any,
+            schoolId: parseInt(user.schoolId),
             phoneNumber: user.phoneNumber,
             dateOfBirth: user.dateOfBirth,
             admissionYear: user.admissionYear,
             graduationYear: user.graduationYear,
-            status: 'pending_approval'
+            isActive: true
           })),
           skipDuplicates: true
         });

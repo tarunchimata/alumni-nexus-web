@@ -108,7 +108,7 @@ router.post('/',
     body('stateName').trim().isLength({ min: 2 }).withMessage('State name is required'),
     body('institutionId').trim().isLength({ min: 1 }).withMessage('Institution ID is required'),
   ],
-  async (req: AuthenticatedRequest, res) => {
+  async (req: AuthenticatedRequest, res: any) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {

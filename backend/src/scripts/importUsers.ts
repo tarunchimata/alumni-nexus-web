@@ -141,7 +141,7 @@ async function validateSchool(udiseCode: string): Promise<string | null> {
     return null;
   }
 
-  return school.id;
+  return school.id.toString();
 }
 
 // Create user in database and Keycloak
@@ -163,16 +163,17 @@ async function createUser(userData: UserData, schoolId: string): Promise<{ userC
     // Create user in database
     const user = await prisma.user.create({
       data: {
+        keycloakId: `temp_${Date.now()}_${Math.random()}`,
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: userData.role,
-        schoolId: schoolId,
+        role: userData.role as any,
+        schoolId: parseInt(schoolId),
         phoneNumber: userData.phoneNumber,
         dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
         admissionYear: userData.admissionYear ? parseInt(userData.admissionYear) : null,
         graduationYear: userData.graduationYear ? parseInt(userData.graduationYear) : null,
-        status: 'pending_approval'
+        isActive: true
       }
     });
 

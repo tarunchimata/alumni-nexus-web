@@ -29,7 +29,7 @@ router.post('/basic', [
   body('email').isEmail().withMessage('Valid email is required'),
   body('phone').isMobilePhone('any').withMessage('Valid phone number is required'),
   body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
-], initRegistrationSession, async (req, res) => {
+], initRegistrationSession, async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -98,7 +98,7 @@ router.post('/basic', [
 router.post('/school', [
   body('institutionId').isInt().withMessage('Valid institution ID is required'),
   body('institutionName').isString().withMessage('Institution name is required'),
-], validateRegistrationStep(2), async (req, res) => {
+], validateRegistrationStep(2), async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -108,7 +108,7 @@ router.post('/school', [
   
   // Verify institution exists
   try {
-    const institution = await prisma.institutions.findUnique({
+    const institution = await prisma.school.findUnique({
       where: { id: institutionId }
     });
     
@@ -153,7 +153,7 @@ router.post('/account', [
     }
     return true;
   }),
-], validateRegistrationStep(3), async (req, res) => {
+], validateRegistrationStep(3), async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -196,7 +196,7 @@ router.post('/complete', [
     }
     return true;
   }),
-], validateRegistrationStep(4), cleanupRegistrationSession, async (req, res) => {
+], validateRegistrationStep(4), cleanupRegistrationSession, async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -277,7 +277,7 @@ router.get('/status', (req, res) => {
 // POST /api/registration/check-username - Check username availability
 router.post('/check-username', [
   body('username').isString().isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
-], async (req, res) => {
+], async (req: any, res: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });

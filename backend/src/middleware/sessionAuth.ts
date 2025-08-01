@@ -25,23 +25,7 @@ export interface RegistrationSession {
   startTime: Date;
 }
 
-// Extend Express Request interface for session support
-declare global {
-  namespace Express {
-    interface Request {
-      session: {
-        id: string;
-        registration?: RegistrationSession;
-        save: (callback?: (err: any) => void) => void;
-        destroy: (callback?: (err: any) => void) => void;
-        reload: (callback?: (err: any) => void) => void;
-        regenerate: (callback?: (err: any) => void) => void;
-        touch: () => void;
-        [key: string]: any;
-      };
-    }
-  }
-}
+// Session types are now handled in types/express-session.d.ts
 
 export const initRegistrationSession = (req: Request, res: Response, next: NextFunction) => {
   if (!req.session.registration) {
