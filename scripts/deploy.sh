@@ -486,29 +486,34 @@ show_menu() {
         echo "  1. Deploy Development Environment"
         echo "  2. Deploy Production Environment" 
         echo "  3. Build Application Only"
+        echo "  4. Deploy with Docker (Production)"
+        echo "  5. Full Production Deployment"
         echo ""
         echo "🔧 SERVICE MANAGEMENT:"
-        echo "  4. Start Services"
-        echo "  5. Stop Services"
-        echo "  6. Restart Services"
-        echo "  7. Check Health Status"
-        echo "  8. Show Application Logs"
+        echo "  6. Start Services"
+        echo "  7. Stop Services"
+        echo "  8. Restart Services"
+        echo "  9. Check Health Status"
+        echo "  10. Show Application Logs"
+        echo "  11. Docker Container Status"
         echo ""
         echo "💾 DATABASE OPERATIONS:"
-        echo "  9. Setup Database (Safe Mode)"
-        echo "  10. Reset Database (Destructive)"
-        echo "  11. Create Database Backup"
-        echo "  12. Rollback to Previous Backup"
-        echo "  13. Create Demo Users"
+        echo "  12. Setup Database (Safe Mode)"
+        echo "  13. Reset Database (Destructive)"
+        echo "  14. Create Database Backup"
+        echo "  15. Rollback to Previous Backup"
+        echo "  16. Create Demo Users"
         echo ""
         echo "🧹 MAINTENANCE:"
-        echo "  14. Clean Up Resources"
-        echo "  15. View Deployment Logs"
-        echo "  16. Exit"
+        echo "  17. Clean Up Resources"
+        echo "  18. View Deployment Logs"
+        echo "  19. Fix Dependencies & Security"
+        echo "  20. Clean Build Cache"
+        echo "  21. Exit"
         echo ""
         echo "Current Environment: $MODE | Demo Users: $ENABLE_DEMO_USERS"
         echo ""
-        read -p "Select an option [1-16]: " choice
+        read -p "Select an option [1-21]: " choice
         
         case $choice in
             1)
@@ -523,43 +528,58 @@ show_menu() {
                 build_application
                 ;;
             4)
-                start_services
+                deploy_docker_prod
                 ;;
             5)
-                stop_services
+                full_production_deployment
                 ;;
             6)
-                restart_services
+                start_services
                 ;;
             7)
-                check_health
+                stop_services
                 ;;
             8)
-                show_logs
+                restart_services
                 ;;
             9)
-                setup_database
+                check_health
                 ;;
             10)
-                reset_database
+                show_logs
                 ;;
             11)
-                backup_database
+                docker_status
                 ;;
             12)
-                rollback_database
+                setup_database
                 ;;
             13)
-                create_demo_users
+                reset_database
                 ;;
             14)
-                cleanup
+                backup_database
                 ;;
             15)
+                rollback_database
+                ;;
+            16)
+                create_demo_users
+                ;;
+            17)
+                cleanup
+                ;;
+            18)
                 echo "📋 Recent deployment logs:"
                 ls -la logs/deploy_*.log 2>/dev/null | tail -5 || echo "No deployment logs found"
                 ;;
-            16)
+            19)
+                fix_dependencies
+                ;;
+            20)
+                clean_build_cache
+                ;;
+            21)
                 log_message "SUCCESS" "Deployment session ended"
                 exit 0
                 ;;
@@ -612,6 +632,199 @@ deploy_prod() {
     echo "   Frontend: https://school.hostingmanager.in"
     echo "   Backend API: https://api.hostingmanager.in"
     echo ""
+}
+
+# Function to deploy with Docker (Production focused)
+deploy_docker_prod() {
+    print_info "🐳 Deploying with Docker (Production)..."
+    MODE="prod"
+    check_prerequisites
+    setup_environment $MODE
+    validate_environment
+    
+    # Clean build cache first
+    clean_build_cache
+    
+    # Build and deploy with Docker
+    setup_database
+    build_application
+    
+    print_info "Building and starting Docker containers..."
+    cd docker
+    docker-compose build --no-cache
+    docker-compose up -d --force-recreate
+    cd ..
+    
+    print_info "Waiting for containers to be ready..."
+    sleep 45
+    
+    # Enhanced health checks
+    docker_health_check
+    
+    print_status "🎉 Docker production deployment completed!"
+    docker_status
+}
+
+# Function for full production deployment
+full_production_deployment() {
+    print_info "🌟 Full Production Deployment Starting..."
+    MODE="prod"
+    
+    # Prerequisites with Node.js version check
+    check_prerequisites
+    
+    # Fix dependencies first
+    fix_dependencies
+    
+    # Environment setup
+    setup_environment $MODE
+    validate_environment
+    
+    # Database operations
+    backup_database
+    setup_database
+    
+    # Clean build
+    clean_build_cache
+    
+    # Build with optimization
+    build_application
+    
+    # Docker deployment
+    print_info "Deploying with Docker..."
+    cd docker
+    docker-compose down --remove-orphans
+    docker-compose build --no-cache
+    docker-compose up -d
+    cd ..
+    
+    # Wait and verify
+    print_info "Verifying deployment..."
+    sleep 60
+    docker_health_check
+    
+    # Create demo users if enabled
+    if [ "$ENABLE_DEMO_USERS" = true ]; then
+        create_demo_users
+    fi
+    
+    print_status "🎉 Full production deployment completed!"
+    echo ""
+    echo "📋 Production Information:"
+    echo "   Frontend: https://school.hostingmanager.in"
+    echo "   Backend API: https://api.hostingmanager.in"
+    echo "   Keycloak: https://login.hostingmanager.in"
+    echo ""
+    docker_status
+}
+
+# Function to check Docker container health
+docker_health_check() {
+    print_info "Checking Docker container health..."
+    
+    cd docker
+    
+    # Check container status
+    local containers_healthy=true
+    for service in backend frontend nginx; do
+        if docker-compose ps $service | grep -q "Up (healthy)"; then
+            print_status "$service container is healthy"
+        elif docker-compose ps $service | grep -q "Up"; then
+            print_warning "$service container is running but health check not available"
+        else
+            print_error "$service container is not running properly"
+            containers_healthy=false
+        fi
+    done
+    
+    cd ..
+    
+    # Check application endpoints
+    local endpoints_healthy=true
+    
+    # Backend health
+    for i in {1..10}; do
+        if curl -f http://localhost:3001/health > /dev/null 2>&1; then
+            print_status "Backend API is responding"
+            break
+        elif [ $i -eq 10 ]; then
+            print_error "Backend API is not responding after 10 attempts"
+            endpoints_healthy=false
+        else
+            print_info "Backend health check attempt $i/10..."
+            sleep 5
+        fi
+    done
+    
+    # Frontend check
+    if curl -f http://localhost:3000 > /dev/null 2>&1; then
+        print_status "Frontend is responding"
+    else
+        print_error "Frontend is not responding"
+        endpoints_healthy=false
+    fi
+    
+    if [ "$containers_healthy" = true ] && [ "$endpoints_healthy" = true ]; then
+        print_status "All Docker services are healthy"
+        return 0
+    else
+        print_error "Some Docker services are unhealthy"
+        return 1
+    fi
+}
+
+# Function to show Docker container status
+docker_status() {
+    print_info "Docker Container Status:"
+    cd docker
+    docker-compose ps
+    echo ""
+    print_info "Docker Container Resources:"
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    cd ..
+}
+
+# Function to fix dependencies and security issues
+fix_dependencies() {
+    print_info "Fixing dependencies and security issues..."
+    
+    # Update npm to latest
+    npm install -g npm@latest
+    
+    # Frontend fixes
+    print_info "Fixing frontend dependencies..."
+    npm audit fix --force
+    npm update
+    
+    # Backend fixes
+    print_info "Fixing backend dependencies..."
+    cd backend
+    npm audit fix --force
+    npm update
+    cd ..
+    
+    print_status "Dependencies and security issues fixed"
+}
+
+# Function to clean build cache
+clean_build_cache() {
+    print_info "Cleaning build cache..."
+    
+    if [ -f "scripts/clean-build.sh" ]; then
+        chmod +x scripts/clean-build.sh
+        ./scripts/clean-build.sh
+    else
+        # Manual cache clean
+        print_info "Cleaning frontend cache..."
+        rm -rf node_modules/.cache dist .vite
+        
+        print_info "Cleaning backend cache..."
+        cd backend
+        rm -rf node_modules/.cache dist .tsc-cache
+        cd ..
+    fi
+    
+    print_status "Build cache cleaned"
 }
 
 # Parse command line arguments
