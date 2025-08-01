@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, Users, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { Logo } from "@/components/shared/Logo";
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,14 +28,7 @@ export const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              My School Buddies
-            </span>
-          </Link>
+          <Logo linkTo="/" />
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
@@ -73,14 +67,7 @@ export const Navigation = () => {
             <SheetContent side="right" className="w-80">
               <div className="flex flex-col space-y-6 mt-8">
                 {/* Mobile Logo */}
-                <div className="flex items-center space-x-3 pb-6 border-b">
-                  <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                    My School Buddies
-                  </span>
-                </div>
+                <Logo linkTo="/" size="sm" />
 
                 {/* Mobile Navigation Links */}
                 <div className="flex flex-col space-y-4">

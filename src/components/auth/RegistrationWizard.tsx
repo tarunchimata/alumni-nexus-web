@@ -9,6 +9,8 @@ import { RegistrationStep3 } from './RegistrationStep3';
 import { RegistrationStep4 } from './RegistrationStep4';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { Logo } from '@/components/shared/Logo';
+import registrationBg from "@/assets/registration-bg.jpg";
 
 interface RegistrationData {
   // Step 1
@@ -265,22 +267,25 @@ export const RegistrationWizard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${registrationBg})` }}
+      />
+      
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/70" />
+      
+      {/* Content */}
+      <div className="relative w-full max-w-2xl">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">MSB</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              My School Buddies
-            </span>
-          </Link>
-          <p className="text-muted-foreground mt-2">Join your school community today</p>
+          <Logo size="lg" />
+          <p className="text-white/90 mt-4 text-lg font-medium">Join your school community today</p>
         </div>
 
-        <Card className="border-0 shadow-xl">
+        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
           <CardHeader className="space-y-4">
             <div className="text-center">
               <CardTitle className="text-2xl">Create Your Account</CardTitle>
