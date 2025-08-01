@@ -130,9 +130,9 @@ router.post('/school', [
       currentStep: 3,
       institution: {
         id: institution.id,
-        name: institution.institution_name,
-        city: institution.city,
-        state: institution.state
+        name: institution.schoolName,
+        city: institution.districtName,
+        state: institution.stateName
       }
     });
   } catch (error) {
