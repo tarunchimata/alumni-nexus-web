@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 
 // Pages
-import Home from "@/pages/Home";
+import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import MultiStepRegister from "@/pages/MultiStepRegister";
 import PendingApproval from "@/pages/PendingApproval";
@@ -97,7 +97,7 @@ function App() {
           <div className="min-h-screen bg-background">
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<MultiStepRegister />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
