@@ -1,4 +1,3 @@
-
 import { Navigation } from "@/components/landing/Navigation";
 import { HeroCarousel } from "@/components/landing/HeroCarousel";
 import { RolesGrid } from "@/components/landing/RolesGrid";
@@ -26,52 +25,52 @@ import { Link } from "react-router-dom";
 const Index = () => {
   const features = [
     {
-      icon: <MessageCircle className="w-6 h-6" />,
+      icon: <MessageCircle className="w-8 h-8" />,
       title: "Class Groups & Messaging",
       description: "Stay connected with your classmates through dedicated group chats and discussions",
-      color: "bg-blue-50 border-blue-200",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600"
+      color: "bg-education-blue/10 border-education-blue/30 hover:bg-education-blue/20",
+      iconBg: "bg-education-blue/20",
+      iconColor: "text-education-blue"
     },
     {
-      icon: <GraduationCap className="w-6 h-6" />,
+      icon: <GraduationCap className="w-8 h-8" />,
       title: "Alumni Network",
       description: "Connect with graduates, get career advice, and maintain lifelong friendships",
-      color: "bg-orange-50 border-orange-200",
-      iconBg: "bg-orange-100",
-      iconColor: "text-orange-600"
+      color: "bg-education-orange/10 border-education-orange/30 hover:bg-education-orange/20",
+      iconBg: "bg-education-orange/20",
+      iconColor: "text-education-orange"
     },
     {
-      icon: <School className="w-6 h-6" />,
+      icon: <School className="w-8 h-8" />,
       title: "School Management",
       description: "Administrators can easily manage students, teachers, and school information",
-      color: "bg-purple-50 border-purple-200",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600"
+      color: "bg-education-purple/10 border-education-purple/30 hover:bg-education-purple/20",
+      iconBg: "bg-education-purple/20",
+      iconColor: "text-education-purple"
     },
     {
-      icon: <Shield className="w-6 h-6" />,
+      icon: <Shield className="w-8 h-8" />,
       title: "Secure & Private",
       description: "Enterprise-grade security with role-based access control and data protection",
-      color: "bg-green-50 border-green-200",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600"
+      color: "bg-education-green/10 border-education-green/30 hover:bg-education-green/20",
+      iconBg: "bg-education-green/20",
+      iconColor: "text-education-green"
     },
     {
-      icon: <Users className="w-6 h-6" />,
+      icon: <Users className="w-8 h-8" />,
       title: "Multi-Role Support",
       description: "Tailored experiences for students, teachers, alumni, and administrators",
-      color: "bg-pink-50 border-pink-200",
-      iconBg: "bg-pink-100",
-      iconColor: "text-pink-600"
+      color: "bg-education-pink/10 border-education-pink/30 hover:bg-education-pink/20",
+      iconBg: "bg-education-pink/20",
+      iconColor: "text-education-pink"
     },
     {
-      icon: <Heart className="w-6 h-6" />,
+      icon: <Heart className="w-8 h-8" />,
       title: "Community Building",
       description: "Foster meaningful relationships and maintain school spirit across generations",
-      color: "bg-indigo-50 border-indigo-200",
-      iconBg: "bg-indigo-100",
-      iconColor: "text-indigo-600"
+      color: "bg-education-teal/10 border-education-teal/30 hover:bg-education-teal/20",
+      iconBg: "bg-education-teal/20",
+      iconColor: "text-education-teal"
     }
   ];
 
@@ -111,21 +110,23 @@ const Index = () => {
       {/* Navigation */}
       <Navigation />
 
-      {/* Hero Carousel Section */}
-      <section className="py-12 bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Hero Carousel Section - Full Height */}
+      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-blue/10 via-white to-education-purple/10 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-education-blue/5 to-education-purple/5" />
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <HeroCarousel />
         </div>
       </section>
 
-      {/* About Section */}
-      <section id="about" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* About Section - Full Height */}
+      <section id="about" className="min-h-screen flex items-center bg-gradient-to-br from-education-green/10 via-white to-education-teal/10 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-education-green/5 to-education-teal/5" />
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium">
+            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium bg-education-green/10 text-education-green border-education-green/20">
               About My School Buddies
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-education-green to-education-teal bg-clip-text text-transparent mb-6">
               Bridging Educational Communities Across India
             </h2>
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
@@ -137,30 +138,30 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-white" />
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="w-20 h-20 bg-gradient-to-br from-education-green to-education-teal rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:shadow-xl transition-shadow">
+                <CheckCircle className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">100% Verified</h3>
-              <p className="text-gray-600">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">100% Verified</h3>
+              <p className="text-gray-600 text-lg leading-relaxed">
                 Every school and user profile is verified through official channels, ensuring authenticity and trust.
               </p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Globe className="w-8 h-8 text-white" />
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="w-20 h-20 bg-gradient-to-br from-education-blue to-education-purple rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:shadow-xl transition-shadow">
+                <Globe className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Pan-India Reach</h3>
-              <p className="text-gray-600">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Pan-India Reach</h3>
+              <p className="text-gray-600 text-lg leading-relaxed">
                 Connecting educational institutions across all states and union territories of India.
               </p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-white" />
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="w-20 h-20 bg-gradient-to-br from-education-orange to-education-pink rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:shadow-xl transition-shadow">
+                <Zap className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Instant Connections</h3>
-              <p className="text-gray-600">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Instant Connections</h3>
+              <p className="text-gray-600 text-lg leading-relaxed">
                 Real-time messaging and networking capabilities for immediate community engagement.
               </p>
             </div>
@@ -168,14 +169,15 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Features Section - Full Height */}
+      <section id="features" className="min-h-screen flex items-center bg-gradient-to-br from-education-purple/10 via-white to-education-pink/10 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-education-purple/5 to-education-pink/5" />
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium">
+            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium bg-education-purple/10 text-education-purple border-education-purple/20">
               Platform Features
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-education-purple to-education-pink bg-clip-text text-transparent mb-6">
               Everything You Need to Stay Connected
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -186,17 +188,17 @@ const Index = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className={`hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${feature.color} border-2`}>
+              <Card key={index} className={`hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 ${feature.color} border-2 group`}>
                 <CardHeader>
-                  <div className={`w-12 h-12 ${feature.iconBg} rounded-xl flex items-center justify-center mb-4`}>
+                  <div className={`w-16 h-16 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                     <div className={feature.iconColor}>
                       {feature.icon}
                     </div>
                   </div>
-                  <CardTitle className="text-xl text-gray-900">{feature.title}</CardTitle>
+                  <CardTitle className="text-2xl text-gray-900">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-gray-700 leading-relaxed">
+                  <CardDescription className="text-gray-700 leading-relaxed text-lg">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -206,32 +208,38 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Roles Grid */}
-      <RolesGrid />
+      {/* Roles Section - Full Height */}
+      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-orange/10 via-white to-education-blue/10 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-education-orange/5 to-education-blue/5" />
+        <div className="relative w-full">
+          <RolesGrid />
+        </div>
+      </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-r from-primary via-purple-600 to-orange-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+      {/* Stats Section - Full Height */}
+      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-blue via-education-purple to-education-pink relative">
+        <div className="absolute inset-0 bg-black/10" />
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
               Trusted by Educational Communities Nationwide
             </h2>
-            <p className="text-xl text-blue-100">
+            <p className="text-2xl text-white/90">
               Join the largest verified educational network in India
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+              <div key={index} className="text-center group hover:scale-110 transition-transform duration-300">
+                <div className="bg-white/20 backdrop-blur-md rounded-3xl p-8 border border-white/30 group-hover:bg-white/30 transition-colors">
+                  <div className="text-5xl md:text-6xl font-bold text-white mb-3">
                     {stat.number}
                   </div>
-                  <div className="text-lg font-medium text-blue-100 mb-1">
+                  <div className="text-xl font-medium text-white/90 mb-2">
                     {stat.label}
                   </div>
-                  <div className="text-sm text-blue-200">
+                  <div className="text-lg text-white/80">
                     {stat.subtext}
                   </div>
                 </div>
@@ -241,14 +249,15 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Testimonials Section - Full Height */}
+      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-teal/10 via-white to-education-green/10 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-education-teal/5 to-education-green/5" />
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium">
+            <Badge variant="secondary" className="mb-4 px-4 py-2 text-sm font-medium bg-education-teal/10 text-education-teal border-education-teal/20">
               Success Stories
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-education-teal to-education-green bg-clip-text text-transparent mb-6">
               What Our Community Says
             </h2>
             <p className="text-xl text-gray-600">
@@ -258,28 +267,28 @@ const Index = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover:shadow-xl transition-all duration-300 border-0 shadow-lg">
+              <Card key={index} className="hover:shadow-2xl transition-all duration-500 border-0 shadow-xl group hover:scale-105">
                 <CardHeader>
-                  <div className="flex items-center space-x-1 mb-4">
+                  <div className="flex items-center space-x-1 mb-6">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <Star key={i} className="w-6 h-6 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <CardDescription className="text-gray-700 italic leading-relaxed text-base">
+                  <CardDescription className="text-gray-700 italic leading-relaxed text-lg">
                     "{testimonial.quote}"
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-education-teal to-education-green rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <span className="text-white font-bold text-xl">
                         {testimonial.author.split(' ').map(n => n[0]).join('')}
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{testimonial.author}</p>
-                      <p className="text-sm text-gray-600">{testimonial.role}</p>
-                      <p className="text-sm text-primary font-medium">{testimonial.school}</p>
+                      <p className="font-bold text-gray-900 text-lg">{testimonial.author}</p>
+                      <p className="text-gray-600">{testimonial.role}</p>
+                      <p className="text-education-teal font-medium">{testimonial.school}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -289,29 +298,30 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="mb-8">
-            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3 mb-6">
-              <Award className="w-5 h-5 text-yellow-400" />
-              <span className="text-white font-medium">Trusted by 500+ Schools</span>
+      {/* CTA Section - Full Height */}
+      <section className="min-h-screen flex items-center bg-gradient-to-br from-gray-900 via-education-blue/80 to-education-purple/80 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-black/50 to-black/30" />
+        <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-20">
+          <div className="mb-12">
+            <div className="inline-flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-full px-8 py-4 mb-8">
+              <Award className="w-6 h-6 text-yellow-400" />
+              <span className="text-white font-medium text-lg">Trusted by 500+ Schools</span>
             </div>
           </div>
           
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
+          <h2 className="text-5xl md:text-7xl font-bold text-white mb-8 leading-tight">
             Ready to Connect Your School Community?
           </h2>
-          <p className="text-xl text-blue-100 mb-8 leading-relaxed">
+          <p className="text-2xl text-white/90 mb-12 leading-relaxed max-w-4xl mx-auto">
             Join thousands of educational institutions already building stronger communities 
             through verified connections and meaningful engagement.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link to="/login">
               <Button 
                 size="lg" 
-                className="bg-white text-gray-900 hover:bg-gray-100 px-12 py-4 text-lg font-semibold"
+                className="bg-white text-gray-900 hover:bg-gray-100 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 shadow-2xl"
               >
                 Get Started Today
               </Button>
@@ -320,16 +330,16 @@ const Index = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-2 border-white text-white hover:bg-white hover:text-gray-900 px-12 py-4 text-lg font-semibold"
+                className="border-3 border-white text-white hover:bg-white hover:text-gray-900 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 backdrop-blur-sm"
               >
                 Register Your School
               </Button>
             </Link>
           </div>
           
-          <div className="mt-8 text-sm text-blue-200">
+          <div className="mt-12 text-lg text-white/80">
             <span>✓ Free to start</span>
-            <span className="mx-4">✓ No setup fees</span>
+            <span className="mx-6">✓ No setup fees</span>
             <span>✓ 24/7 support</span>
           </div>
         </div>
