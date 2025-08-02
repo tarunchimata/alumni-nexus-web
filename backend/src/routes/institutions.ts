@@ -4,7 +4,7 @@ import { body, validationResult, query } from 'express-validator';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // GET /api/institutions/search?q=query
 router.get('/search', [

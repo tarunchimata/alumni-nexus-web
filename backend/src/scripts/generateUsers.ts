@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import type { UserRole } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import inquirer from 'inquirer';
-import chalk from 'chalk';
+const chalk = require('chalk');
 import cliProgress from 'cli-progress';
 //import fs from 'fs';
 import { promises as fs } from 'fs';

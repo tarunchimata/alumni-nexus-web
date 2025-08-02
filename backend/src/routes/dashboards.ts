@@ -3,7 +3,7 @@ import { AuthenticatedRequest, authenticateToken, requireRole } from '../middlew
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // Apply authentication to all dashboard routes
 router.use(authenticateToken);

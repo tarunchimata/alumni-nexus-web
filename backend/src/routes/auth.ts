@@ -10,7 +10,7 @@ import {
 import { authenticateToken } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // POST /api/auth/register
 router.post(

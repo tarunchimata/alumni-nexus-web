@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest } from '../middleware/auth';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // Enhanced CORS middleware for OAuth2 routes
 router.use((req, res, next) => {

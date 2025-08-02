@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { prisma } from '../index';
@@ -7,7 +7,7 @@ import multer from 'multer';
 import csv from 'csv-parser';
 import fs from 'fs';
 
-const router = Router();
+const router: express.Router = Router();
 const upload = multer({ dest: 'uploads/' });
 
 // Apply authentication to all routes
