@@ -1,10 +1,10 @@
 // API utilities and configuration
 import { oauth2Service } from './oauth2';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://api.myschoolbuddies.com' 
-    : 'http://localhost:3001');
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.MODE === 'production' 
+    ? 'https://api.hostingmanager.in/api' 
+    : 'http://localhost:3001/api');
 
 console.log('[API Client] Using API base URL:', API_BASE_URL);
 

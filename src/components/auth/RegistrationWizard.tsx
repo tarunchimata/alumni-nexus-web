@@ -52,7 +52,8 @@ export const RegistrationWizard = () => {
   useEffect(() => {
     const initRegistration = async () => {
       try {
-        const response = await fetch('/api/registration/init', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_BASE_URL}/registration/init`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -99,16 +100,17 @@ export const RegistrationWizard = () => {
       updateRegistrationData(stepData);
       
       // Determine API endpoint based on current step
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       let endpoint = '';
       switch (currentStep) {
         case 1:
-          endpoint = '/api/registration/basic';
+          endpoint = `${API_BASE_URL}/registration/basic`;
           break;
         case 2:
-          endpoint = '/api/registration/school';
+          endpoint = `${API_BASE_URL}/registration/school`;
           break;
         case 3:
-          endpoint = '/api/registration/account';
+          endpoint = `${API_BASE_URL}/registration/account`;
           break;
         default:
           throw new Error('Invalid step');
@@ -173,7 +175,8 @@ export const RegistrationWizard = () => {
     try {
       updateRegistrationData(stepData);
       
-      const response = await fetch('/api/registration/complete', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_BASE_URL}/registration/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
