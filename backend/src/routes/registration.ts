@@ -10,7 +10,7 @@ import {
   cleanupRegistrationSession,
 } from '../middleware/sessionAuth';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // POST /api/registration/init - Initialize registration session
 router.post('/init', initRegistrationSession, (req, res) => {
