@@ -99,9 +99,31 @@ show_usage() {
     echo "  ENABLE_DEMO_USERS   Control demo user creation"
 }
 
+# Function to check npm compatibility and fix if needed
+fix_npm_compatibility() {
+    local npm_version=$(npm --version 2>/dev/null || echo "0.0.0")
+    local node_version=$(node --version | sed 's/v//')
+    
+    # Check if npm version is too high for current Node.js
+    if [[ "$npm_version" > "10.0.0" ]] && [[ "$node_version" < "20.0.0" ]]; then
+        log_message "WARNING" "npm $npm_version incompatible with Node.js $node_version"
+        log_message "INFO" "Downgrading npm to compatible version..."
+        
+        # Downgrade npm to compatible version
+        npm install -g npm@9.2.0 --force || {
+            log_message "WARNING" "Failed to downgrade npm, using npx for package management"
+            # Use npx as fallback
+            alias npm="npx npm@9.2.0"
+        }
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     log_message "INFO" "Checking prerequisites..."
+    
+    # Fix npm compatibility first
+    fix_npm_compatibility
     
     # Check Node.js version
     if command -v node &> /dev/null; then
@@ -574,7 +596,13 @@ show_menu() {
                 ls -la logs/deploy_*.log 2>/dev/null | tail -5 || echo "No deployment logs found"
                 ;;
             19)
-                fix_dependencies
+                print_info "Fixing dependencies and security issues..."
+                if [ -f "scripts/fix-dependencies.sh" ]; then
+                    chmod +x scripts/fix-dependencies.sh
+                    ./scripts/fix-dependencies.sh
+                else
+                    fix_dependencies
+                fi
                 ;;
             20)
                 clean_build_cache

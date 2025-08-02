@@ -108,7 +108,7 @@ export const HeroCarousel = () => {
                     </h1>
                   </div>
                   <div className="animate-in slide-in-from-bottom-4 duration-1000 delay-500">
-                    <p className="text-2xl md:text-3xl lg:text-4xl text-orange-200 mb-6 font-medium leading-relaxed">
+                    <p className="text-2xl md:text-3xl lg:text-4xl text-blue-200 mb-6 font-medium leading-relaxed">
                       {slide.subtitle}
                     </p>
                   </div>
@@ -123,7 +123,7 @@ export const HeroCarousel = () => {
                       <Link to="/login">
                         <Button 
                           size="lg" 
-                          className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-orange-500/25 transform hover:scale-105 transition-all duration-300 rounded-xl border-0"
+                          className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 rounded-xl border-0"
                         >
                           Get Started
                         </Button>
