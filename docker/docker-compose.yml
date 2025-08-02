@@ -42,13 +42,13 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.frontend
     ports:
-      - "3000:80"
+      - "8080:80"
     environment:
-      - VITE_API_URL=http://localhost:3005/api
+      - VITE_API_URL=http://localhost:3001/api
       - VITE_KEYCLOAK_URL=https://login.hostingmanager.in
       - VITE_KEYCLOAK_REALM=myschoolbuddies-realm
       - VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client
-      - VITE_OAUTH2_REDIRECT_URI=http://localhost:3006/oauth2/callback
+      - VITE_OAUTH2_REDIRECT_URI=http://localhost:8080/oauth2/callback
     depends_on:
       backend:
         condition: service_healthy
