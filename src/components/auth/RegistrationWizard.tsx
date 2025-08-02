@@ -193,7 +193,7 @@ export const RegistrationWizard = () => {
         
         // Redirect to pending approval page after a short delay
         setTimeout(() => {
-          window.location.href = '/auth/pending-approval';
+          window.location.href = '/pending-approval';
         }, 2000);
       } else {
         if (result.errors && Array.isArray(result.errors)) {

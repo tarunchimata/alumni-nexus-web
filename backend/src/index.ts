@@ -241,7 +241,7 @@ app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF
 app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/institutions', searchLimiter, institutionsRoutes);
-app.use('/api/registration', registrationLimiter, registrationRoutes); // No CSRF for registration init
+app.use('/api/registration', registrationRoutes); // No CSRF for registration
 app.use('/api/dashboards', dashboardRoutes); // Real dashboard data routes
 
 // Error handling middleware
