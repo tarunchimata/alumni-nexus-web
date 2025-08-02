@@ -98,7 +98,7 @@ const roles = [
 
 export const RolesGrid = () => {
   return (
-    <section id="roles" className="py-20 bg-gray-50">
+    <section id="roles" className="py-12 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -111,7 +111,7 @@ export const RolesGrid = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {roles.map((role, index) => (
+          {roles.filter(role => role.id !== 'platform-admin').map((role, index) => (
             <Card 
               key={role.id} 
               className={`hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 ${role.bgColor} border-2`}

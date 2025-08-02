@@ -111,12 +111,7 @@ const Index = () => {
       <Navigation />
 
       {/* Hero Carousel Section - Full Height */}
-      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-blue/10 via-white to-education-purple/10 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-education-blue/5 to-education-purple/5" />
-        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <HeroCarousel />
-        </div>
-      </section>
+      <HeroCarousel />
 
       {/* About Section - Full Height */}
       <section id="about" className="min-h-screen flex items-center bg-gradient-to-br from-education-green/10 via-white to-education-teal/10 relative">
@@ -208,13 +203,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Roles Section - Full Height */}
-      <section className="min-h-screen flex items-center bg-gradient-to-br from-education-orange/10 via-white to-education-blue/10 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-education-orange/5 to-education-blue/5" />
-        <div className="relative w-full">
-          <RolesGrid />
-        </div>
-      </section>
+      {/* Roles Section - Compact */}
+      <RolesGrid />
 
       {/* Stats Section - Full Height */}
       <section className="min-h-screen flex items-center bg-gradient-to-br from-education-blue via-education-purple to-education-pink relative">
