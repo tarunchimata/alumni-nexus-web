@@ -400,9 +400,9 @@ check_health() {
     local frontend_healthy=false
     local database_healthy=false
     
-    # Check backend health with retry
+    # Check backend health with retry (try both development and docker ports)
     for i in {1..5}; do
-        if curl -f http://localhost:3001/health > /dev/null 2>&1; then
+        if curl -f http://localhost:3001/health > /dev/null 2>&1 || curl -f http://localhost:3005/health > /dev/null 2>&1; then
             backend_healthy=true
             break
         fi
@@ -410,8 +410,8 @@ check_health() {
         sleep 5
     done
     
-    # Check frontend (try both ports)
-    if curl -f http://localhost:3000 > /dev/null 2>&1 || curl -f http://localhost:8080 > /dev/null 2>&1; then
+    # Check frontend (try all possible ports)
+    if curl -f http://localhost:3000 > /dev/null 2>&1 || curl -f http://localhost:8080 > /dev/null 2>&1 || curl -f http://localhost:3006 > /dev/null 2>&1; then
         frontend_healthy=true
     fi
     
