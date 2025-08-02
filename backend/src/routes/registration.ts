@@ -27,7 +27,7 @@ router.post('/basic', [
   body('firstName').isString().isLength({ min: 2 }).withMessage('First name must be at least 2 characters'),
   body('lastName').isString().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
   body('email').isEmail().withMessage('Valid email is required'),
-  body('phone').isMobilePhone('any').withMessage('Valid phone number is required'),
+  body('phone').matches(/^\+?[\d\s\-\(\)]+$/).isLength({ min: 10, max: 15 }).withMessage('Valid phone number is required'),
   body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
 ], initRegistrationSession, async (req: any, res: any) => {
   const errors = validationResult(req);

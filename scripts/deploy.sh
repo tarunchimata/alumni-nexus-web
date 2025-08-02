@@ -410,8 +410,8 @@ check_health() {
         sleep 5
     done
     
-    # Check frontend
-    if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    # Check frontend (try both ports)
+    if curl -f http://localhost:3000 > /dev/null 2>&1 || curl -f http://localhost:8080 > /dev/null 2>&1; then
         frontend_healthy=true
     fi
     

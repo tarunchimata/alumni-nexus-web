@@ -32,7 +32,7 @@ async function testRegistrationFlow() {
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      phone: '+1234567890',
+      phone: '1234567890',
       dateOfBirth: '1995-01-15'
     };
     

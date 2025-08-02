@@ -1,0 +1,53 @@
+{
+  "clientId": "myschoolbuddies-client",
+  "name": "My School Buddies Frontend Client",
+  "description": "Production frontend client for My School Buddies",
+  "protocol": "openid-connect",
+  "clientAuthenticatorType": "client-secret",
+  "publicClient": true,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "fullScopeAllowed": true,
+  "nodeReRegistrationTimeout": -1,
+  "defaultClientScopes": ["web-origins", "role_list", "profile", "roles", "email"],
+  "optionalClientScopes": ["address", "phone", "offline_access"],
+  "access": {
+    "view": true,
+    "configure": true,
+    "manage": true
+  },
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://school.hostingmanager.in/*",
+    "oauth2.device.authorization.grant.enabled": false,
+    "backchannel.logout.revoke.offline.tokens": false,
+    "use.refresh.tokens": true,
+    "tls-client-certificate-bound-access-tokens": false,
+    "oidc.ciba.grant.enabled": false,
+    "backchannel.logout.session.required": true,
+    "client_credentials.use_refresh_token": false,
+    "require.pushed.authorization.requests": false,
+    "acr.loa.map": "{}",
+    "display.on.consent.screen": false,
+    "token.response.type.bearer.lower-case": false
+  },
+  "authenticationFlowBindingOverrides": {},
+  "redirectUris": [
+    "https://school.hostingmanager.in/*",
+    "https://school.hostingmanager.in/oauth2/callback",
+    "http://localhost:3000/*",
+    "http://localhost:3000/oauth2/callback",
+    "http://localhost:8080/*",
+    "http://localhost:8080/oauth2/callback"
+  ],
+  "webOrigins": [
+    "https://school.hostingmanager.in",
+    "http://localhost:3000",
+    "http://localhost:8080"
+  ],
+  "adminUrl": "",
+  "baseUrl": "https://school.hostingmanager.in"
+}
