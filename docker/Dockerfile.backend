@@ -38,6 +38,10 @@ COPY --from=builder --chown=backend:nodejs /app/dist ./dist
 COPY --from=builder --chown=backend:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=backend:nodejs /app/package.json ./package.json
 
+# Copy environment and configuration files
+COPY backend/.env.production ./.env
+COPY --from=builder --chown=backend:nodejs /app/prisma ./prisma
+
 # Create logs and uploads directories
 RUN mkdir -p logs uploads && chown -R backend:nodejs logs uploads
 
