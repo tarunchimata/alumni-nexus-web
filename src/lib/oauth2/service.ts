@@ -112,30 +112,29 @@ export class OAuth2Service {
 
     this.storage.clearOAuth2State();
 
-    const tokenParams = new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: this.config.getClientId(),
+    // Use our backend API endpoint instead of calling Keycloak directly
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+    const tokenUrl = `${apiBaseUrl}/oauth2/token`;
+
+    const tokenData = {
       code,
-      redirect_uri: this.config.getRedirectUriValue(),
       code_verifier: codeVerifier,
-    });
+      redirectUri: this.config.getRedirectUriValue(),
+    };
 
-    const keycloakTokenUrl = `${this.config.getKeycloakUrl()}/realms/${this.config.getRealm()}/protocol/openid-connect/token`;
-
-    this.log('Exchanging authorization code for tokens', {
-      tokenUrl: keycloakTokenUrl,
-      clientId: this.config.getClientId(),
+    this.log('Exchanging authorization code for tokens via backend API', {
+      tokenUrl,
       redirectUri: this.config.getRedirectUriValue()
     });
 
     try {
-      const response = await fetch(keycloakTokenUrl, {
+      const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: tokenParams.toString(),
+        body: JSON.stringify(tokenData),
       });
 
       const responseText = await response.text();
@@ -160,7 +159,7 @@ export class OAuth2Service {
 
     } catch (fetchError) {
       if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
-        throw new Error('Network error: Could not connect to Keycloak server. Please check your connection.');
+        throw new Error('Network error: Could not connect to backend server. Please check your connection.');
       }
       throw fetchError;
     }
@@ -260,55 +259,37 @@ export class OAuth2Service {
         return null;
       }
 
-      // Decode the JWT token to get user info
-      const payload = this.decodeJWT(accessToken);
-      if (!payload) {
-        console.log('[OAuth2] Failed to decode JWT token');
+      // Use backend API endpoint for user info
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+      const userInfoUrl = `${apiBaseUrl}/oauth2/userinfo`;
+
+      this.log('Fetching user info via backend API', { userInfoUrl });
+
+      const response = await fetch(userInfoUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[OAuth2] Failed to fetch user info:', response.status);
         return null;
       }
 
-      console.log('[OAuth2] JWT payload:', payload);
-
-      // Extract roles with proper precedence (highest role wins)
-      const realmRoles = payload.realm_access?.roles || [];
-      const resourceRoles = Object.values(payload.resource_access || {})
-        .flatMap((resource: any) => resource.roles || []);
-      
-      const allRoles = [...realmRoles, ...resourceRoles];
-      console.log('[OAuth2] All user roles:', allRoles);
-
-      // Define role hierarchy (higher number = higher precedence)
-      const roleHierarchy = {
-        'platform_admin': 100,
-        'school_admin': 80,
-        'teacher': 60,
-        'alumni': 40,
-        'student': 20
-      };
-
-      // Find the highest precedence role
-      let highestRole = 'student'; // default fallback
-      let highestPrecedence = 0;
-
-      for (const role of allRoles) {
-        const precedence = roleHierarchy[role as keyof typeof roleHierarchy];
-        if (precedence && precedence > highestPrecedence) {
-          highestPrecedence = precedence;
-          highestRole = role;
-        }
-      }
-
-      console.log('[OAuth2] Selected role based on hierarchy:', highestRole);
+      const userInfo = await response.json();
+      console.log('[OAuth2] User info received from backend:', userInfo);
 
       return {
-        id: payload.sub,
-        email: payload.email || '',
-        firstName: payload.given_name || '',
-        lastName: payload.family_name || '',
-        role: highestRole,
-        roles: allRoles,
-        schoolId: payload.school_id,
-        avatar: payload.picture,
+        id: userInfo.id,
+        email: userInfo.email || '',
+        firstName: userInfo.firstName || '',
+        lastName: userInfo.lastName || '',
+        role: userInfo.role || 'student',
+        roles: userInfo.roles || [],
+        schoolId: userInfo.schoolId,
+        avatar: userInfo.profilePictureUrl,
       };
     } catch (error) {
       console.error('[OAuth2] Error getting user info:', error);
@@ -332,6 +313,10 @@ export class OAuth2Service {
   async initialize(): Promise<boolean> {
     try {
       this.log('Initializing OAuth2 service');
+      
+      // Initialize configuration first
+      await this.config.initialize();
+      
       const isAuth = await this.isAuthenticated();
       this.log('OAuth2 initialization complete', { isAuthenticated: isAuth });
       return isAuth;

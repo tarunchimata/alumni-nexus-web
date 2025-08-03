@@ -138,6 +138,17 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
 });
 
+// CSRF token endpoint
+app.get('/api/csrf-token', (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({ csrfToken: req.csrfToken() });
+  } catch (error) {
+    logger.error('Failed to generate CSRF token:', error);
+    res.status(500).json({ error: 'Failed to generate CSRF token' });
+  }
+});
+
 // Enhanced health check endpoint
 app.get('/health', async (req, res) => {
   try {

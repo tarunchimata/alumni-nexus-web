@@ -2,17 +2,60 @@
 import type { OAuth2Config } from './types';
 
 export class OAuth2ConfigService {
-  private readonly config: OAuth2Config;
+  private config: OAuth2Config | null = null;
+  private readonly fallbackConfig: Partial<OAuth2Config>;
 
   constructor() {
-    this.config = {
+    // Fallback configuration from environment variables
+    this.fallbackConfig = {
       keycloakUrl: import.meta.env.VITE_KEYCLOAK_URL,
       realm: import.meta.env.VITE_KEYCLOAK_REALM,
       clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
       redirectUri: this.getRedirectUri()
     };
+  }
 
-    this.validateConfiguration();
+  async initialize(): Promise<void> {
+    try {
+      console.log('[OAuth2Config] Fetching configuration from API...');
+      
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+      const response = await fetch(`${apiBaseUrl}/oauth2/config`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch OAuth2 config: ${response.status}`);
+      }
+      
+      const apiConfig = await response.json();
+      
+      this.config = {
+        keycloakUrl: apiConfig.keycloakUrl,
+        realm: apiConfig.realm,
+        clientId: apiConfig.clientId,
+        redirectUri: this.getRedirectUri()
+      };
+      
+      console.log('[OAuth2Config] Configuration loaded from API:', {
+        keycloakUrl: this.config.keycloakUrl,
+        realm: this.config.realm,
+        clientId: this.config.clientId,
+        redirectUri: this.config.redirectUri
+      });
+      
+      this.validateConfiguration();
+    } catch (error) {
+      console.warn('[OAuth2Config] Failed to load from API, using fallback config:', error);
+      
+      // Use fallback configuration
+      this.config = {
+        keycloakUrl: this.fallbackConfig.keycloakUrl || '',
+        realm: this.fallbackConfig.realm || '',
+        clientId: this.fallbackConfig.clientId || '',
+        redirectUri: this.fallbackConfig.redirectUri || ''
+      };
+      
+      this.validateConfiguration();
+    }
   }
 
   private getRedirectUri(): string {
@@ -57,22 +100,37 @@ export class OAuth2ConfigService {
   }
 
   getConfig(): OAuth2Config {
+    if (!this.config) {
+      throw new Error('OAuth2 configuration not initialized. Call initialize() first.');
+    }
     return this.config;
   }
 
   getKeycloakUrl(): string {
+    if (!this.config) {
+      throw new Error('OAuth2 configuration not initialized. Call initialize() first.');
+    }
     return this.config.keycloakUrl;
   }
 
   getRealm(): string {
+    if (!this.config) {
+      throw new Error('OAuth2 configuration not initialized. Call initialize() first.');
+    }
     return this.config.realm;
   }
 
   getClientId(): string {
+    if (!this.config) {
+      throw new Error('OAuth2 configuration not initialized. Call initialize() first.');
+    }
     return this.config.clientId;
   }
 
   getRedirectUriValue(): string {
+    if (!this.config) {
+      throw new Error('OAuth2 configuration not initialized. Call initialize() first.');
+    }
     return this.config.redirectUri;
   }
 }
