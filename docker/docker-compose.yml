@@ -8,10 +8,10 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.backend
     ports:
-      - "3001:3001"
+      - "3033:3033"
     environment:
       - NODE_ENV=production
-      - PORT=3001
+      - PORT=3033
       - DATABASE_URL=postgresql://msbfinalroot:vA5ZXB2Nb6M3P22GWZRch999@pg.hostingmanager.in:5432/myschoolbuddies_budibase_db
       - KEYCLOAK_URL=https://login.hostingmanager.in
       - KEYCLOAK_REALM=myschoolbuddies-realm
@@ -21,7 +21,7 @@ services:
       - SENDGRID_FROM_EMAIL=noreply@myschoolbuddies.com
       - SENDGRID_FROM_NAME=My School Buddies
       - JWT_SECRET=production-jwt-secret-change-this
-      - CORS_ORIGIN=https://school.hostingmanager.in,https://api.hostingmanager.in
+      - CORS_ORIGIN=https://school.hostingmanager.in,https://api.hostingmanager.in,http://localhost:3033
       - LOG_LEVEL=info
     volumes:
       - backend_logs:/app/logs
@@ -29,7 +29,7 @@ services:
     networks:
       - myschoolbuddies-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3033/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,7 +44,7 @@ services:
     ports:
       - "8080:80"
     environment:
-      - VITE_API_URL=http://localhost:3001/api
+      - VITE_API_URL=http://localhost:3033/api
       - VITE_KEYCLOAK_URL=https://login.hostingmanager.in
       - VITE_KEYCLOAK_REALM=myschoolbuddies-realm
       - VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client

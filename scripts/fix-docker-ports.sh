@@ -60,7 +60,7 @@ clean_docker() {
 echo "🔍 Checking ports 3001, 3005, 3006..."
 
 # Check and clean ports
-for port in 3001 3005 3006; do
+for port in 3001 3033 3005 3006; do
     if check_port $port; then
         kill_port_processes $port
     fi
@@ -72,7 +72,7 @@ clean_docker
 # Final port check
 echo ""
 echo "🔍 Final port status:"
-for port in 3001 3005 3006; do
+for port in 3001 3033 3005 3006; do
     check_port $port || true
 done
 

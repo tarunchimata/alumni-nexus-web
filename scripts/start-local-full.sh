@@ -22,6 +22,7 @@ fi
 
 # Kill any existing processes on our ports
 print_info "Cleaning up existing processes..."
+pkill -f "node.*3033" 2>/dev/null || true
 pkill -f "node.*3001" 2>/dev/null || true
 pkill -f "vite.*8080" 2>/dev/null || true
 pkill -f "npm.*dev" 2>/dev/null || true
@@ -39,7 +40,7 @@ if [[ ! -f "backend/.env.local" ]]; then
 fi
 
 # Start backend
-print_info "Starting backend on port 3001..."
+print_info "Starting backend on port 3033..."
 cd backend
 
 # Install dependencies if needed
@@ -60,8 +61,8 @@ BACKEND_PID=$!
 # Wait for backend to start and check health
 print_info "Waiting for backend to start..."
 for i in {1..30}; do
-    if curl -s http://localhost:3001/health > /dev/null 2>&1; then
-        print_success "Backend is healthy at http://localhost:3001"
+    if curl -s http://localhost:3033/health > /dev/null 2>&1; then
+        print_success "Backend is healthy at http://localhost:3033"
         break
     fi
     if [[ $i -eq 30 ]]; then
@@ -108,14 +109,14 @@ echo "🔍 VALIDATION CHECKS"
 echo "===================="
 
 # Backend health check
-if curl -s http://localhost:3001/health | grep -q "OK"; then
+if curl -s http://localhost:3033/health | grep -q "OK"; then
     print_success "Backend health check passed"
 else
     print_error "Backend health check failed"
 fi
 
 # OAuth2 config check
-if curl -s http://localhost:3001/api/oauth2/config > /dev/null; then
+if curl -s http://localhost:3033/api/oauth2/config > /dev/null; then
     print_success "OAuth2 configuration accessible"
 else
     print_error "OAuth2 configuration not accessible"
@@ -131,10 +132,10 @@ fi
 echo ""
 echo "🎉 LOCAL DEVELOPMENT ENVIRONMENT READY"
 echo "======================================"
-print_success "Backend: http://localhost:3001"
+print_success "Backend: http://localhost:3033"
 print_success "Frontend: http://localhost:8080"
-print_success "Health Check: curl http://localhost:3001/health"
-print_success "OAuth2 Config: curl http://localhost:3001/api/oauth2/config"
+print_success "Health Check: curl http://localhost:3033/health"
+print_success "OAuth2 Config: curl http://localhost:3033/api/oauth2/config"
 print_success "Logs: tail -f logs/backend-local.log logs/frontend-local.log"
 
 echo ""

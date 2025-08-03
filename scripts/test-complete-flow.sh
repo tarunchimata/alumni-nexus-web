@@ -19,10 +19,10 @@ print_info "🧪 Testing Complete Registration Flow..."
 
 # Test 1: Backend Health
 print_info "1. Testing backend health..."
-if curl -s http://localhost:3001/health | grep -q "healthy"; then
+if curl -s http://localhost:3033/health | grep -q "healthy"; then
     print_status "Backend is healthy"
 else
-    print_error "Backend health check failed - ensure backend is running on port 3001"
+    print_error "Backend health check failed - ensure backend is running on port 3033"
     exit 1
 fi
 
@@ -30,7 +30,7 @@ fi
 print_info "2. Testing registration endpoints..."
 
 # Test registration init
-if curl -s -X POST http://localhost:3001/api/registration/init | grep -q "Registration session initialized"; then
+if curl -s -X POST http://localhost:3033/api/registration/init | grep -q "Registration session initialized"; then
     print_status "Registration init endpoint working"
 else
     print_error "Registration init endpoint failed"
@@ -47,7 +47,7 @@ fi
 
 # Test 4: Database Connection
 print_info "4. Testing database connection..."
-if curl -s http://localhost:3001/health | grep -q "connected"; then
+if curl -s http://localhost:3033/health | grep -q "connected"; then
     print_status "Database connection healthy"
 else
     print_error "Database connection failed"

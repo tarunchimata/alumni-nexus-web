@@ -52,7 +52,7 @@ sleep 3
 
 # Check if backend is responding
 print_info "Checking backend health..."
-if curl -s http://localhost:3001/health >/dev/null 2>&1; then
+if curl -s http://localhost:3033/health >/dev/null 2>&1; then
     print_status "Backend is running and healthy"
 else
     print_error "Backend health check failed"

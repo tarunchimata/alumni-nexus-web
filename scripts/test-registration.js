@@ -3,7 +3,7 @@
 // Test Registration Flow
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:3033/api';
 
 async function testRegistrationFlow() {
   console.log('🧪 Testing Registration Flow...');
@@ -11,7 +11,7 @@ async function testRegistrationFlow() {
   try {
     // Test 1: Health Check
     console.log('\n1. Testing health check...');
-    const healthResponse = await axios.get('http://localhost:3001/health');
+    const healthResponse = await axios.get('http://localhost:3033/health');
     console.log('✅ Health check passed:', healthResponse.data.status);
     
     // Test 2: Initialize Registration Session

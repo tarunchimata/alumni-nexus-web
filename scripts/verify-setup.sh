@@ -41,8 +41,8 @@ fi
 
 # Check if backend is running
 print_info "Checking if backend is running..."
-if curl -s http://localhost:3001/health > /dev/null 2>&1; then
-    print_status "Backend is running on port 3001"
+if curl -s http://localhost:3033/health > /dev/null 2>&1; then
+    print_status "Backend is running on port 3033"
 else
     print_warning "Backend is not running"
     print_info "Start with: ./scripts/start-backend.sh"
