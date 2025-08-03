@@ -40,7 +40,7 @@ if (missingVars.length > 0) {
 logger.info('OAuth2 environment variables validated successfully');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3033;
 
 // Initialize Prisma Client
 export const prisma = new PrismaClient({
@@ -54,6 +54,9 @@ app.use(helmet());
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:8080',
+  'http://localhost:3033',
+  'http://192.168.1.99:8080',
+  'http://192.168.1.99:3033',
   ...(process.env.CORS_ORIGIN?.split(',') || [])
 ];
 

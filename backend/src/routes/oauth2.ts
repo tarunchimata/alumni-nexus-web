@@ -12,6 +12,10 @@ router.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:8080',
+    'http://localhost:3033',
+    'http://192.168.1.99:8080',
+    'http://192.168.1.99:3033',
     'http://localhost:5173',
     'https://preview--alumni-nexus-web.lovable.app',
     process.env.CORS_ORIGIN?.split(',') || []
@@ -388,6 +392,35 @@ router.get('/authorize', (req, res) => {
   } catch (error) {
     logger.error('Failed to build authorization URL:', error);
     res.status(500).json({ error: 'Failed to build authorization URL' });
+  }
+});
+
+// GET /api/oauth2/config - Get OAuth2 configuration for frontend
+router.get('/config', (req, res) => {
+  try {
+    logger.info('OAuth2 config request received');
+    
+    const config = {
+      keycloakUrl: process.env.KEYCLOAK_URL,
+      realm: process.env.KEYCLOAK_REALM,
+      clientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID,
+      issuer: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}`,
+      authorizationEndpoint: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
+      tokenEndpoint: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      userinfoEndpoint: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
+      discoveryUrl: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/.well-known/openid-configuration`
+    };
+    
+    logger.info('OAuth2 config provided successfully', {
+      keycloakUrl: config.keycloakUrl,
+      realm: config.realm,
+      clientId: config.clientId
+    });
+    
+    res.json(config);
+  } catch (error) {
+    logger.error('Failed to get OAuth2 config:', error);
+    res.status(500).json({ error: 'Failed to get OAuth2 configuration' });
   }
 });
 
