@@ -18,63 +18,114 @@ const OAuth2Callback = () => {
         const error = searchParams.get('error');
         const state = searchParams.get('state');
 
-        console.log('[OAuth2Callback] Received callback with:', { 
-          hasCode: !!code, 
-          hasError: !!error, 
+        // Enhanced debug logging
+        const debugInfo = {
+          timestamp: new Date().toISOString(),
+          hasCode: !!code,
+          codeLength: code?.length || 0,
+          hasError: !!error,
           hasState: !!state,
+          stateLength: state?.length || 0,
           error: error,
-          state: state,
-          code: code?.substring(0, 20) + '...',
+          errorDescription: searchParams.get('error_description'),
+          state: state?.substring(0, 20) + '...',
+          code: code?.substring(0, 30) + '...',
           currentUrl: window.location.href,
           origin: window.location.origin,
-          redirectPath: window.location.pathname
-        });
+          hostname: window.location.hostname,
+          protocol: window.location.protocol,
+          redirectPath: window.location.pathname,
+          allSearchParams: Object.fromEntries(searchParams.entries()),
+          userAgent: navigator.userAgent.substring(0, 100)
+        };
+
+        console.group('[OAuth2Callback] Callback Processing Start');
+        console.log('Debug Info:', debugInfo);
+        console.log('Raw URL:', window.location.href);
+        console.groupEnd();
 
         if (error) {
+          console.error('[OAuth2Callback] OAuth2 error received:', {
+            error,
+            errorDescription: searchParams.get('error_description'),
+            allParams: Object.fromEntries(searchParams.entries())
+          });
+          
           setStatus('error');
-          setMessage(`Login failed: ${error}`);
+          const errorDesc = searchParams.get('error_description');
+          setMessage(`Login failed: ${error}${errorDesc ? ` - ${errorDesc}` : ''}`);
           setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
         if (!code) {
+          console.error('[OAuth2Callback] No authorization code received');
+          console.log('Available search params:', Object.fromEntries(searchParams.entries()));
+          
           setStatus('error');
-          setMessage('No authorization code received');
+          setMessage('No authorization code received from login provider. Please try logging in again.');
           setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
-        console.log('[OAuth2Callback] Processing authorization code...');
+        console.log('[OAuth2Callback] Starting token exchange process...');
+        setMessage('Exchanging authorization code for tokens...');
         
         // Handle the OAuth2 callback with state parameter
         const success = await oauth2Service.handleCallback(code, state || undefined);
         
         if (success) {
+          console.log('[OAuth2Callback] ✅ Token exchange successful!');
           setStatus('success');
-          setMessage('Login successful! Redirecting...');
+          setMessage('Login successful! Loading your profile...');
           
-          console.log('[OAuth2Callback] Token exchange successful, refreshing auth...');
+          console.log('[OAuth2Callback] Refreshing authentication state...');
           
           // Refresh auth state to get user info
           await refreshAuth();
           
-          console.log('[OAuth2Callback] Auth refreshed, redirecting to dashboard...');
+          console.log('[OAuth2Callback] ✅ Authentication state refreshed, redirecting...');
+          setMessage('Welcome! Redirecting to dashboard...');
           
           // Small delay to show success message
           setTimeout(() => {
             navigate('/dashboard');
           }, 1500);
         } else {
-          console.error('[OAuth2Callback] Token exchange returned false - login failed');
+          console.error('[OAuth2Callback] ❌ Token exchange returned false');
+          console.log('This usually indicates a network issue or backend configuration problem');
+          
           setStatus('error');
-          setMessage('Token exchange failed. Please check your network connection and try again.');
-          setTimeout(() => navigate('/login'), 3000);
+          setMessage('Authentication failed. Please check the browser console for details and try again.');
+          
+          // Log debugging instructions for user
+          console.group('[OAuth2Callback] Debugging Instructions');
+          console.log('1. Check if backend is accessible:');
+          console.log('   - Open browser console');
+          console.log('   - Run: fetch("/api/oauth2/health").then(r => r.json()).then(console.log)');
+          console.log('2. Check network tab for failed requests');
+          console.log('3. Verify environment variables are correct');
+          console.groupEnd();
+          
+          setTimeout(() => navigate('/login'), 5000); // Longer delay for debugging
         }
       } catch (error) {
-        console.error('[OAuth2Callback] Error:', error);
+        console.group('[OAuth2Callback] ❌ Callback Error');
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          name: error instanceof Error ? error.name : 'Unknown',
+          cause: error instanceof Error ? (error as any).cause : undefined
+        });
+        console.log('Current URL:', window.location.href);
+        console.log('Search params:', Object.fromEntries(searchParams.entries()));
+        console.groupEnd();
+        
         setStatus('error');
-        setMessage(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        setTimeout(() => navigate('/login'), 3000);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        setMessage(`Authentication error: ${errorMessage}`);
+        
+        setTimeout(() => navigate('/login'), 5000);
       }
     };
 

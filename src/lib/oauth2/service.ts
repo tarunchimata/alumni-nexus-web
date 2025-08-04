@@ -17,9 +17,26 @@ export class OAuth2Service {
   }
 
   private log(message: string, data?: any) {
-    if (import.meta.env.DEV) {
-      console.log(`[OAuth2] ${message}`, data || '');
-    }
+    const timestamp = new Date().toISOString();
+    console.log(`[OAuth2Service ${timestamp}] ${message}`, data || '');
+  }
+
+  private logError(message: string, error?: any) {
+    const timestamp = new Date().toISOString();
+    console.error(`[OAuth2Service ERROR ${timestamp}] ${message}`, error || '');
+  }
+
+  private debugLog(step: string, details: any) {
+    console.group(`[OAuth2 DEBUG] ${step}`);
+    console.log('Details:', details);
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Environment:', {
+      isDev: import.meta.env.DEV,
+      mode: import.meta.env.MODE,
+      origin: window.location.origin,
+      protocol: window.location.protocol
+    });
+    console.groupEnd();
   }
 
   async buildAuthUrl(): Promise<string> {
@@ -122,14 +139,34 @@ export class OAuth2Service {
   }
 
   async exchangeCodeForTokens(code: string, receivedState: string): Promise<TokenResponse> {
+    this.debugLog('Token Exchange Start', {
+      hasCode: !!code,
+      codeLength: code?.length,
+      receivedState,
+      timestamp: new Date().toISOString()
+    });
+
     const { state: storedState, codeVerifier } = this.storage.getOAuth2State();
+
+    this.debugLog('State Validation', {
+      hasStoredState: !!storedState,
+      hasReceivedState: !!receivedState,
+      statesMatch: storedState === receivedState,
+      storedState: storedState?.substring(0, 10) + '...',
+      receivedState: receivedState?.substring(0, 10) + '...'
+    });
 
     if (receivedState && (!storedState || storedState !== receivedState)) {
       this.storage.clearOAuth2State();
+      this.logError('Authentication state mismatch detected', {
+        stored: storedState,
+        received: receivedState
+      });
       throw new Error('Authentication state mismatch detected. Please try logging in again.');
     }
 
     if (!codeVerifier) {
+      this.logError('Code verifier missing from storage');
       throw new Error('Authentication parameters missing. Please try logging in again.');
     }
 
@@ -141,19 +178,39 @@ export class OAuth2Service {
     const fallbackApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
     const apiBaseUrl = backendApiUrl || fallbackApiUrl;
     const tokenUrl = `${apiBaseUrl}/oauth2/token`;
+    const redirectUri = this.getRedirectUri();
 
     const tokenData = {
       code,
       code_verifier: codeVerifier,
-      redirectUri: this.getRedirectUri(),
+      redirectUri,
     };
 
-    this.log('Exchanging authorization code for tokens via backend API', {
+    this.debugLog('Token Exchange Request Setup', {
       tokenUrl,
-      redirectUri: this.getRedirectUri()
+      redirectUri,
+      hasCode: !!code,
+      codeLength: code?.length,
+      hasCodeVerifier: !!codeVerifier,
+      codeVerifierLength: codeVerifier?.length,
+      backendApiUrl,
+      fallbackApiUrl,
+      selectedApiUrl: apiBaseUrl,
+      currentOrigin: window.location.origin,
+      currentHost: window.location.host,
+      isHTTPS: window.location.protocol === 'https:',
+      environmentVars: {
+        VITE_BACKEND_API_URL: import.meta.env.VITE_BACKEND_API_URL,
+        VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+        VITE_PUBLIC_URL: import.meta.env.VITE_PUBLIC_URL,
+        VITE_OAUTH2_REDIRECT_URI: import.meta.env.VITE_OAUTH2_REDIRECT_URI
+      }
     });
 
     try {
+      this.log('Making token exchange request to backend...');
+      
+      const startTime = performance.now();
       const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
@@ -162,31 +219,75 @@ export class OAuth2Service {
         },
         body: JSON.stringify(tokenData),
       });
+      const endTime = performance.now();
+
+      this.debugLog('Token Exchange Response Received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+        type: response.type,
+        redirected: response.redirected,
+        headers: Object.fromEntries(response.headers.entries()),
+        responseTime: `${(endTime - startTime).toFixed(2)}ms`
+      });
 
       const responseText = await response.text();
+      
+      this.debugLog('Response Body', {
+        hasContent: !!responseText,
+        contentLength: responseText?.length,
+        contentPreview: responseText?.substring(0, 200) + (responseText?.length > 200 ? '...' : '')
+      });
 
       if (!response.ok) {
         let errorDetails: KeycloakErrorResponse;
         try {
           errorDetails = JSON.parse(responseText);
         } catch (parseError) {
+          this.logError('Failed to parse error response as JSON', parseError);
           errorDetails = { error: 'parse_error', error_description: responseText };
         }
 
-        this.log('Token exchange failed', { status: response.status, error: errorDetails });
+        this.logError('Token exchange failed with error response', {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetails,
+          responseUrl: response.url,
+          fullResponse: responseText
+        });
+        
         const errorMessage = this.getErrorMessage(response.status, errorDetails);
         throw new Error(errorMessage);
       }
 
       const tokens: TokenResponse = JSON.parse(responseText);
       this.storage.storeTokens(tokens);
-      this.log('Tokens stored successfully');
+      
+      this.debugLog('Token Exchange Success', {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        tokenType: tokens.token_type,
+        expiresIn: tokens.expires_in,
+        accessTokenPreview: tokens.access_token?.substring(0, 50) + '...'
+      });
+
       return tokens;
 
     } catch (fetchError) {
+      this.logError('Token exchange request failed', {
+        error: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+        stack: fetchError instanceof Error ? fetchError.stack : undefined,
+        tokenUrl,
+        redirectUri,
+        name: fetchError instanceof Error ? fetchError.name : 'Unknown',
+        cause: fetchError instanceof Error ? (fetchError as any).cause : undefined
+      });
+      
       if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
         throw new Error('Network error: Could not connect to backend server. Please check your connection.');
       }
+      
       throw fetchError;
     }
   }

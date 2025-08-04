@@ -426,4 +426,82 @@ router.get('/config', (req, res) => {
   }
 });
 
+// GET /api/oauth2/health - OAuth2 debugging health check
+router.get('/health', async (req, res) => {
+  try {
+    logger.info('=== OAUTH2 HEALTH CHECK START ===');
+    
+    const healthData = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'OAuth2 Service',
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      configuration: {
+        keycloakUrl: process.env.KEYCLOAK_URL || 'NOT_CONFIGURED',
+        keycloakRealm: process.env.KEYCLOAK_REALM || 'NOT_CONFIGURED',
+        frontendClientId: process.env.KEYCLOAK_FRONTEND_CLIENT_ID || 'NOT_CONFIGURED',
+        backendClientId: process.env.KEYCLOAK_BACKEND_CLIENT_ID || 'NOT_CONFIGURED',
+        hasClientSecret: !!process.env.KEYCLOAK_FRONTEND_CLIENT_SECRET,
+        corsOrigins: process.env.CORS_ORIGIN || 'NOT_CONFIGURED',
+        redirectUri: process.env.OAUTH2_REDIRECT_URI || 'NOT_CONFIGURED'
+      },
+      endpoints: {
+        authorization: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
+        token: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+        userinfo: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
+        logout: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/logout`,
+        discovery: `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/.well-known/openid-configuration`
+      },
+      networkTest: {
+        origin: req.headers.origin || 'NO_ORIGIN',
+        userAgent: req.headers['user-agent'] || 'NO_USER_AGENT',
+        xForwardedFor: req.headers['x-forwarded-for'] || 'NO_X_FORWARDED_FOR',
+        host: req.headers.host || 'NO_HOST',
+        protocol: req.protocol || 'NO_PROTOCOL',
+        secure: req.secure,
+        ip: req.ip || 'NO_IP'
+      }
+    };
+
+    // Test Keycloak connectivity
+    try {
+      logger.info('Testing Keycloak connectivity...');
+      const discoveryUrl = `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/.well-known/openid-configuration`;
+      
+      const keycloakResponse = await axios.get(discoveryUrl, { timeout: 5000 });
+      healthData.keycloakConnectivity = {
+        status: 'connected',
+        responseTime: 'ok',
+        issuer: keycloakResponse.data?.issuer || 'unknown'
+      };
+      logger.info('Keycloak connectivity test successful');
+    } catch (error) {
+      logger.error('Keycloak connectivity test failed:', error);
+      healthData.keycloakConnectivity = {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'unknown error',
+        details: axios.isAxiosError(error) ? {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        } : undefined
+      };
+      healthData.status = 'degraded';
+    }
+
+    logger.info('=== OAUTH2 HEALTH CHECK COMPLETE ===');
+    res.status(200).json(healthData);
+  } catch (error) {
+    logger.error('=== OAUTH2 HEALTH CHECK ERROR ===');
+    logger.error('OAuth2 health check failed:', error);
+    res.status(500).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'OAuth2 Service',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
