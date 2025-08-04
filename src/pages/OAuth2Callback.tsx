@@ -26,7 +26,8 @@ const OAuth2Callback = () => {
           state: state,
           code: code?.substring(0, 20) + '...',
           currentUrl: window.location.href,
-          origin: window.location.origin
+          origin: window.location.origin,
+          redirectPath: window.location.pathname
         });
 
         if (error) {

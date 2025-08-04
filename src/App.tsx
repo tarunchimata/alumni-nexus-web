@@ -102,6 +102,7 @@ function App() {
               <Route path="/register" element={<MultiStepRegister />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
+              <Route path="/auth/callback" element={<OAuth2Callback />} />
 
               {/* Dashboard Routes - Updated to match required paths */}
               <Route path="/dashboard" element={<DashboardRoute />} />
