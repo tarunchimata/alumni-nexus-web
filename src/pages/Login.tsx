@@ -21,9 +21,63 @@ const Login = () => {
 
   const useOAuth2 = import.meta.env.VITE_USE_OAUTH2 === 'true';
 
-  const handleOAuth2Login = () => {
-    console.log('[Login] Starting OAuth2 login flow...');
-    login(); // This calls oauth2Service.login()
+  const handleOAuth2Login = async () => {
+    console.log('[Login] Keycloak login button clicked');
+    
+    try {
+      // Show loading state
+      const button = document.querySelector('[data-oauth-login]') as HTMLButtonElement;
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Connecting to Keycloak...';
+      }
+
+      console.log('[Login] Fetching OAuth2 config from backend...');
+      
+      // Fetch config from backend API
+      const configResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/oauth2/config`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!configResponse.ok) {
+        throw new Error(`Config fetch failed: ${configResponse.status} ${configResponse.statusText}`);
+      }
+
+      const config = await configResponse.json();
+      console.log('[Login] OAuth2 config received:', config);
+
+      // Build OAuth2 authorization URL
+      const params = new URLSearchParams({
+        client_id: config.clientId,
+        redirect_uri: import.meta.env.VITE_OAUTH2_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'openid profile email',
+        state: Math.random().toString(36).substring(2, 15),
+      });
+
+      const authUrl = `${config.authorizationEndpoint}?${params.toString()}`;
+      console.log('[Login] Redirecting to Keycloak:', authUrl);
+
+      // Redirect to Keycloak
+      window.location.href = authUrl;
+
+    } catch (error) {
+      console.error('[Login] OAuth2 login failed:', error);
+      
+      // Reset button state
+      const button = document.querySelector('[data-oauth-login]') as HTMLButtonElement;
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = '<svg class="w-5 h-5 mr-2">...</svg>Login with Keycloak';
+      }
+
+      // Fallback to service method
+      console.log('[Login] Falling back to oauth2Service.login()');
+      login();
+    }
   };
 
   const handleLegacySubmit = async (e: React.FormEvent) => {
@@ -116,6 +170,7 @@ const Login = () => {
             <div className="mb-6">
               <Button 
                 onClick={handleOAuth2Login}
+                data-oauth-login
                 className="w-full h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium"
               >
                 <Shield className="w-5 h-5 mr-2" />
