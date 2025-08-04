@@ -12,7 +12,8 @@ import {
   GraduationCap,
   BookOpen,
   ChevronLeft,
-  Menu
+  Menu,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -33,6 +34,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
       { href: "/dashboard/people", icon: Users, label: "People Discovery" },
       { href: "/dashboard/connections", icon: UserPlus, label: "Connections" },
       { href: "/dashboard/events", icon: Calendar, label: "Events" },
+      { href: "/dashboard/messages", icon: MessageCircle, label: "Messages" },
     ];
 
     // Add role-specific items

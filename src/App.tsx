@@ -8,15 +8,22 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 // Pages
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
 import MultiStepRegister from "@/pages/MultiStepRegister";
 import PendingApproval from "@/pages/PendingApproval";
 import OAuth2Callback from "@/pages/OAuth2Callback";
-
-// Profile and Settings
-import Profile from "@/pages/Profile";
-import Settings from "@/pages/Settings";
 import Health from "@/pages/Health";
+
+// Dashboard Layout and Pages
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import Dashboard from "@/pages/Dashboard";
+import ActivityFeedPage from "@/pages/ActivityFeedPage";
+import PeopleDiscovery from "@/pages/PeopleDiscovery";
+import ConnectionsList from "@/pages/ConnectionsList";
+import EventsList from "@/pages/EventsList";
+import ProfileEdit from "@/pages/ProfileEdit";
+import Profile from "@/pages/Profile";
+import Messages from "@/pages/Messages";
+import Settings from "@/pages/Settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,32 +49,34 @@ function App() {
               <Route path="/auth/callback" element={<OAuth2Callback />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
 
-              {/* Dashboard Route */}
+              {/* Dashboard Routes with Nested Layout */}
               <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <DashboardLayout />
                   </ProtectedRoute>
-                } 
-              />
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="activity" element={<ActivityFeedPage />} />
+                <Route path="people" element={<PeopleDiscovery />} />
+                <Route path="connections" element={<ConnectionsList />} />
+                <Route path="events" element={<EventsList />} />
+                <Route path="messages" element={<Messages />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="profile/edit" element={<ProfileEdit />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
 
-              {/* Profile and Settings */}
+              {/* Legacy Routes for Backward Compatibility */}
               <Route 
                 path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                } 
+                element={<Navigate to="/dashboard/profile" replace />}
               />
               <Route 
                 path="/settings" 
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                } 
+                element={<Navigate to="/dashboard/settings" replace />}
               />
 
               {/* Health check endpoint */}
