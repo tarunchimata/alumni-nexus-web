@@ -17,6 +17,8 @@ router.use((req, res, next) => {
     'http://192.168.1.99:8080',
     'http://192.168.1.99:3033',
     'http://localhost:5173',
+    'https://alumni.hostingmanager.in',
+    'https://school.hostingmanager.in',
     'https://preview--alumni-nexus-web.lovable.app',
     process.env.CORS_ORIGIN?.split(',') || []
   ].flat().filter(Boolean);

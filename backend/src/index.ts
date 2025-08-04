@@ -57,6 +57,8 @@ const allowedOrigins = [
   'http://localhost:3033',
   'http://192.168.1.99:8080',
   'http://192.168.1.99:3033',
+  'https://alumni.hostingmanager.in',
+  'https://school.hostingmanager.in',
   ...(process.env.CORS_ORIGIN?.split(',') || [])
 ];
 

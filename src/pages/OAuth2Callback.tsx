@@ -23,7 +23,10 @@ const OAuth2Callback = () => {
           hasError: !!error, 
           hasState: !!state,
           error: error,
-          currentUrl: window.location.href
+          state: state,
+          code: code?.substring(0, 20) + '...',
+          currentUrl: window.location.href,
+          origin: window.location.origin
         });
 
         if (error) {
@@ -61,8 +64,9 @@ const OAuth2Callback = () => {
             navigate('/dashboard');
           }, 1500);
         } else {
+          console.error('[OAuth2Callback] Token exchange returned false - login failed');
           setStatus('error');
-          setMessage('Login failed. Please try again.');
+          setMessage('Token exchange failed. Please check your network connection and try again.');
           setTimeout(() => navigate('/login'), 3000);
         }
       } catch (error) {
