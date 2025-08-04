@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from '@/components/shared/Logo';
+import { oauth2Service } from '@/lib/oauth2';
 import loginBg from '@/assets/login-bg.jpg';
 
 export const Login = () => {
@@ -29,6 +31,17 @@ export const Login = () => {
     setIsSubmitting(true);
     await login(email, password);
     setIsSubmitting(false);
+  };
+
+  const handleKeycloakLogin = async () => {
+    try {
+      setIsSubmitting(true);
+      await oauth2Service.login();
+    } catch (error) {
+      console.error('Keycloak login failed:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,7 +75,29 @@ export const Login = () => {
               Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Keycloak Login Button */}
+            <div className="space-y-4">
+              <Button 
+                type="button"
+                onClick={handleKeycloakLogin}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={isSubmitting}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                {isSubmitting ? 'Connecting...' : 'Login with Keycloak'}
+              </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

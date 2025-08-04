@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { oauth2Service } from '@/lib/oauth2';
 
 interface User {
   id: string;
@@ -40,6 +41,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkAuthStatus = async () => {
     try {
+      // First try OAuth2 authentication
+      const isOAuth2Auth = await oauth2Service.isAuthenticated();
+      if (isOAuth2Auth) {
+        const userInfo = await oauth2Service.getUserInfo();
+        if (userInfo) {
+          setUser({
+            id: userInfo.id,
+            email: userInfo.email,
+            firstName: userInfo.firstName,
+            lastName: userInfo.lastName,
+            role: userInfo.role,
+            schoolId: userInfo.schoolId,
+            avatar: userInfo.avatar,
+            status: userInfo.status
+          });
+          setToken('oauth2-token');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Fallback to session-based authentication
       const response = await fetch(`${apiBaseUrl}/auth/profile`, {
         method: 'GET',
         credentials: 'include',

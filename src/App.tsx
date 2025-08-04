@@ -11,6 +11,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import MultiStepRegister from "@/pages/MultiStepRegister";
 import PendingApproval from "@/pages/PendingApproval";
+import OAuth2Callback from "@/pages/OAuth2Callback";
 
 // Profile and Settings
 import Profile from "@/pages/Profile";
@@ -38,6 +39,7 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<MultiStepRegister />} />
+              <Route path="/auth/callback" element={<OAuth2Callback />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
 
               {/* Dashboard Route */}
