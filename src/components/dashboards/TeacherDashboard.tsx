@@ -114,4 +114,5 @@ const TeacherDashboard = () => {
   );
 };
 
+export { TeacherDashboard };
 export default TeacherDashboard;
