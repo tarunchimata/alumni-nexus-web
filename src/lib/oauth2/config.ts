@@ -19,8 +19,9 @@ export class OAuth2ConfigService {
     try {
       console.log('[OAuth2Config] Fetching configuration from API...');
       
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
-      const response = await fetch(`${apiBaseUrl}/oauth2/config`);
+      const backendUrl = import.meta.env.VITE_BACKEND_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.99:3033/api';
+      console.log('[OAuth2Config] Using backend URL:', backendUrl);
+      const response = await fetch(`${backendUrl}/oauth2/config`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch OAuth2 config: ${response.status}`);

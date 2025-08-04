@@ -75,23 +75,22 @@ export class OAuth2Service {
   }
 
   private getRedirectUri(): string {
-    // Use domain-aware redirect URI
-    const publicUrl = import.meta.env.VITE_PUBLIC_URL;
-    const devRedirectUri = import.meta.env.VITE_DEV_OAUTH2_REDIRECT_URI;
-    const defaultRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
+    // Use the configured redirect URI from environment
+    const configuredRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
     
-    // If we're on the production domain, use the public URL with consistent /auth/callback path
-    if (publicUrl && window.location.origin === publicUrl) {
-      return `${publicUrl}/auth/callback`;
+    // For development, prefer localhost over IP addresses for consistency
+    if (import.meta.env.DEV) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return `http://localhost:8080/auth/callback`;
+      }
+      // If running on IP, use that but ensure port consistency
+      if (window.location.hostname === '192.168.1.99') {
+        return `http://192.168.1.99:8080/auth/callback`;
+      }
     }
     
-    // If we're in development and have a dev redirect URI, use it
-    if (devRedirectUri && window.location.hostname === '192.168.1.99') {
-      return devRedirectUri;
-    }
-    
-    // Use current origin as fallback
-    return defaultRedirectUri || `${window.location.origin}/auth/callback`;
+    // Use configured redirect URI or current origin as fallback
+    return configuredRedirectUri || `${window.location.origin}/auth/callback`;
   }
 
   async login(): Promise<void> {
