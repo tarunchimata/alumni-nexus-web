@@ -1,18 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { oauth2Service } from '@/lib/oauth2';
+import { authService, UserInfo } from '@/lib/auth';
 
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  schoolId?: string;
-  avatar?: string;
-  status?: string;
-}
+type User = UserInfo;
 
 interface AuthContextType {
   user: User | null;
@@ -33,29 +24,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const apiBaseUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://192.168.1.99:3033/api';
-
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const isAuthenticated = await oauth2Service.isAuthenticated();
+      const isAuthenticated = await authService.isAuthenticated();
       if (isAuthenticated) {
-        const userInfo = await oauth2Service.getUserInfo();
+        const userInfo = await authService.getUserInfo();
         if (userInfo) {
-          setUser({
-            id: userInfo.id,
-            email: userInfo.email,
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            role: userInfo.role,
-            schoolId: userInfo.schoolId,
-            avatar: userInfo.avatar
-          });
-          const accessToken = await oauth2Service.getAccessToken();
-          setToken(accessToken);
+          setUser(userInfo);
         }
       }
     } catch (error) {
@@ -68,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      await oauth2Service.login();
+      await authService.login();
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -81,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      await oauth2Service.logout();
+      await authService.logout();
       setUser(null);
       setToken(null);
       toast.success('Logged out successfully');

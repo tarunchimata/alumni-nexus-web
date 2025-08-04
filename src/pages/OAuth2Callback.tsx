@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { oauth2Service } from '@/lib/oauth2';
+import { authService } from '@/lib/auth';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const OAuth2Callback = () => {
@@ -72,7 +72,7 @@ const OAuth2Callback = () => {
         setMessage('Exchanging authorization code for tokens...');
         
         // Handle the OAuth2 callback with state parameter
-        const success = await oauth2Service.handleCallback(code, state || undefined);
+        const success = await authService.handleCallback(code, state || undefined);
         
         if (success) {
           console.log('[OAuth2Callback] ✅ Token exchange successful!');

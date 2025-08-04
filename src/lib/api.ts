@@ -1,5 +1,5 @@
 // API utilities and configuration
-import { oauth2Service } from './oauth2';
+import { authService } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' 
@@ -16,7 +16,7 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const token = await oauth2Service.getAccessToken();
+    const token = localStorage.getItem('auth_access_token');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -78,7 +78,7 @@ export class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
-    const token = await oauth2Service.getAccessToken();
+    const token = localStorage.getItem('auth_access_token');
     const formData = new FormData();
     formData.append('file', file);
 
