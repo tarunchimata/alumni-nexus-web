@@ -25,7 +25,7 @@ class AuthService {
   private readonly keycloakUrl = 'https://login.hostingmanager.in';
   private readonly realm = 'myschoolbuddies-realm';
   private readonly clientId = 'myschoolbuddies-client';
-  private readonly redirectUri = `${window.location.origin}/auth/callback`;
+  private readonly redirectUri = `${window.location.protocol}//${window.location.host}/auth/callback`;
 
   // Generate PKCE parameters
   private generateCodeVerifier(): string {
@@ -85,43 +85,61 @@ class AuthService {
     window.location.href = authUrl;
   }
 
-  // Handle callback
+  // Handle callback with enhanced error handling
   async handleCallback(code: string, state?: string): Promise<boolean> {
     try {
-      console.log('[Auth] Handling callback...', { code: !!code, state: !!state });
+      console.log('[Auth] 🔄 Handling callback...', { 
+        hasCode: !!code, 
+        codeLength: code?.length,
+        hasState: !!state,
+        stateLength: state?.length 
+      });
 
-      // Validate state
+      // Validate state parameter
       const storedState = localStorage.getItem('auth_state');
-      if (state && storedState !== state) {
-        throw new Error('Invalid state parameter');
+      if (state && storedState && storedState !== state) {
+        console.error('[Auth] ❌ State validation failed', {
+          received: state.substring(0, 20) + '...',
+          stored: storedState.substring(0, 20) + '...'
+        });
+        throw new Error('Invalid state parameter - possible CSRF attack');
       }
 
       // Get code verifier
       const codeVerifier = localStorage.getItem('auth_code_verifier');
       if (!codeVerifier) {
-        throw new Error('Missing code verifier');
+        console.error('[Auth] ❌ Missing code verifier in localStorage');
+        throw new Error('Missing PKCE code verifier');
       }
 
-      // Clean up stored values
-      localStorage.removeItem('auth_state');
-      localStorage.removeItem('auth_code_verifier');
+      console.log('[Auth] ✅ State and verifier validation passed');
 
       // Exchange code for tokens
+      console.log('[Auth] 🔄 Exchanging authorization code for tokens...');
       const tokens = await this.exchangeCodeForTokens(code, codeVerifier);
       
       // Store tokens
+      console.log('[Auth] 💾 Storing authentication tokens...');
       this.storeTokens(tokens);
       
-      console.log('[Auth] Login successful!');
+      // Clean up stored values AFTER successful exchange
+      localStorage.removeItem('auth_state');
+      localStorage.removeItem('auth_code_verifier');
+      
+      console.log('[Auth] ✅ Login flow completed successfully!');
       return true;
     } catch (error) {
-      console.error('[Auth] Callback failed:', error);
+      console.error('[Auth] ❌ Callback processing failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        code: code?.substring(0, 20) + '...',
+        state: state?.substring(0, 20) + '...',
+      });
       this.clearTokens();
       return false;
     }
   }
 
-  // Exchange code for tokens
+  // Exchange code for tokens with enhanced logging
   private async exchangeCodeForTokens(code: string, codeVerifier: string): Promise<TokenResponse> {
     const tokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
 
@@ -133,7 +151,13 @@ class AuthService {
       code_verifier: codeVerifier,
     });
 
-    console.log('[Auth] Exchanging code for tokens...');
+    console.log('[Auth] 🔄 Token exchange request:', {
+      url: tokenUrl,
+      clientId: this.clientId,
+      redirectUri: this.redirectUri,
+      codeLength: code.length,
+      verifierLength: codeVerifier.length
+    });
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -143,13 +167,41 @@ class AuthService {
       body: params.toString(),
     });
 
+    console.log('[Auth] 📡 Token exchange response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
     if (!response.ok) {
-      const error = await response.text();
-      console.error('[Auth] Token exchange failed:', error);
-      throw new Error(`Token exchange failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('[Auth] ❌ Token exchange failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      
+      let errorMessage = `Token exchange failed (${response.status})`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error_description) {
+          errorMessage += `: ${errorJson.error_description}`;
+        }
+      } catch {
+        errorMessage += `: ${errorText}`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    return response.json();
+    const tokens = await response.json();
+    console.log('[Auth] ✅ Tokens received successfully:', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      expiresIn: tokens.expires_in
+    });
+
+    return tokens;
   }
 
   // Get user info
