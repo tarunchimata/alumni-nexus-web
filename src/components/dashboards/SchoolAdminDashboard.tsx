@@ -6,7 +6,13 @@ import { Users, GraduationCap, BookOpen, UserPlus, Settings, BarChart3, Calendar
 
 const SchoolAdminDashboard = () => {
   return (
-    <div className="space-y-6">
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">School Administration</h2>
+          <p className="text-gray-600">Manage your school's community and data</p>
+        </div>
+        <div className="space-y-6">
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -241,6 +247,8 @@ const SchoolAdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+        </div>
       </div>
     </div>
   );

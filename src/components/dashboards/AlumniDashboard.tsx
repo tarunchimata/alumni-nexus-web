@@ -6,7 +6,13 @@ import { Users, MessageCircle, Calendar, Briefcase, Heart, Network, Trophy, Star
 
 const AlumniDashboard = () => {
   return (
-    <div className="space-y-6">
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">Alumni Dashboard</h2>
+          <p className="text-gray-600">Connect with fellow alumni and mentor students</p>
+        </div>
+        <div className="space-y-6">
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -241,6 +247,8 @@ const AlumniDashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+        </div>
       </div>
     </div>
   );

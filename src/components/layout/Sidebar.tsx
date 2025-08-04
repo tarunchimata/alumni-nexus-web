@@ -13,7 +13,9 @@ import {
   BookOpen,
   ChevronLeft,
   Menu,
-  MessageCircle
+  MessageCircle,
+  Upload,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -42,13 +44,15 @@ export const Sidebar = ({ className }: SidebarProps) => {
     
     if (user?.role === 'platform_admin') {
       roleItems.push(
-        { href: "/dashboard/admin", icon: Shield, label: "Admin Panel" }
+        { href: "/dashboard/admin/csv-upload", icon: Upload, label: "Data Import" },
+        { href: "/dashboard/admin/analytics", icon: BarChart3, label: "Analytics" }
       );
     }
     
     if (user?.role === 'school_admin') {
       roleItems.push(
-        { href: "/dashboard/school", icon: GraduationCap, label: "School Management" }
+        { href: "/dashboard/admin/csv-upload", icon: Upload, label: "Import Users" },
+        { href: "/dashboard/school/analytics", icon: BarChart3, label: "School Analytics" }
       );
     }
     

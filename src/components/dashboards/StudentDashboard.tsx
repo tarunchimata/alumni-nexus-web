@@ -6,7 +6,13 @@ import { Users, BookOpen, MessageCircle, Calendar, Award, GraduationCap, Heart, 
 
 const StudentDashboard = () => {
   return (
-    <div className="space-y-6">
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">Student Dashboard</h2>
+          <p className="text-gray-600">Connect with classmates, alumni, and access resources</p>
+        </div>
+        <div className="space-y-6">
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -242,6 +248,8 @@ const StudentDashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+        </div>
       </div>
     </div>
   );

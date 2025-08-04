@@ -16,7 +16,7 @@ interface UserInfo {
   firstName: string;
   lastName: string;
   role: string;
-  schoolId?: string;
+  schoolId?: string | number;
   avatar?: string;
   status?: string;
 }
@@ -243,7 +243,7 @@ class AuthService {
         firstName: userInfo.given_name || '',
         lastName: userInfo.family_name || '',
         role,
-        schoolId: decodedToken?.school_id,
+        schoolId: decodedToken?.school_id ? parseInt(decodedToken.school_id) : undefined,
         avatar: userInfo.picture,
       };
     } catch (error) {
