@@ -31,9 +31,12 @@ export class OAuth2Service {
 
     this.storage.storeOAuth2State(codeVerifier, state);
 
+    // Get redirect URI based on current domain
+    const redirectUri = this.getRedirectUri();
+
     const params = new URLSearchParams({
       client_id: this.config.getClientId(),
-      redirect_uri: this.config.getRedirectUriValue(),
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid profile email',
       state,
@@ -47,11 +50,31 @@ export class OAuth2Service {
       keycloakUrl: this.config.getKeycloakUrl(),
       realm: this.config.getRealm(),
       clientId: this.config.getClientId(),
-      redirectUri: this.config.getRedirectUriValue(),
+      redirectUri,
       authUrl: authUrl.substring(0, 100) + '...'
     });
 
     return authUrl;
+  }
+
+  private getRedirectUri(): string {
+    // Use domain-aware redirect URI
+    const publicUrl = import.meta.env.VITE_PUBLIC_URL;
+    const devRedirectUri = import.meta.env.VITE_DEV_OAUTH2_REDIRECT_URI;
+    const defaultRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
+    
+    // If we're on the production domain, use the public URL
+    if (publicUrl && window.location.origin === publicUrl) {
+      return `${publicUrl}/oauth2/callback`;
+    }
+    
+    // If we're in development and have a dev redirect URI, use it
+    if (devRedirectUri && window.location.hostname === '192.168.1.99') {
+      return devRedirectUri;
+    }
+    
+    // Use current origin as fallback
+    return defaultRedirectUri || `${window.location.origin}/oauth2/callback`;
   }
 
   async login(): Promise<void> {
@@ -119,12 +142,12 @@ export class OAuth2Service {
     const tokenData = {
       code,
       code_verifier: codeVerifier,
-      redirectUri: this.config.getRedirectUriValue(),
+      redirectUri: this.getRedirectUri(),
     };
 
     this.log('Exchanging authorization code for tokens via backend API', {
       tokenUrl,
-      redirectUri: this.config.getRedirectUriValue()
+      redirectUri: this.getRedirectUri()
     });
 
     try {
@@ -174,7 +197,7 @@ export class OAuth2Service {
       case 'invalid_grant':
         return `${baseMessage} - Invalid authorization code or expired session. Please try logging in again.`;
       case 'invalid_request':
-        return `${baseMessage} - Invalid request parameters. Please check redirect_uri: ${this.config.getRedirectUriValue()}`;
+        return `${baseMessage} - Invalid request parameters. Please check redirect_uri: ${this.getRedirectUri()}`;
       case 'unsupported_grant_type':
         return `${baseMessage} - Authorization code grant type not supported for this client.`;
       default:

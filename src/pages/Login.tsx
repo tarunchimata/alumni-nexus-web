@@ -49,10 +49,27 @@ const Login = () => {
       const config = await configResponse.json();
       console.log('[Login] OAuth2 config received:', config);
 
+      // Determine redirect URI based on current domain
+      const getRedirectUri = () => {
+        const publicUrl = import.meta.env.VITE_PUBLIC_URL;
+        const devRedirectUri = import.meta.env.VITE_DEV_OAUTH2_REDIRECT_URI;
+        const defaultRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
+        
+        if (publicUrl && window.location.origin === publicUrl) {
+          return `${publicUrl}/oauth2/callback`;
+        }
+        
+        if (devRedirectUri && window.location.hostname === '192.168.1.99') {
+          return devRedirectUri;
+        }
+        
+        return defaultRedirectUri || `${window.location.origin}/oauth2/callback`;
+      };
+
       // Build OAuth2 authorization URL
       const params = new URLSearchParams({
         client_id: config.clientId,
-        redirect_uri: import.meta.env.VITE_OAUTH2_REDIRECT_URI,
+        redirect_uri: getRedirectUri(),
         response_type: 'code',
         scope: 'openid profile email',
         state: Math.random().toString(36).substring(2, 15),
