@@ -63,9 +63,9 @@ export class OAuth2Service {
     const devRedirectUri = import.meta.env.VITE_DEV_OAUTH2_REDIRECT_URI;
     const defaultRedirectUri = import.meta.env.VITE_OAUTH2_REDIRECT_URI;
     
-    // If we're on the production domain, use the public URL
+    // If we're on the production domain, use the public URL with consistent /auth/callback path
     if (publicUrl && window.location.origin === publicUrl) {
-      return `${publicUrl}/oauth2/callback`;
+      return `${publicUrl}/auth/callback`;
     }
     
     // If we're in development and have a dev redirect URI, use it
@@ -74,7 +74,7 @@ export class OAuth2Service {
     }
     
     // Use current origin as fallback
-    return defaultRedirectUri || `${window.location.origin}/oauth2/callback`;
+    return defaultRedirectUri || `${window.location.origin}/auth/callback`;
   }
 
   async login(): Promise<void> {
@@ -136,7 +136,10 @@ export class OAuth2Service {
     this.storage.clearOAuth2State();
 
     // Use our backend API endpoint instead of calling Keycloak directly
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+    // Use HTTPS backend URL when available to avoid mixed content issues
+    const backendApiUrl = import.meta.env.VITE_BACKEND_API_URL;
+    const fallbackApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+    const apiBaseUrl = backendApiUrl || fallbackApiUrl;
     const tokenUrl = `${apiBaseUrl}/oauth2/token`;
 
     const tokenData = {
@@ -283,7 +286,10 @@ export class OAuth2Service {
       }
 
       // Use backend API endpoint for user info
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+      // Use HTTPS backend URL when available to avoid mixed content issues
+      const backendApiUrl = import.meta.env.VITE_BACKEND_API_URL;
+      const fallbackApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3033/api';
+      const apiBaseUrl = backendApiUrl || fallbackApiUrl;
       const userInfoUrl = `${apiBaseUrl}/oauth2/userinfo`;
 
       this.log('Fetching user info via backend API', { userInfoUrl });
