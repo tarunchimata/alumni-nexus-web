@@ -12,7 +12,6 @@ import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 
 // Import routes
-import authRoutes from './routes/auth';
 import oauth2Routes from './routes/oauth2';
 import schoolRoutes from './routes/schools';
 import postRoutes from './routes/posts';
@@ -252,7 +251,6 @@ app.get('/api/test', (req, res) => {
 });
 
 // API Routes with proper middleware
-app.use('/api/auth', authLimiter, csrfProtection as any, authRoutes);
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF
 app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);

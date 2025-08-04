@@ -100,14 +100,24 @@ export class OAuth2StorageService {
     }
   }
 
-  // Clear all stored tokens
+  // Clear all stored tokens and legacy auth data
   clearTokens(): void {
     try {
+      // Clear OAuth2 tokens
       localStorage.removeItem('oauth2_access_token');
       localStorage.removeItem('oauth2_refresh_token');
       localStorage.removeItem('oauth2_expires_at');
       localStorage.removeItem('oauth2_code_verifier');
       localStorage.removeItem('oauth2_state');
+      localStorage.removeItem('oauth2_login_timestamp');
+      
+      // Clear any legacy authentication data
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('keycloak_token');
+      localStorage.removeItem('user_data');
+      
+      console.log('[OAuth2] ✅ All tokens and legacy auth data cleared');
     } catch (error) {
       console.log('[OAuth2] Warning: Could not clear tokens from localStorage', error);
     }

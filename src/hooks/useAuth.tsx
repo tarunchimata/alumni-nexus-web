@@ -16,7 +16,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: () => Promise<boolean>;
   logout: () => void;
   register: () => void;
   isLoading: boolean;
@@ -41,9 +41,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkAuthStatus = async () => {
     try {
-      // First try OAuth2 authentication
-      const isOAuth2Auth = await oauth2Service.isAuthenticated();
-      if (isOAuth2Auth) {
+      const isAuthenticated = await oauth2Service.isAuthenticated();
+      if (isAuthenticated) {
         const userInfo = await oauth2Service.getUserInfo();
         if (userInfo) {
           setUser({
@@ -53,27 +52,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             lastName: userInfo.lastName,
             role: userInfo.role,
             schoolId: userInfo.schoolId,
-            avatar: userInfo.avatar,
-            status: userInfo.status
+            avatar: userInfo.avatar
           });
-          setToken('oauth2-token');
-          setIsLoading(false);
-          return;
+          const accessToken = await oauth2Service.getAccessToken();
+          setToken(accessToken);
         }
-      }
-
-      // Fallback to session-based authentication
-      const response = await fetch(`${apiBaseUrl}/auth/profile`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -82,31 +65,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
-      const response = await fetch(`${apiBaseUrl}/auth/login`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username: email, password }),
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData.user || userData);
-        setToken(userData.token || 'dummy-token');
-        toast.success('Login successful!');
-        navigate('/dashboard');
-        return true;
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Login failed');
-        return false;
-      }
+      await oauth2Service.login();
+      return true;
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
@@ -118,17 +81,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      await fetch(`${apiBaseUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await oauth2Service.logout();
+      setUser(null);
+      setToken(null);
+      toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
       setUser(null);
       setToken(null);
       navigate('/');
-      toast.success('Logged out successfully');
     }
   };
 
