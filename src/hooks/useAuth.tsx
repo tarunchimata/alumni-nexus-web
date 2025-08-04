@@ -1,20 +1,21 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { oauth2Service } from "@/lib/oauth2";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin';
+  role: string;
   schoolId?: string;
   avatar?: string;
-  status?: 'pending_approval' | 'active' | 'inactive' | 'rejected';
+  status?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: () => void;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: () => void;
   isLoading: boolean;
@@ -25,122 +26,95 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
-  const [authenticated, setAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  const apiBaseUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://192.168.1.99:3033/api';
 
   useEffect(() => {
-    initializeAuth();
+    checkAuthStatus();
   }, []);
 
-  const initializeAuth = async () => {
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/profile`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       
-      console.log('[Auth] Initializing authentication...');
-      
-      // Initialize OAuth2 service
-      const isAuth = await oauth2Service.initialize();
-      
-      if (isAuth) {
-        console.log('[Auth] User is authenticated, fetching user info...');
-        const userInfo = await oauth2Service.getUserInfo();
-        const authToken = await oauth2Service.getAccessToken();
-        
-        if (userInfo) {
-          // Extract role from Keycloak realm roles
-          const role = extractRoleFromKeycloakToken(authToken);
-          
-          setUser({
-            id: userInfo.id,
-            email: userInfo.email,
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            role: role,
-            schoolId: userInfo.schoolId,
-            avatar: userInfo.avatar,
-            status: userInfo.status as 'pending_approval' | 'active' | 'inactive' | 'rejected',
-          });
-          console.log('[Auth] User authenticated successfully:', userInfo.email, 'Role:', role);
-        }
-        
-        setToken(authToken || null);
-        setAuthenticated(true);
+      const response = await fetch(`${apiBaseUrl}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: email, password }),
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData.user || userData);
+        setToken(userData.token || 'dummy-token');
+        toast.success('Login successful!');
+        navigate('/dashboard');
+        return true;
       } else {
-        console.log('[Auth] User is not authenticated');
-        setAuthenticated(false);
-        setUser(null);
-        setToken(null);
+        const error = await response.json();
+        toast.error(error.message || 'Login failed');
+        return false;
       }
     } catch (error) {
-      console.error('[Auth] Authentication initialization failed:', error);
-      setAuthenticated(false);
-      setUser(null);
-      setToken(null);
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
+      return false;
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const extractRoleFromKeycloakToken = (token: string | null): 'student' | 'teacher' | 'alumni' | 'school_admin' | 'platform_admin' => {
-    if (!token) return 'student';
-    
-    try {
-      // Decode JWT token to extract realm roles
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const realmRoles = payload.realm_access?.roles || [];
-      
-      console.log('[Auth] Keycloak realm roles:', realmRoles);
-      
-      // Map Keycloak roles to our application roles
-      if (realmRoles.includes('platform_admin')) return 'platform_admin';
-      if (realmRoles.includes('school_admin')) return 'school_admin';
-      if (realmRoles.includes('teacher')) return 'teacher';
-      if (realmRoles.includes('alumni')) return 'alumni';
-      if (realmRoles.includes('student')) return 'student';
-      
-      // Default fallback
-      return 'student';
-    } catch (error) {
-      console.error('[Auth] Failed to extract role from token:', error);
-      return 'student';
-    }
-  };
-
-  const login = () => {
-    console.log('[Auth] Initiating login...');
-    oauth2Service.login();
-  };
-
-  const register = () => {
-    console.log('[Auth] Initiating registration...');
-    window.location.href = '/register';
   };
 
   const logout = async () => {
-    console.log('[Auth] Logging out...');
-    setIsLoading(true);
-    
     try {
-      await oauth2Service.logout();
+      await fetch(`${apiBaseUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
       setUser(null);
       setToken(null);
-      setAuthenticated(false);
-      
-      oauth2Service.clearCache();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('[Auth] Logout failed:', error);
-    } finally {
-      setIsLoading(false);
+      navigate('/');
+      toast.success('Logged out successfully');
     }
   };
 
-  const refreshAuth = async (): Promise<void> => {
-    console.log('[Auth] Manually refreshing auth state...');
-    await initializeAuth();
+  const register = () => {
+    navigate('/register');
+  };
+
+  const refreshAuth = async () => {
+    await checkAuthStatus();
   };
 
   const value = {
@@ -149,16 +123,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     register,
     isLoading,
-    isAuthenticated: authenticated,
+    isAuthenticated: !!user,
     token,
     refreshAuth,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

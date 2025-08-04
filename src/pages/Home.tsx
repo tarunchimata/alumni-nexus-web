@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 
 const Home = () => {
-  const { isAuthenticated, user, login, register } = useAuth();
+  const { isAuthenticated, user, register } = useAuth();
+  const navigate = useNavigate();
 
   const features = [
     {
@@ -155,7 +156,7 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
-              onClick={login}
+              onClick={() => navigate('/login')}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
             >
               Sign In
@@ -261,7 +262,7 @@ const Home = () => {
             <Button 
               size="lg" 
               variant="outline" 
-              onClick={login}
+              onClick={() => navigate('/login')}
               className="border-2 border-white text-white hover:bg-white hover:text-blue-600"
             >
               Sign In
