@@ -26,7 +26,8 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					glow: 'hsl(var(--primary-glow))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -62,13 +63,40 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Colorful education theme colors
-				'education-blue': 'hsl(var(--education-blue))',
-				'education-purple': 'hsl(var(--education-purple))',
-				'education-green': 'hsl(var(--education-green))',
-				'education-orange': 'hsl(var(--education-orange))',
-				'education-pink': 'hsl(var(--education-pink))',
-				'education-teal': 'hsl(var(--education-teal))'
+				// Role-based colors for personalized experiences
+				'platform-admin': {
+					DEFAULT: 'hsl(var(--platform-admin-primary))',
+					secondary: 'hsl(var(--platform-admin-secondary))'
+				},
+				'school-admin': {
+					DEFAULT: 'hsl(var(--school-admin-primary))',
+					secondary: 'hsl(var(--school-admin-secondary))'
+				},
+				'teacher': {
+					DEFAULT: 'hsl(var(--teacher-primary))',
+					secondary: 'hsl(var(--teacher-secondary))'
+				},
+				'alumni': {
+					DEFAULT: 'hsl(var(--alumni-primary))',
+					secondary: 'hsl(var(--alumni-secondary))'
+				},
+				'student': {
+					DEFAULT: 'hsl(var(--student-primary))',
+					secondary: 'hsl(var(--student-secondary))'
+				},
+				// Semantic colors
+				success: {
+					DEFAULT: 'hsl(var(--success))',
+					foreground: 'hsl(var(--success-foreground))'
+				},
+				warning: {
+					DEFAULT: 'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))'
+				},
+				error: {
+					DEFAULT: 'hsl(var(--error))',
+					foreground: 'hsl(var(--error-foreground))'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
