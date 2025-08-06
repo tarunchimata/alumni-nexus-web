@@ -41,7 +41,7 @@ const iconMap = {
 export const RoleDashboard = () => {
   const { user } = useAuth();
   const { theme } = useRoleTheme();
-  const { stats, isLoading, error, refresh } = useDashboardData();
+  const { stats, userSpecificData, isLoading, error, refresh } = useDashboardData();
 
   if (!user) {
     return (
@@ -311,7 +311,7 @@ export const RoleDashboard = () => {
           className="col-span-full"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {stats.quickActions.map((action, index) => {
+            {userSpecificData.quickActions.map((action, index) => {
               const IconComponent = iconMap[action.icon as keyof typeof iconMap] || Users;
               return (
                 <Link key={index} to={action.href}>
@@ -331,7 +331,7 @@ export const RoleDashboard = () => {
         </ModernDashboardCard>
 
         {/* Recent Activity */}
-        {stats.recentActivity.length > 0 && (
+        {userSpecificData.recentActivity.length > 0 && (
           <ModernDashboardCard
             title="Recent Activity"
             description="Latest updates and notifications"
@@ -340,7 +340,7 @@ export const RoleDashboard = () => {
             ]}
           >
             <div className="space-y-3">
-              {stats.recentActivity.slice(0, 5).map((activity) => (
+              {userSpecificData.recentActivity.slice(0, 5).map((activity) => (
                 <div key={activity.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                   <Avatar className="w-8 h-8">
                     <AvatarImage src={activity.user.avatar} alt={activity.user.name} />

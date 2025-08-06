@@ -431,7 +431,31 @@ router.get('/health', async (req, res) => {
   try {
     logger.info('=== OAUTH2 HEALTH CHECK START ===');
     
-    const healthData = {
+    const healthData: {
+      status: string;
+      timestamp: string;
+      service: string;
+      version: string;
+      environment: string;
+      configuration: {
+        keycloakUrl: string;
+        keycloakRealm: string;
+        frontendClientId: string;
+        backendClientId: string;
+        hasClientSecret: boolean;
+        corsOrigins: string;
+        redirectUri: string;
+      };
+      endpoints: any;
+      networkTest: any;
+      keycloakConnectivity?: {
+        status: string;
+        responseTime?: string;
+        issuer?: string;
+        error?: string;
+        details?: any;
+      };
+    } = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       service: 'OAuth2 Service',
