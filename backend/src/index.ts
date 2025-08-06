@@ -19,6 +19,7 @@ import institutionsRoutes from './routes/institutions';
 import registrationRoutes from './routes/registration';
 import dashboardRoutes from './routes/dashboards';
 import csvRoutes from './routes/csv';
+import dashboardRouter from './routes/dashboard';
 
 // Load environment variables
 dotenv.config();
@@ -257,7 +258,8 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/institutions', searchLimiter, institutionsRoutes);
 app.use('/api/registration', registrationRoutes); // No CSRF for registration
-app.use('/api/dashboards', dashboardRoutes); // Real dashboard data routes
+app.use('/api/dashboards', dashboardRoutes); // Legacy dashboard routes
+app.use('/api/dashboard', dashboardRouter); // Real dashboard data routes
 app.use('/api/csv', csvRoutes); // CSV import routes
 
 // Error handling middleware
@@ -280,14 +282,21 @@ const startServer = async () => {
     const schoolCount = await prisma.school.count();
     logger.info(`Found ${schoolCount} schools in database`);
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       logger.info(`🚀 My School Buddies Backend v2.0 running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
       logger.info(`Multi-step registration enabled`);
       logger.info(`Institution search API ready`);
       logger.info('OAuth2 + Keycloak integration active');
+      logger.info('Real-time Socket.IO enabled');
     });
+
+    // Initialize Socket.IO
+    const { SocketServer } = await import('./socket/socketServer');
+    const socketServerInstance = new SocketServer(server);
+    logger.info('Socket.IO server initialized');
+
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

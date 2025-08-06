@@ -92,25 +92,7 @@ class ApiService {
 
   // Dashboard API methods
   async getDashboardData(role: string) {
-    const endpoint = this.getDashboardEndpoint(role);
-    return this.get(endpoint);
-  }
-
-  private getDashboardEndpoint(role: string): string {
-    switch (role) {
-      case 'platform_admin':
-        return '/dashboards/platform-admin';
-      case 'school_admin':
-        return '/dashboards/school-admin';
-      case 'teacher':
-        return '/dashboards/teacher';
-      case 'alumni':
-        return '/dashboards/alumni';
-      case 'student':
-        return '/dashboards/student';
-      default:
-        return '/dashboards/platform-admin';
-    }
+    return this.get(`/dashboard/${role}`);
   }
 
   // CSV Import methods

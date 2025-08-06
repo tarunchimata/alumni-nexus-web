@@ -179,15 +179,14 @@ router.post('/import/users', requireRole(['platform_admin', 'school_admin']), as
       try {
         const user = await prisma.user.create({
           data: {
+            keycloakId: `csv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary keycloakId for CSV imports
             firstName: userData.firstName,
             lastName: userData.lastName,
             email: userData.email.toLowerCase(),
-            role: userData.role,
+            role: userData.role as any,
             schoolId: userData.schoolId ? parseInt(userData.schoolId) : null,
             isActive: false, // Requires approval
-            graduationYear: userData.graduationYear ? parseInt(userData.graduationYear) : null,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            graduationYear: userData.graduationYear ? parseInt(userData.graduationYear) : null
           }
         });
         imported.push(user);
@@ -241,13 +240,13 @@ router.post('/import/schools', requireRole(['platform_admin']), async (req: Auth
       try {
         const school = await prisma.school.create({
           data: {
-            name: schoolData.name,
+            institutionId: `SCH_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            schoolName: schoolData.name,
+            stateName: 'Unknown', // Required field
+            yearOfEstablishment: schoolData.establishedYear || null,
             address: schoolData.address,
-            establishedYear: schoolData.establishedYear ? parseInt(schoolData.establishedYear) : null,
-            type: schoolData.type || 'school',
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            name: schoolData.name, // Legacy field
+            isActive: true
           }
         });
         imported.push(school);
