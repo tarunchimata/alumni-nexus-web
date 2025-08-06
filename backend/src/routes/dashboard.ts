@@ -1,9 +1,9 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Apply authentication to all dashboard routes
 router.use(authenticateToken);
@@ -12,7 +12,8 @@ router.use(authenticateToken);
 router.get('/:role', async (req: AuthenticatedRequest, res) => {
   try {
     const { role } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.id ? parseInt(req.user.id, 10) : undefined;
+    const schoolId = req.user?.schoolId ? parseInt(req.user.schoolId, 10) : undefined;
 
     logger.info(`Fetching dashboard data for role: ${role}, user: ${userId}`);
 
@@ -41,8 +42,8 @@ router.get('/:role', async (req: AuthenticatedRequest, res) => {
         roleSpecificData = await getPlatformAdminData(userId);
         break;
       case 'school_admin':
-        roleSpecificStats = await getSchoolAdminStats(req.user?.schoolId);
-        roleSpecificData = await getSchoolAdminData(req.user?.schoolId);
+        roleSpecificStats = await getSchoolAdminStats(schoolId);
+        roleSpecificData = await getSchoolAdminData(schoolId);
         break;
       case 'teacher':
         roleSpecificStats = await getTeacherStats(userId);
@@ -455,7 +456,13 @@ async function getAlumniData(userId?: number) {
 async function getRecentActivity(userId?: number, role?: string) {
   if (!userId) return [];
 
-  const activities = [];
+  const activities: Array<{
+    id: string;
+    type: string;
+    message: string;
+    timestamp: string;
+    user: { name: string; role: string };
+  }> = [];
 
   // Get recent connections
   const connections = await prisma.connection.findMany({

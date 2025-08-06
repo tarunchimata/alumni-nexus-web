@@ -1,4 +1,3 @@
-
 {
   "name": "myschoolbuddies-backend",
   "version": "1.0.0",
@@ -50,7 +49,8 @@
     "inquirer": "^12.9.0",
     "cli-progress": "^3.12.0",
     "chalk": "^4.1.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
