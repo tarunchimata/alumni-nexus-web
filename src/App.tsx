@@ -13,9 +13,9 @@ import PendingApproval from "@/pages/PendingApproval";
 import OAuth2Callback from "@/pages/OAuth2Callback";
 import Health from "@/pages/Health";
 
-// Dashboard Layout and Pages
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import Dashboard from "@/pages/Dashboard";
+// Production Dashboard Layout and Pages
+import { ProductionDashboardLayout } from "@/components/layout/ProductionDashboardLayout";
+import DashboardHome from "@/pages/DashboardHome";
 import ActivityFeedPage from "@/pages/ActivityFeedPage";
 import PeopleDiscovery from "@/pages/PeopleDiscovery";
 import ConnectionsList from "@/pages/ConnectionsList";
@@ -23,9 +23,7 @@ import EventsList from "@/pages/EventsList";
 import ProfileEdit from "@/pages/ProfileEdit";
 import Profile from "@/pages/Profile";
 import Messages from "@/pages/Messages";
-import Settings from "@/pages/Settings";
 import SettingsPage from "@/pages/SettingsPage";
-import CSVUploadPage from "@/pages/CSVUploadPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,16 +49,16 @@ function App() {
               <Route path="/auth/callback" element={<OAuth2Callback />} />
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
 
-              {/* Dashboard Routes with Nested Layout */}
+              {/* Production Dashboard Routes with Nested Layout */}
               <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <DashboardLayout />
+                    <ProductionDashboardLayout />
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Dashboard />} />
+                <Route index element={<DashboardHome />} />
                 <Route path="activity" element={<ActivityFeedPage />} />
                 <Route path="people" element={<PeopleDiscovery />} />
                 <Route path="connections" element={<ConnectionsList />} />
@@ -69,7 +67,9 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="profile/edit" element={<ProfileEdit />} />
                 <Route path="settings" element={<SettingsPage />} />
-                <Route path="admin/csv-upload" element={<CSVUploadPage />} />
+                <Route path="admin/csv-upload" element={<SettingsPage />} />
+                <Route path="analytics" element={<SettingsPage />} />
+                <Route path="school-analytics" element={<SettingsPage />} />
               </Route>
 
               {/* Legacy Routes for Backward Compatibility */}
