@@ -20,6 +20,7 @@ import registrationRoutes from './routes/registration';
 import dashboardRoutes from './routes/dashboards';
 import csvRoutes from './routes/csv';
 import dashboardRouter from './routes/dashboard';
+import analyticsRoutes from './routes/analytics';
 
 // Load environment variables
 dotenv.config();
@@ -261,6 +262,7 @@ app.use('/api/registration', registrationRoutes); // No CSRF for registration
 app.use('/api/dashboards', dashboardRoutes); // Legacy dashboard routes
 app.use('/api/dashboard', dashboardRouter); // Real dashboard data routes
 app.use('/api/csv', csvRoutes); // CSV import routes
+app.use('/api/analytics', analyticsRoutes); // Analytics routes
 
 // Error handling middleware
 app.use(errorHandler);

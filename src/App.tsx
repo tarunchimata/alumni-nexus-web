@@ -24,6 +24,9 @@ import ProfileEdit from "@/pages/ProfileEdit";
 import Profile from "@/pages/Profile";
 import Messages from "@/pages/Messages";
 import SettingsPage from "@/pages/SettingsPage";
+import AnalyticsPage from "@/pages/AnalyticsPage";
+import CSVUploadPage from "@/pages/CSVUploadPage";
+import WelcomePage from "@/pages/WelcomePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,9 +70,10 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="profile/edit" element={<ProfileEdit />} />
                 <Route path="settings" element={<SettingsPage />} />
-                <Route path="admin/csv-upload" element={<SettingsPage />} />
-                <Route path="analytics" element={<SettingsPage />} />
-                <Route path="school-analytics" element={<SettingsPage />} />
+                <Route path="admin/csv-upload" element={<CSVUploadPage />} />
+                <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="school-analytics" element={<AnalyticsPage />} />
+                <Route path="welcome" element={<WelcomePage />} />
               </Route>
 
               {/* Legacy Routes for Backward Compatibility */}

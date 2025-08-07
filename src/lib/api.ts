@@ -4,7 +4,7 @@ import { authService } from './auth';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' 
     ? 'https://api.hostingmanager.in/api' 
-    : 'http://localhost:3001/api');
+    : 'http://localhost:3033/api');
 
 console.log('[API Client] Using API base URL:', API_BASE_URL);
 
@@ -162,6 +162,11 @@ export const endpoints = {
   admin: {
     stats: '/api/admin/stats',
     health: '/api/admin/health',
+  },
+  analytics: {
+    data: '/analytics',
+    platform: '/analytics/platform',
+    school: '/analytics/school',
   },
   dashboards: {
     platformAdmin: '/api/dashboards/platform-admin',
