@@ -21,6 +21,7 @@ import dashboardRoutes from './routes/dashboards';
 import csvRoutes from './routes/csv';
 import dashboardRouter from './routes/dashboard';
 import analyticsRoutes from './routes/analytics';
+import userRoutes from './routes/users';
 
 // Load environment variables
 dotenv.config();
@@ -119,6 +120,15 @@ const csrfProtection = csurf({
   },
   ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
 });
+
+// Skip CSRF for API endpoints that need to work without CSRF token
+const skipCSRF = (req: any, res: any, next: any) => {
+  const skipPaths = ['/api/csv', '/api/oauth2', '/api/registration', '/api/health', '/health'];
+  if (skipPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  return csrfProtection(req, res, next);
+};
 
 // Registration-specific rate limiting
 const registrationLimiter = rateLimit({
@@ -255,14 +265,15 @@ app.get('/api/test', (req, res) => {
 
 // API Routes with proper middleware
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF
-app.use('/api/schools', schoolRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/institutions', searchLimiter, institutionsRoutes);
+app.use('/api/schools', skipCSRF, schoolRoutes);
+app.use('/api/posts', skipCSRF, postRoutes);
+app.use('/api/institutions', searchLimiter, skipCSRF, institutionsRoutes);
 app.use('/api/registration', registrationRoutes); // No CSRF for registration
-app.use('/api/dashboards', dashboardRoutes); // Legacy dashboard routes
-app.use('/api/dashboard', dashboardRouter); // Real dashboard data routes
-app.use('/api/csv', csvRoutes); // CSV import routes
-app.use('/api/analytics', analyticsRoutes); // Analytics routes
+app.use('/api/dashboards', skipCSRF, dashboardRoutes); // Legacy dashboard routes
+app.use('/api/dashboard', skipCSRF, dashboardRouter); // Real dashboard data routes
+app.use('/api/csv', csvRoutes); // CSV import routes - no CSRF
+app.use('/api/analytics', skipCSRF, analyticsRoutes); // Analytics routes
+app.use('/api/users', skipCSRF, userRoutes); // User management routes
 
 // Error handling middleware
 app.use(errorHandler);

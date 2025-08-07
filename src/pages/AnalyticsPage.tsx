@@ -48,23 +48,49 @@ const AnalyticsPage = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      // Try to fetch from API, fallback to sample data
-      try {
-        const data = await apiClient.get<AnalyticsData>('/analytics');
-        setAnalyticsData(data);
-      } catch (apiError) {
-        // Fallback to sample data if API not available
-        setAnalyticsData({
-          totalUsers: 520,
-          totalSchools: 28,
-          activeUsers: 342,
-          growthRate: 24.5,
-          recentActivity: sampleActivityData,
-          userGrowth: sampleUserGrowthData
-        });
+      
+      // Get token from localStorage for API authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required');
       }
+
+      const response = await fetch('http://localhost:3033/api/analytics', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Map the API response to our expected format
+      setAnalyticsData({
+        totalUsers: data.totalUsers || 0,
+        totalSchools: data.totalSchools || 0,
+        activeUsers: data.activeUsers || 0,
+        growthRate: data.userGrowthRate || 0,
+        recentActivity: data.recentActivityData || [],
+        userGrowth: data.userGrowthData || []
+      });
+      
     } catch (err) {
-      setError('Failed to load analytics data');
+      console.error('Analytics API error:', err);
+      setError(`Failed to load real analytics data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      // Show zero data instead of fake sample data
+      setAnalyticsData({
+        totalUsers: 0,
+        totalSchools: 0,
+        activeUsers: 0,
+        growthRate: 0,
+        recentActivity: [],
+        userGrowth: []
+      });
     } finally {
       setLoading(false);
     }

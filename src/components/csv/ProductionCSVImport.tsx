@@ -180,15 +180,44 @@ export const ProductionCSVImport = () => {
         const batch = validRows.slice(i, i + batchSize);
         
         try {
-          await apiClient.post(`/${importType}/bulk`, {
-            data: batch.map(row => row.data)
+          // Get token from localStorage for API authentication
+          const token = localStorage.getItem('token');
+          if (!token) {
+            throw new Error('Authentication required');
+          }
+
+          const response = await fetch(`http://localhost:3033/api/csv/import/${importType}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              data: batch.map(row => row.data)
+            })
           });
-          processed += batch.length;
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          processed += result.imported || batch.length;
+          
+          if (result.failedItems && result.failedItems.length > 0) {
+            result.failedItems.forEach((item: any) => {
+              errors.push({
+                row: batch.find(r => r.data.email === item.email)?.row || 0,
+                message: item.error || 'Import failed'
+              });
+            });
+          }
         } catch (error) {
           batch.forEach(row => {
             errors.push({
               row: row.row,
-              message: `Failed to import: ${error instanceof Error ? error.message : 'Unknown error'}`
+              message: `Failed to import: ${error instanceof Error ? error.message : 'Network error'}`
             });
           });
         }

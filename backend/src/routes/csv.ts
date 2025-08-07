@@ -2,7 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
-import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
+import { AuthenticatedRequest } from '../middleware/auth';
+import { keycloakMiddleware, requireRole } from '../middleware/keycloak';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 
@@ -24,7 +25,7 @@ const upload = multer({
 });
 
 // Apply authentication to all CSV routes
-router.use(authenticateToken);
+router.use(keycloakMiddleware);
 
 interface CSVUser {
   firstName: string;
