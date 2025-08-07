@@ -62,6 +62,7 @@
     "@types/express-session": "^1.18.0",
     "@types/inquirer": "^9.0.8",
     "@types/cli-progress": "^3.11.6",
+    "@types/socket.io": "^3.0.2",
     "typescript": "^5.3.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

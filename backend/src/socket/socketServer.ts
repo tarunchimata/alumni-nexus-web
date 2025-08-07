@@ -28,7 +28,7 @@ export class SocketServer {
   }
 
   private setupAuthentication() {
-    this.io.use(async (socket: AuthenticatedSocket, next) => {
+    this.io.use(async (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
       try {
         const token = socket.handshake.auth.token;
         
@@ -78,12 +78,12 @@ export class SocketServer {
       this.broadcastUserStatus(userId, 'online');
 
       // Handle direct messages
-      socket.on('send_direct_message', async (data) => {
+      socket.on('send_direct_message', async (data: { receiverId: number; message: string; type?: string }) => {
         await this.handleDirectMessage(socket, data);
       });
 
       // Handle group messages
-      socket.on('send_group_message', async (data) => {
+      socket.on('send_group_message', async (data: { groupId: number; message: string; type?: string }) => {
         await this.handleGroupMessage(socket, data);
       });
 
@@ -100,16 +100,16 @@ export class SocketServer {
       });
 
       // Handle typing indicators
-      socket.on('typing_start', (data) => {
+      socket.on('typing_start', (data: { roomId: string }) => {
         socket.to(data.roomId).emit('user_typing', { userId, isTyping: true });
       });
 
-      socket.on('typing_stop', (data) => {
+      socket.on('typing_stop', (data: { roomId: string }) => {
         socket.to(data.roomId).emit('user_typing', { userId, isTyping: false });
       });
 
       // Handle status updates
-      socket.on('status_update', (data) => {
+      socket.on('status_update', (data: { status: 'online' | 'away' | 'offline' }) => {
         this.broadcastUserStatus(userId, data.status);
       });
 
