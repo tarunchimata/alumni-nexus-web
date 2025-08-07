@@ -34,8 +34,8 @@ if [[ ! -f ".env.local" ]]; then
     cp .env.example .env.local 2>/dev/null || print_error "No .env.example found"
 fi
 
-if [[ ! -f "backend/.env.local" ]]; then
-    print_error "Backend .env.local not found - please create it first"
+if [[ ! -f "backend/.env" ]]; then
+    print_error "Backend .env not found - please create it first"
     exit 1
 fi
 
@@ -52,6 +52,9 @@ fi
 # Generate Prisma client
 print_info "Generating Prisma client..."
 npx prisma generate
+
+# Create logs directory if it doesn't exist
+mkdir -p ../logs
 
 # Start backend in background
 print_info "Launching backend server..."
@@ -82,6 +85,9 @@ if [[ ! -d "node_modules" ]]; then
     print_info "Installing frontend dependencies..."
     npm install
 fi
+
+# Create logs directory if it doesn't exist
+mkdir -p logs
 
 # Start frontend in background
 print_info "Launching frontend server..."
