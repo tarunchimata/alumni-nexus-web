@@ -1,15 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { keycloakMiddleware, AuthenticatedRequest } from '../middleware/keycloak';
 import { logger } from '../utils/logger';
-import { keycloakAuth } from '../middleware/keycloak';
 
-const router = Router();
 const prisma = new PrismaClient();
+const router: Router = Router();
 
 // Get analytics data based on user role
-router.get('/', keycloakAuth, async (req: Request, res: Response) => {
+router.get('/', keycloakMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const userRole = (req as any).user?.role;
     const schoolId = (req as any).user?.schoolId;
 
@@ -27,10 +27,10 @@ router.get('/', keycloakAuth, async (req: Request, res: Response) => {
         analyticsData = await getSchoolAnalytics(schoolId);
         break;
       case 'teacher':
-        analyticsData = await getTeacherAnalytics(userId, schoolId);
+        analyticsData = await getTeacherAnalytics(parseInt(userId), schoolId);
         break;
       default:
-        analyticsData = await getBasicAnalytics(userId);
+        analyticsData = await getBasicAnalytics(parseInt(userId));
     }
 
     res.json(analyticsData);
@@ -61,16 +61,13 @@ async function getPlatformAnalytics() {
     // Calculate growth rate
     const growthRate = totalUsers > 0 ? ((recentUsers / totalUsers) * 100) : 0;
 
-    // Get active users (users who logged in within last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+    // Get active users (users who updated in the last 30 days)
     const activeUsers = await prisma.user.count({
       where: {
-        lastLoginAt: {
-          gte: sevenDaysAgo
-        }
-      }
+        updatedAt: {
+          gte: thirtyDaysAgo,
+        },
+      },
     });
 
     // Get user growth data for charts
@@ -102,20 +99,23 @@ async function getSchoolAnalytics(schoolId: number) {
       where: { schoolId }
     });
 
-    const activeSchoolUsers = await prisma.user.count({
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const activeUsers = await prisma.user.count({
       where: {
         schoolId,
-        lastLoginAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-        }
-      }
+        updatedAt: {
+          gte: thirtyDaysAgo,
+        },
+      },
     });
 
     const recentSchoolUsers = await prisma.user.count({
       where: {
         schoolId,
         createdAt: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+          gte: thirtyDaysAgo
         }
       }
     });
@@ -124,7 +124,7 @@ async function getSchoolAnalytics(schoolId: number) {
 
     return {
       totalUsers: schoolUsers,
-      activeUsers: activeSchoolUsers,
+      activeUsers: activeUsers,
       growthRate: Math.round(growthRate * 100) / 100,
       schoolSpecific: true
     };
@@ -208,18 +208,18 @@ async function getUserGrowthData() {
 
 async function getRecentActivityData() {
   try {
-    // Get daily login activity for the last 7 days
+    // Get daily user activity for the last 7 days based on updatedAt
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const activities = await prisma.user.findMany({
       where: {
-        lastLoginAt: {
-          gte: sevenDaysAgo
-        }
+        updatedAt: {
+          gte: sevenDaysAgo,
+        },
       },
       select: {
-        lastLoginAt: true
+        updatedAt: true
       }
     });
 
@@ -228,16 +228,16 @@ async function getRecentActivityData() {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
     activities.forEach(activity => {
-      if (activity.lastLoginAt) {
-        const day = days[activity.lastLoginAt.getDay()];
-        dailyData[day] = (dailyData[day] || 0) + 1;
+      if (activity.updatedAt) {
+        const activityDay = days[activity.updatedAt.getDay()];
+        dailyData[activityDay] = (dailyData[activityDay] || 0) + 1;
       }
     });
 
-    return Object.entries(dailyData).map(([day, logins]) => ({
+    return Object.entries(dailyData).map(([day, count]) => ({
       day,
-      logins,
-      posts: Math.floor(logins * 0.3) // Estimated posts
+      logins: count,
+      posts: Math.floor(count * 0.3) // Estimated posts
     }));
   } catch (error) {
     logger.error('Recent activity data error:', error);
