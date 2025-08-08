@@ -9,7 +9,7 @@ COPY backend/package*.json ./
 COPY backend/tsconfig.json ./
 
 # Install ALL dependencies (including dev dependencies for build)
-RUN npm ci && npm cache clean --force
+RUN npm install --no-audit --no-fund && npm cache clean --force
 
 # Copy source code
 COPY backend/src ./src
@@ -47,10 +47,10 @@ RUN mkdir -p logs uploads && chown -R backend:nodejs logs uploads
 
 USER backend
 
-EXPOSE 3001
+EXPOSE 3033
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:3033/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 CMD ["dumb-init", "node", "dist/index.js"]

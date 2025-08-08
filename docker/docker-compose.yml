@@ -44,7 +44,7 @@ services:
     ports:
       - "8080:80"
     environment:
-      - VITE_API_URL=http://localhost:3033/api
+      - VITE_API_URL=/api
       - VITE_KEYCLOAK_URL=https://login.hostingmanager.in
       - VITE_KEYCLOAK_REALM=myschoolbuddies-realm
       - VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client
