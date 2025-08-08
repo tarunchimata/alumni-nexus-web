@@ -13,7 +13,7 @@ const router: express.Router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -53,7 +53,8 @@ router.post('/upload/users', requireRole(['platform_admin', 'school_admin']), up
     logger.info('CSV user upload started', {
       filename: req.file.originalname,
       size: req.file.size,
-      uploadedBy: req.user?.email
+      uploadedBy: req.user?.email,
+      contentLength: req.headers['content-length']
     });
 
     const results: CSVUser[] = [];
@@ -72,7 +73,7 @@ router.post('/upload/users', requireRole(['platform_admin', 'school_admin']), up
         .on('error', reject);
     });
 
-    logger.info(`Parsed ${results.length} rows from CSV`);
+    logger.info(`Parsed ${results.length} rows from CSV`, { preview: results.slice(0, 1) });
 
     // Validate CSV data
     const validationErrors = await validateUsers(results, req.user?.schoolId);
@@ -107,7 +108,8 @@ router.post('/upload/schools', requireRole(['platform_admin']), upload.single('f
     logger.info('CSV school upload started', {
       filename: req.file.originalname,
       size: req.file.size,
-      uploadedBy: req.user?.email
+      uploadedBy: req.user?.email,
+      contentLength: req.headers['content-length']
     });
 
     const results: CSVSchool[] = [];
@@ -125,7 +127,7 @@ router.post('/upload/schools', requireRole(['platform_admin']), upload.single('f
         .on('error', reject);
     });
 
-    logger.info(`Parsed ${results.length} school rows from CSV`);
+    logger.info(`Parsed ${results.length} school rows from CSV`, { preview: results.slice(0, 1) });
 
     // Validate CSV data
     const validationErrors = await validateSchools(results);
