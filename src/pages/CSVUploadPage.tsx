@@ -1,7 +1,7 @@
-import { ProductionCSVImport } from '@/components/csv/ProductionCSVImport';
+import { EnhancedCSVImport } from '@/components/csv/EnhancedCSVImport';
 
 const CSVUploadPage = () => {
-  return <ProductionCSVImport />;
+  return <EnhancedCSVImport />;
 };
 
 export default CSVUploadPage;

@@ -9,7 +9,7 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('auth_access_token');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -74,7 +74,7 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('auth_access_token');
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: {
