@@ -1,10 +1,10 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { keycloakMiddleware, requireRole } from '../middleware/keycloak';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Apply authentication to all user routes
 router.use(keycloakMiddleware);
