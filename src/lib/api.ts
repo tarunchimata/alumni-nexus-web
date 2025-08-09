@@ -1,12 +1,9 @@
 // API utilities and configuration
 import { authService } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.MODE === 'production' 
-    ? 'https://api.hostingmanager.in/api' 
-    : 'http://localhost:3033/api');
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-console.log('[API Client] Using API base URL:', API_BASE_URL);
+console.log('[API Client] Using API base URL:', API_BASE_URL || '/api');
 
 export class ApiClient {
   private baseURL: string;
