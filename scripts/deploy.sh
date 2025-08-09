@@ -341,14 +341,14 @@ build_application() {
     
     # Build frontend
     print_info "Building frontend..."
-    npm ci
+    npm install --no-audit --no-fund
     npx vite build
     print_status "Frontend build completed"
     
     # Build backend
     print_info "Building backend..."
     cd backend
-    npm ci
+    npm install --no-audit --no-fund
     npm run build
     cd ..
     print_status "Backend build completed"

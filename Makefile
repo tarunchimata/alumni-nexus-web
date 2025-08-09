@@ -19,9 +19,9 @@ prod: ## Deploy production environment
 # Build Commands
 install: ## Install dependencies for frontend and backend
 	@echo "📦 Installing frontend dependencies..."
-	@npm ci
+	@npm install --no-audit --no-fund
 	@echo "📦 Installing backend dependencies..."
-	@cd backend && npm ci
+	@cd backend && npm install --no-audit --no-fund
 
 build: ## Build frontend and backend
 	@chmod +x scripts/deploy.sh && scripts/deploy.sh build

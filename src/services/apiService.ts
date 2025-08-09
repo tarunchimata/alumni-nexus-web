@@ -16,17 +16,31 @@ class ApiService {
     };
   }
 
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      let body = '';
+      try { body = await response.text(); } catch {}
+      const snippet = body ? ` - ${body.slice(0, 200)}` : '';
+      throw new Error(`API Error: ${response.status} ${response.statusText}${snippet}`);
+    }
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+    const text = await response.text();
+    throw new Error(`Unexpected response (not JSON): ${contentType} - ${text.slice(0, 200)}`);
+  }
+
   async get<T>(endpoint: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    return this.handleResponse<T>(response);
   }
 
   async post<T>(endpoint: string, data: any): Promise<T> {
@@ -36,11 +50,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    return this.handleResponse<T>(response);
   }
 
   async put<T>(endpoint: string, data: any): Promise<T> {
@@ -50,11 +60,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    return this.handleResponse<T>(response);
   }
 
   async delete<T>(endpoint: string): Promise<T> {
@@ -63,11 +69,7 @@ class ApiService {
       headers: this.getAuthHeaders(),
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    return this.handleResponse<T>(response);
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
@@ -83,11 +85,7 @@ class ApiService {
       body: formData,
     });
 
-    if (!response.ok) {
-      throw new Error(`Upload Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    return this.handleResponse<T>(response);
   }
 
   // Dashboard API methods
