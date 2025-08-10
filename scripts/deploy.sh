@@ -336,22 +336,14 @@ build_application() {
         print_warning "Skipping build step"
         return
     fi
-    
-    print_info "Building application..."
-    
-    # Build frontend
-    print_info "Building frontend..."
-    npm install --no-audit --no-fund
-    npx vite build
-    print_status "Frontend build completed"
-    
-    # Build backend
-    print_info "Building backend..."
-    cd backend
-    npm install --no-audit --no-fund
-    npm run build
-    cd ..
-    print_status "Backend build completed"
+
+    print_info "Building Docker images (frontend and backend)..."
+
+    pushd docker >/dev/null
+    docker-compose build --no-cache
+    popd >/dev/null
+
+    print_status "Docker images built successfully"
 }
 
 # Function to start services

@@ -251,15 +251,21 @@ async function checkDatabaseConnection(): Promise<boolean> {
   }
 }
 
+// API health endpoint
+app.get('/api/health', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json({ status: 'ok' });
+});
+
 // Test endpoint
 app.get('/api/test', (req, res) => {
   logger.info('Test endpoint requested');
   res.setHeader('Content-Type', 'application/json');
+  const version = (() => { try { return require('../package.json').version; } catch { return 'unknown'; } })();
   res.json({ 
-    message: 'My School Buddies Backend v2.0 - Multi-Step Registration Ready',
-    timestamp: new Date().toISOString(),
-    sessionId: req.session.id,
-    features: ['registration', 'institutions', 'auth', 'oauth2']
+    status: 'ok',
+    version,
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 

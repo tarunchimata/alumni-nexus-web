@@ -7,22 +7,10 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile.backend
+    env_file:
+      - ../.env
     ports:
       - "3033:3033"
-    environment:
-      - NODE_ENV=production
-      - PORT=3033
-      - DATABASE_URL=postgresql://msbfinalroot:vA5ZXB2Nb6M3P22GWZRch999@pg.hostingmanager.in:5432/myschoolbuddies_budibase_db
-      - KEYCLOAK_URL=https://login.hostingmanager.in
-      - KEYCLOAK_REALM=myschoolbuddies-realm
-      - KEYCLOAK_CLIENT_ID=backend-client
-      - KEYCLOAK_CLIENT_SECRET=backend-client-secret-2025
-      - SENDGRID_API_KEY=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
-      - SENDGRID_FROM_EMAIL=noreply@myschoolbuddies.com
-      - SENDGRID_FROM_NAME=My School Buddies
-      - JWT_SECRET=production-jwt-secret-change-this
-      - CORS_ORIGIN=https://school.hostingmanager.in,https://api.hostingmanager.in,http://localhost:3033
-      - LOG_LEVEL=info
     volumes:
       - backend_logs:/app/logs
       - backend_uploads:/app/uploads
@@ -41,14 +29,12 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile.frontend
+    env_file:
+      - ../.env
     ports:
       - "8080:80"
     environment:
       - VITE_API_URL=/api
-      - VITE_KEYCLOAK_URL=https://login.hostingmanager.in
-      - VITE_KEYCLOAK_REALM=myschoolbuddies-realm
-      - VITE_KEYCLOAK_CLIENT_ID=myschoolbuddies-client
-      - VITE_OAUTH2_REDIRECT_URI=http://localhost:8080/oauth2/callback
     depends_on:
       backend:
         condition: service_healthy
