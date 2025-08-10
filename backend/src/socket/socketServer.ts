@@ -254,6 +254,10 @@ export class SocketServer {
       this.io.to(socketId).emit('new_notification', notification);
     }
   }
+
+  public emitToRoom(roomId: string, event: string, payload: any) {
+    this.io.to(roomId).emit(event, payload);
+  }
 }
 
 export let socketServer: SocketServer;

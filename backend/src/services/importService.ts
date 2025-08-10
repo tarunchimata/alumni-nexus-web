@@ -1,6 +1,7 @@
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import pLimit from 'p-limit';
+import { randomUUID } from 'crypto';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { keycloakAdminClient } from './keycloakAdmin';
@@ -13,9 +14,7 @@ const CONCURRENCY = parseInt(process.env.IMPORT_CONCURRENCY || '5');
 
 function emit(jobId: number, event: string, payload: any) {
   try {
-    socketServer?.[`sendNotificationToUser`]?.(payload?.userId || 0, { title: 'Import update', message: `${event}` });
-    // Also emit to a job room if implemented in client
-    // No-op if socket not initialized
+    socketServer?.emitToRoom?.(`import-job-${jobId}`, event, payload);
   } catch {}
 }
 
@@ -114,9 +113,10 @@ export async function createUserImportJob(fileBuffer: Buffer, filename: string, 
 }
 
 export async function approveJob(jobId: number, approverId: number) {
-  const job = await prisma.importJob.update({ where: { id: jobId }, data: { status: 'approved' } });
+  const batchId = randomUUID();
+  const job = await prisma.importJob.update({ where: { id: jobId }, data: { status: 'approved', importBatchId: batchId } });
   // Start provisioning
-  emit(jobId, 'import:started', { jobId });
+  emit(jobId, 'import:started', { jobId, importBatchId: batchId });
   await prisma.importJob.update({ where: { id: jobId }, data: { status: 'provisioning' } });
 
   const rows = await prisma.importRow.findMany({ where: { importJobId: jobId } });

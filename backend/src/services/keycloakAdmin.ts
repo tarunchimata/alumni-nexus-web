@@ -54,6 +54,29 @@ export class KeycloakAdminService {
     }
   }
 
+  private async retry<T>(fn: () => Promise<T>, label: string, maxAttempts = 4): Promise<T> {
+    let attempt = 0;
+    let lastError: any;
+    while (attempt < maxAttempts) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        lastError = error;
+        const status = error?.response?.status || error?.status || 0;
+        if (status === 429 || status >= 500) {
+          const delay = Math.min(2000, 250 * Math.pow(2, attempt));
+          logger.warn(`[KC RETRY] ${label} attempt ${attempt + 1} failed (status ${status}). Retrying in ${delay}ms`);
+          await new Promise(r => setTimeout(r, delay));
+          attempt++;
+          continue;
+        }
+        break;
+      }
+    }
+    logger.error(`[KC ERROR] ${label} failed after ${maxAttempts} attempts`, lastError);
+    throw lastError || new Error(`${label} failed`);
+  }
+
   async createUser({
     username,
     email,
@@ -124,10 +147,9 @@ export class KeycloakAdminService {
     await this.authenticate();
     const kcAdmin = await this.getAdmin();
 
-    try {
+    return this.retry(async () => {
       const roles = await kcAdmin.roles.find({ realm: process.env.KEYCLOAK_REALM });
       const userRole = roles.find((role: any) => role.name === roleName);
-      
       if (userRole && userRole.id) {
         await kcAdmin.users.addRealmRoleMappings({
           id: userId,
@@ -137,10 +159,7 @@ export class KeycloakAdminService {
       } else {
         logger.warn(`Role ${roleName} not found in Keycloak realm`);
       }
-    } catch (error) {
-      logger.error('Failed to assign role:', error);
-      throw new Error('Role assignment failed');
-    }
+    }, 'assignUserRole');
   }
 
   async getUserByEmail(email: string) {
@@ -208,37 +227,28 @@ export class KeycloakAdminService {
   async updateUserAttributes(userId: string, attributes: Record<string, any>) {
     await this.authenticate();
     const kcAdmin = await this.getAdmin();
-    try {
+    return this.retry(async () => {
       await kcAdmin.users.update({ id: userId }, { attributes });
       logger.info(`Updated attributes for user ${userId}`);
-    } catch (error) {
-      logger.error('Failed to update user attributes:', error);
-      throw new Error('Update user attributes failed');
-    }
+    }, 'updateUserAttributes');
   }
 
   async setUserEnabled(userId: string, enabled: boolean) {
     await this.authenticate();
     const kcAdmin = await this.getAdmin();
-    try {
+    return this.retry(async () => {
       await kcAdmin.users.update({ id: userId }, { enabled });
       logger.info(`Set enabled=${enabled} for user ${userId}`);
-    } catch (error) {
-      logger.error('Failed to set user enabled:', error);
-      throw new Error('Set user enabled failed');
-    }
+    }, 'setUserEnabled');
   }
 
   async deleteUser(userId: string) {
     await this.authenticate();
     const kcAdmin = await this.getAdmin();
-    try {
+    return this.retry(async () => {
       await kcAdmin.users.del({ id: userId });
       logger.info(`Deleted Keycloak user ${userId}`);
-    } catch (error) {
-      logger.error('Failed to delete user:', error);
-      throw new Error('Delete user failed');
-    }
+    }, 'deleteUser');
   }
 }
 

@@ -67,6 +67,7 @@ model User {
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
+  lastImportJobId  Int?     @map("last_import_job_id")
 
   // Relations
   school                School?         @relation(fields: [schoolId], references: [id], onDelete: SetNull)
@@ -88,6 +89,7 @@ model User {
   connectionsSent       Connection[]    @relation("ConnectionSender")
   connectionsReceived   Connection[]    @relation("ConnectionReceiver")
 
+  @@index([lastImportJobId])
   @@index([keycloakId])
   @@map("users")
 }
