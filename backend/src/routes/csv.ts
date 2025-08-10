@@ -2,10 +2,11 @@ import express from 'express';
 import multer from 'multer';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
-import { AuthenticatedRequest } from '../middleware/auth';
-import { keycloakMiddleware, requireRole } from '../middleware/keycloak';
+import { keycloakMiddleware, requireRole, AuthenticatedRequest } from '../middleware/keycloak';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+import { createUserImportJob, approveJob, activateJob, rollbackJob } from '../services/importService';
+
 
 const router: express.Router = express.Router();
 
@@ -43,7 +44,7 @@ interface CSVSchool {
   type?: string;
 }
 
-// POST /api/csv/upload/users - Upload and validate user CSV
+// POST /api/csv/upload/users - Upload and validate user CSV (staging only)
 router.post('/upload/users', requireRole(['platform_admin', 'school_admin']), upload.single('file'), async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.file) {
@@ -57,40 +58,17 @@ router.post('/upload/users', requireRole(['platform_admin', 'school_admin']), up
       contentLength: req.headers['content-length']
     });
 
-    const results: CSVUser[] = [];
-    const errors: string[] = [];
+    // Resolve uploader DB user to get schoolId if available
+    const uploaderKcId = req.user?.id;
+    const uploaderDb = uploaderKcId ? await prisma.user.findFirst({ where: { keycloakId: uploaderKcId } }) : null;
 
-    // Parse CSV
-    const readable = Readable.from(req.file.buffer);
-    
-    await new Promise((resolve, reject) => {
-      readable
-        .pipe(csv())
-        .on('data', (data) => {
-          results.push(data);
-        })
-        .on('end', resolve)
-        .on('error', reject);
-    });
-
-    logger.info(`Parsed ${results.length} rows from CSV`, { preview: results.slice(0, 1) });
-
-    // Validate CSV data
-    const validationErrors = await validateUsers(results, req.user?.schoolId);
-    
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        validationErrors,
-        rowCount: results.length
-      });
-    }
+    const job = await createUserImportJob(req.file.buffer, req.file.originalname, uploaderDb?.id || 0, uploaderDb?.schoolId || undefined);
 
     res.json({
-      message: 'CSV uploaded and validated successfully',
-      rowCount: results.length,
-      data: results.slice(0, 5), // Preview first 5 rows
-      previewOnly: true
+      message: 'CSV uploaded, validated, and staged successfully',
+      jobId: job.jobId,
+      counts: job.counts,
+      preview: job.rows
     });
   } catch (error) {
     logger.error('CSV user upload failed:', error);
@@ -152,64 +130,106 @@ router.post('/upload/schools', requireRole(['platform_admin']), upload.single('f
   }
 });
 
-// POST /api/csv/import/users - Import validated users
-router.post('/import/users', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+// Jobs list
+router.get('/jobs', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
   try {
-    const { data } = req.body;
-    
-    if (!data || !Array.isArray(data)) {
-      return res.status(400).json({ error: 'Invalid import data' });
-    }
+    const { status, uploaderId, page = '1', pageSize = '20' } = req.query as any;
+    const take = Math.min(parseInt(pageSize) || 20, 100);
+    const skip = ((parseInt(page) || 1) - 1) * take;
 
-    logger.info(`Starting bulk user import: ${data.length} users`, {
-      importedBy: req.user?.email
-    });
+    const where: any = {};
+    if (status) where.status = status as any;
+    if (uploaderId) where.uploaderId = parseInt(uploaderId as string);
 
-    // Re-validate before import
-    const validationErrors = await validateUsers(data, req.user?.schoolId);
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: 'Validation failed before import',
-        validationErrors
-      });
-    }
+    const [items, total] = await Promise.all([
+      prisma.importJob.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.importJob.count({ where })
+    ]);
 
-    // Bulk import users
-    const imported = [];
-    const failed = [];
-
-    for (const userData of data) {
-      try {
-        const user = await prisma.user.create({
-          data: {
-            keycloakId: `csv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary keycloakId for CSV imports
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            email: userData.email.toLowerCase(),
-            role: userData.role as any,
-            schoolId: userData.schoolId ? parseInt(userData.schoolId) : null,
-            isActive: false, // Requires approval
-            graduationYear: userData.graduationYear ? parseInt(userData.graduationYear) : null
-          }
-        });
-        imported.push(user);
-      } catch (error) {
-        logger.error('Failed to import user:', error);
-        failed.push({ email: userData.email, error: 'Database insertion failed' });
-      }
-    }
-
-    logger.info(`User import completed: ${imported.length} imported, ${failed.length} failed`);
-
-    res.json({
-      message: 'User import completed',
-      imported: imported.length,
-      failed: failed.length,
-      failedItems: failed
-    });
+    res.json({ items, total, page: parseInt(page), pageSize: take });
   } catch (error) {
-    logger.error('User import failed:', error);
-    res.status(500).json({ error: 'Failed to import users' });
+    logger.error('List jobs failed:', error);
+    res.status(500).json({ error: 'Failed to list jobs' });
+  }
+});
+
+// Job details
+router.get('/jobs/:id', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const job = await prisma.importJob.findUnique({ where: { id }, include: { rows: true } });
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    res.json(job);
+  } catch (error) {
+    logger.error('Get job failed:', error);
+    res.status(500).json({ error: 'Failed to get job' });
+  }
+});
+
+// Approve + start provisioning
+router.post('/jobs/:id/approve', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const summary = await approveJob(id, 0);
+    res.json({ message: 'Provisioning started', summary });
+  } catch (error) {
+    logger.error('Approve job failed:', error);
+    res.status(500).json({ error: 'Failed to approve job' });
+  }
+});
+
+// Activate provisioned users
+router.post('/jobs/:id/activate', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await activateJob(id);
+    res.json({ message: 'Activation completed', ...result });
+  } catch (error) {
+    logger.error('Activate job failed:', error);
+    res.status(500).json({ error: 'Failed to activate job' });
+  }
+});
+
+// Rollback job
+router.post('/jobs/:id/rollback', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await rollbackJob(id);
+    res.json({ message: 'Rollback completed', ...result });
+  } catch (error) {
+    logger.error('Rollback job failed:', error);
+    res.status(500).json({ error: 'Failed to rollback job' });
+  }
+});
+
+// Edit and revalidate a single row
+router.patch('/jobs/:id/rows/:rowId', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rowId = parseInt(req.params.rowId);
+    const row = await prisma.importRow.findUnique({ where: { id: rowId } });
+    if (!row || row.importJobId !== id) return res.status(404).json({ error: 'Row not found' });
+
+    const updatedRaw = { ...(row.rawData as any), ...(req.body || {}) };
+
+    // Re-validate minimal rules
+    const errors: string[] = [];
+    const email = String(updatedRaw.email || '').toLowerCase().trim();
+    const role = String(updatedRaw.role || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) errors.push('email is required');
+    else if (!emailRegex.test(email)) errors.push('invalid email');
+    const validRoles = ['platform_admin','school_admin','teacher','student','alumni'];
+    if (!role || !validRoles.includes(role)) errors.push('invalid role');
+
+    const existing = email ? await prisma.user.findUnique({ where: { email } }) : null;
+    const status = errors.length ? 'invalid' : (existing ? 'will_update' : 'valid');
+
+    const updated = await prisma.importRow.update({ where: { id: rowId }, data: { rawData: updatedRaw as any, validationErrors: errors.length ? errors as any : null, status: status as any } });
+    res.json(updated);
+  } catch (error) {
+    logger.error('Update row failed:', error);
+    res.status(500).json({ error: 'Failed to update row' });
   }
 });
 

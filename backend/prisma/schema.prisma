@@ -53,7 +53,7 @@ model School {
 
 model User {
   id               Int      @id @default(autoincrement())
-  keycloakId       String   @unique @map("keycloak_id") @db.VarChar(255)
+  keycloakId       String?  @map("keycloak_id") @db.VarChar(255)
   email            String   @unique @db.VarChar(255)
   firstName        String   @map("first_name") @db.VarChar(100)
   lastName         String   @map("last_name") @db.VarChar(100)
@@ -88,8 +88,10 @@ model User {
   connectionsSent       Connection[]    @relation("ConnectionSender")
   connectionsReceived   Connection[]    @relation("ConnectionReceiver")
 
+  @@index([keycloakId])
   @@map("users")
 }
+
 
 model UserProfile {
   id              Int      @id @default(autoincrement())
@@ -323,6 +325,65 @@ model Connection {
 
   @@unique([senderId, receiverId])
   @@map("connections")
+}
+
+model ImportJob {
+  id             Int               @id @default(autoincrement())
+  uploaderId     Int               @map("uploader_id")
+  filename       String
+  status         ImportJobStatus   @default(uploaded)
+  importBatchId  String?           @map("import_batch_id")
+  summary        Json?             @map("summary")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  uploader       User              @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  rows           ImportRow[]
+
+  @@index([status])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id               Int               @id @default(autoincrement())
+  importJobId      Int               @map("import_job_id")
+  rowNumber        Int               @map("row_number")
+  rawData          Json              @map("raw_data")
+  validationErrors Json?             @map("validation_errors")
+  status           ImportRowStatus   @default(pending)
+  result           Json?             @map("result")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  job              ImportJob         @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId])
+  @@map("import_rows")
+}
+
+
+// Import job enums
+enum ImportJobStatus {
+  uploaded
+  approved
+  provisioning
+  provisioned
+  activated
+  rolled_back
+  failed
+}
+
+enum ImportRowStatus {
+  pending
+  valid
+  invalid
+  provisioned
+  activated
+  failed
+  skipped
+  will_update
 }
 
 // Existing Enums

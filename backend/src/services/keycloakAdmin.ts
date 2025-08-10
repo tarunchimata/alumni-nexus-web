@@ -204,6 +204,42 @@ export class KeycloakAdminService {
       throw new Error('Failed to retrieve user profile');
     }
   }
+
+  async updateUserAttributes(userId: string, attributes: Record<string, any>) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+    try {
+      await kcAdmin.users.update({ id: userId }, { attributes });
+      logger.info(`Updated attributes for user ${userId}`);
+    } catch (error) {
+      logger.error('Failed to update user attributes:', error);
+      throw new Error('Update user attributes failed');
+    }
+  }
+
+  async setUserEnabled(userId: string, enabled: boolean) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+    try {
+      await kcAdmin.users.update({ id: userId }, { enabled });
+      logger.info(`Set enabled=${enabled} for user ${userId}`);
+    } catch (error) {
+      logger.error('Failed to set user enabled:', error);
+      throw new Error('Set user enabled failed');
+    }
+  }
+
+  async deleteUser(userId: string) {
+    await this.authenticate();
+    const kcAdmin = await this.getAdmin();
+    try {
+      await kcAdmin.users.del({ id: userId });
+      logger.info(`Deleted Keycloak user ${userId}`);
+    } catch (error) {
+      logger.error('Failed to delete user:', error);
+      throw new Error('Delete user failed');
+    }
+  }
 }
 
 export const keycloakAdminClient = new KeycloakAdminService();

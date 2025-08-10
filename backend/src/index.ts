@@ -312,8 +312,9 @@ const startServer = async () => {
     });
 
     // Initialize Socket.IO
-    const { SocketServer } = await import('./socket/socketServer');
-    const socketServerInstance = new SocketServer(server);
+    const socketModule = await import('./socket/socketServer');
+    const socketServerInstance = new socketModule.SocketServer(server);
+    socketModule.socketServer = socketServerInstance;
     logger.info('Socket.IO server initialized');
 
   } catch (error) {
