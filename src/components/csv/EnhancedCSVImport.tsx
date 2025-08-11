@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,6 +86,13 @@ export const EnhancedCSVImport: React.FC = () => {
   const [activeTab, setActiveTab] = useState('import');
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [batchSize, setBatchSize] = useState(50);
+
+  // PR2 job-based import state
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [jobPreview, setJobPreview] = useState<any | null>(null);
+  const [jobLoading, setJobLoading] = useState(false);
+  const [jobLogs, setJobLogs] = useState<any[]>([]);
+
 
   const { toast } = useToast();
 
@@ -404,6 +411,85 @@ export const EnhancedCSVImport: React.FC = () => {
     addLog('info', 'Import reset', 'RESET');
   };
 
+  // PR2: Stage users CSV to create a job (Keycloak-first)
+  const stageUsersJob = async () => {
+    if (!file || importType !== 'users') {
+      toast({ title: 'Select a users CSV first', variant: 'destructive' });
+      return;
+    }
+    setJobLoading(true);
+    try {
+      const res: any = await apiService.uploadUsersCSV(file);
+      setJobId(res.jobId);
+      setJobPreview(res);
+      addLog('success', `Staged users CSV as job ${res.jobId}`, 'JOB_STAGE', res.counts);
+      toast({ title: 'CSV staged', description: `Job #${res.jobId} created` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Staging failed';
+      addLog('error', msg, 'JOB_STAGE_ERROR', e);
+      toast({ title: 'Staging failed', description: msg, variant: 'destructive' });
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const approveJobAction = async () => {
+    if (!jobId) return;
+    try {
+      await apiService.approveCsvJob(jobId);
+      addLog('success', `Approve triggered for job ${jobId}`, 'JOB_APPROVE');
+      toast({ title: 'Approve started', description: `Job #${jobId}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Approve failed';
+      addLog('error', msg, 'JOB_APPROVE_ERROR', e);
+      toast({ title: 'Approve failed', description: msg, variant: 'destructive' });
+    }
+  };
+
+  const activateJobAction = async () => {
+    if (!jobId) return;
+    try {
+      await apiService.activateCsvJob(jobId);
+      addLog('success', `Activation completed for job ${jobId}`, 'JOB_ACTIVATE');
+      toast({ title: 'Activation completed', description: `Job #${jobId}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Activation failed';
+      addLog('error', msg, 'JOB_ACTIVATE_ERROR', e);
+      toast({ title: 'Activation failed', description: msg, variant: 'destructive' });
+    }
+  };
+
+  const exportFailedAction = async () => {
+    if (!jobId) return;
+    try {
+      const blob = await apiService.exportFailedCsvRows(jobId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `job-${jobId}-failed.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      addLog('info', `Exported failed rows for job ${jobId}`, 'JOB_EXPORT_FAILED');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Export failed';
+      addLog('error', msg, 'JOB_EXPORT_FAILED_ERROR', e);
+      toast({ title: 'Export failed', description: msg, variant: 'destructive' });
+    }
+  };
+
+  const fetchLogsAction = async () => {
+    if (!jobId) return;
+    try {
+      const res: any = await apiService.getCsvJobLogs(jobId);
+      setJobLogs(res.events || []);
+      addLog('info', `Fetched logs for job ${jobId}`, 'JOB_LOGS');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Logs fetch failed';
+      addLog('error', msg, 'JOB_LOGS_ERROR', e);
+      toast({ title: 'Logs fetch failed', description: msg, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <Card>
@@ -557,6 +643,38 @@ export const EnhancedCSVImport: React.FC = () => {
                   </Button>
                 )}
               </div>
+
+              {/* PR2 Job-based flow for Users */}
+              {importType === 'users' && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={stageUsersJob} disabled={!file || jobLoading}>
+                      {jobLoading ? 'Staging...' : 'Stage (PR2)'}
+                    </Button>
+                    <Button variant="outline" onClick={approveJobAction} disabled={!jobId}>Approve</Button>
+                    <Button variant="outline" onClick={activateJobAction} disabled={!jobId}>Activate</Button>
+                    <Button variant="outline" onClick={exportFailedAction} disabled={!jobId}>Export Failed</Button>
+                    <Button variant="outline" onClick={fetchLogsAction} disabled={!jobId}>View Logs</Button>
+                  </div>
+
+                  {jobId && (
+                    <div className="text-sm text-muted-foreground">
+                      Job #{jobId} {jobPreview?.counts && `— valid: ${jobPreview.counts.valid}, invalid: ${jobPreview.counts.invalid}`}
+                    </div>
+                  )}
+
+                  {jobLogs.length > 0 && (
+                    <div className="max-h-48 overflow-auto border rounded-md p-3 text-sm">
+                      <ul className="space-y-1">
+                        {jobLogs.slice(-100).map((e: any, i: number) => (
+                          <li key={i}>[{new Date(e.timestamp).toLocaleTimeString()}] {e.level?.toUpperCase?.()}: {e.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
             </TabsContent>
 
             <TabsContent value="validation">

@@ -269,6 +269,14 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Backend version/commit endpoint
+app.get('/api/version', (req, res) => {
+  const version = (() => { try { return require('../package.json').version; } catch { return 'unknown'; } })();
+  const commitSha = process.env.COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || 'unknown';
+  const buildTime = process.env.BUILD_TIME || 'unknown';
+  res.json({ version, commitSha, buildTime, node: process.version });
+});
+
 // API Routes with proper middleware
 app.use('/api/oauth2', oauth2Routes); // OAuth2 routes without CSRF
 app.use('/api/schools', skipCSRF, schoolRoutes);

@@ -106,6 +106,45 @@ class ApiService {
     return this.post(`/csv/import/${type}`, { data });
   }
 
+  // PR2 CSV Jobs API
+  async uploadUsersCSV(file: File) {
+    return this.uploadFile(`/csv/upload/users`, file);
+  }
+
+  async getCsvJobs() {
+    return this.get(`/csv/jobs`);
+  }
+
+  async getCsvJob(id: number) {
+    return this.get(`/csv/jobs/${id}`);
+  }
+
+  async approveCsvJob(id: number) {
+    return this.post(`/csv/jobs/${id}/approve`, {});
+  }
+
+  async activateCsvJob(id: number) {
+    return this.post(`/csv/jobs/${id}/activate`, {});
+  }
+
+  async getCsvJobLogs(id: number) {
+    return this.get(`/csv/jobs/${id}/logs`);
+  }
+
+  async exportFailedCsvRows(id: number): Promise<Blob> {
+    const token = localStorage.getItem('auth_access_token');
+    const resp = await fetch(`${API_BASE_URL}/csv/jobs/${id}/export-failed`, {
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`API Error: ${resp.status} ${resp.statusText} - ${text.slice(0,200)}`);
+    }
+    return await resp.blob();
+  }
+
   // People/Users methods
   async getUsers(filters?: any) {
     const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : '';

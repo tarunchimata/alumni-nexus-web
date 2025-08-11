@@ -202,6 +202,86 @@ router.post('/jobs/:id/rollback', requireRole(['platform_admin', 'school_admin']
   }
 });
 
+// Export failed/invalid rows as CSV
+router.get('/jobs/:id/export-failed', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const job = await prisma.importJob.findUnique({ where: { id } });
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const rows = await prisma.importRow.findMany({
+      where: {
+        importJobId: id,
+        OR: [
+          { status: 'invalid' as any },
+          { status: 'failed' as any },
+        ],
+      },
+      orderBy: { rowNumber: 'asc' },
+    });
+
+    // Prepare CSV
+    const allKeys = new Set<string>();
+    rows.forEach(r => Object.keys((r.rawData as any) || {}).forEach(k => allKeys.add(k)));
+    const headers = ['row_number', 'status', 'errors', ...Array.from(allKeys)];
+    const lines: string[] = [];
+    lines.push(headers.join(','));
+    for (const r of rows) {
+      const data = r.rawData as any;
+      const errors = Array.isArray(r.validationErrors) ? (r.validationErrors as any[]).join('; ') : '';
+      const rowValues = [
+        String(r.rowNumber ?? ''),
+        String(r.status ?? ''),
+        JSON.stringify(errors).replaceAll(',', ';'),
+        ...Array.from(allKeys).map(k => {
+          const v = data?.[k];
+          const s = v === undefined || v === null ? '' : String(v);
+          // escape quotes and commas
+          const escaped = '"' + s.replace(/"/g, '""') + '"';
+          return escaped;
+        })
+      ];
+      lines.push(rowValues.join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="job-${id}-failed.csv"`);
+    return res.status(200).send(lines.join('\n'));
+  } catch (error) {
+    logger.error('Export failed rows failed:', error);
+    return res.status(500).json({ error: 'Failed to export failed rows' });
+  }
+});
+
+// Minimal logs endpoint synthesized from rows timeline
+router.get('/jobs/:id/logs', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const job = await prisma.importJob.findUnique({ where: { id } });
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const rows = await prisma.importRow.findMany({
+      where: { importJobId: id },
+      orderBy: { updatedAt: 'asc' },
+      select: { id: true, rowNumber: true, status: true, validationErrors: true, result: true, createdAt: true, updatedAt: true }
+    });
+
+    const events = rows.map(r => ({
+      timestamp: r.updatedAt || r.createdAt,
+      level: r.status === 'failed' ? 'error' : (r.status === 'invalid' ? 'warning' : 'info'),
+      message: `Row ${r.rowNumber} status: ${r.status}`,
+      rowId: r.id,
+      rowNumber: r.rowNumber,
+      details: { validationErrors: r.validationErrors, result: r.result }
+    }));
+
+    return res.json({ job: { id: job.id, status: job.status, filename: job.filename, createdAt: job.createdAt, updatedAt: job.updatedAt }, events });
+  } catch (error) {
+    logger.error('Get job logs failed:', error);
+    return res.status(500).json({ error: 'Failed to fetch job logs' });
+  }
+});
+
 // Edit and revalidate a single row
 router.patch('/jobs/:id/rows/:rowId', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
   try {
