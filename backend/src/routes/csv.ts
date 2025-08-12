@@ -222,17 +222,17 @@ router.get('/jobs/:id/export-failed', requireRole(['platform_admin', 'school_adm
 
     // Prepare CSV
     const allKeys = new Set<string>();
-    rows.forEach(r => Object.keys((r.rawData as any) || {}).forEach(k => allKeys.add(k)));
+    rows.forEach((r: any) => Object.keys((r.rawData as any) || {}).forEach(k => allKeys.add(k)));
     const headers = ['row_number', 'status', 'errors', ...Array.from(allKeys)];
     const lines: string[] = [];
     lines.push(headers.join(','));
     for (const r of rows) {
-      const data = r.rawData as any;
-      const errors = Array.isArray(r.validationErrors) ? (r.validationErrors as any[]).join('; ') : '';
+      const data = (r as any).rawData as any;
+      const errors = Array.isArray((r as any).validationErrors) ? ((r as any).validationErrors as any[]).join('; ') : '';
       const rowValues = [
-        String(r.rowNumber ?? ''),
-        String(r.status ?? ''),
-        JSON.stringify(errors).replaceAll(',', ';'),
+        String((r as any).rowNumber ?? ''),
+        String((r as any).status ?? ''),
+        JSON.stringify(errors).split(',').join(';'),
         ...Array.from(allKeys).map(k => {
           const v = data?.[k];
           const s = v === undefined || v === null ? '' : String(v);
@@ -266,7 +266,7 @@ router.get('/jobs/:id/logs', requireRole(['platform_admin', 'school_admin']), as
       select: { id: true, rowNumber: true, status: true, validationErrors: true, result: true, createdAt: true, updatedAt: true }
     });
 
-    const events = rows.map(r => ({
+    const events = rows.map((r: any) => ({
       timestamp: r.updatedAt || r.createdAt,
       level: r.status === 'failed' ? 'error' : (r.status === 'invalid' ? 'warning' : 'info'),
       message: `Row ${r.rowNumber} status: ${r.status}`,

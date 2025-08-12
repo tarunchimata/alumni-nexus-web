@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS schools (
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    keycloak_id VARCHAR(255) UNIQUE NOT NULL,
+    keycloak_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS users (
     graduation_year INTEGER,
     profile_picture_url TEXT,
     is_active BOOLEAN DEFAULT true,
+    last_import_job_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -100,6 +101,31 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Import jobs table
+CREATE TABLE IF NOT EXISTS import_jobs (
+    id SERIAL PRIMARY KEY,
+    uploader_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('uploaded','approved','provisioning','provisioned','activated','rolled_back','failed')),
+    import_batch_id VARCHAR(100),
+    summary JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Import rows table
+CREATE TABLE IF NOT EXISTS import_rows (
+    id SERIAL PRIMARY KEY,
+    import_job_id INTEGER NOT NULL REFERENCES import_jobs(id) ON DELETE CASCADE,
+    row_number INTEGER NOT NULL,
+    raw_data JSONB NOT NULL,
+    validation_errors JSONB,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending','valid','invalid','provisioned','activated','failed','skipped','will_update')),
+    result JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ===================================================================
 -- SAFE INDEX CREATION - CREATES ONLY IF NOT EXISTS
 -- ===================================================================
@@ -108,6 +134,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_id);
 CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id);
+CREATE INDEX IF NOT EXISTS idx_users_last_import_job_id ON users(last_import_job_id);
 CREATE INDEX IF NOT EXISTS idx_schools_udise_code ON schools(udise_code);
 CREATE INDEX IF NOT EXISTS idx_schools_institution_id ON schools(institution_id);
 CREATE INDEX IF NOT EXISTS idx_schools_udise_school_code ON schools(udise_school_code);
@@ -120,6 +147,8 @@ CREATE INDEX IF NOT EXISTS idx_user_class_groups_class_id ON user_class_groups(c
 CREATE INDEX IF NOT EXISTS idx_messages_class_id ON messages(class_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_import_rows_job_id ON import_rows(import_job_id);
+CREATE INDEX IF NOT EXISTS idx_import_jobs_status ON import_jobs(status);
 
 -- Log completion
 SELECT 'Schema deployment completed safely at ' || now() as completion_message;

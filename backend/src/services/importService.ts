@@ -105,8 +105,8 @@ export async function createUserImportJob(fileBuffer: Buffer, filename: string, 
 
   const counts = {
     total: job.rows.length,
-    valid: job.rows.filter(r => r.status === 'valid' || r.status === 'will_update').length,
-    invalid: job.rows.filter(r => r.status === 'invalid').length,
+    valid: job.rows.filter((r: any) => r.status === 'valid' || r.status === 'will_update').length,
+    invalid: job.rows.filter((r: any) => r.status === 'invalid').length,
   };
 
   return { jobId: job.id, counts, rows: job.rows.slice(0, 20) };
@@ -123,7 +123,7 @@ export async function approveJob(jobId: number, approverId: number) {
   const limit = pLimit(CONCURRENCY);
   let processed = 0; let created = 0; let updated = 0; let failed = 0;
 
-  const results = await Promise.all(rows.map(row => limit(async () => {
+  const results = await Promise.all(rows.map((row: any) => limit(async () => {
     if (!(row.status === 'valid' || row.status === 'will_update')) return null;
     const data = row.rawData as any;
     const email = String(data.email).toLowerCase();
@@ -189,7 +189,7 @@ export async function approveJob(jobId: number, approverId: number) {
           isActive: false,
         },
         create: {
-          keycloakId: keycloakUserId || null,
+          keycloakId: keycloakUserId || undefined,
           email,
           firstName,
           lastName,
