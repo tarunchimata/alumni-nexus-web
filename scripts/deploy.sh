@@ -350,11 +350,20 @@ build_application() {
 start_services() {
     print_info "Starting services..."
     
-    cd docker
-    docker-compose down --remove-orphans
-    docker-compose build --no-cache
-    docker-compose up -d
-    cd ..
+    # Use safe Docker restart if available
+    if [ -f "scripts/msb-docker-restart.sh" ]; then
+        log_message "INFO" "Using safe Docker restart script"
+        chmod +x scripts/msb-docker-restart.sh
+        ./scripts/msb-docker-restart.sh
+    else
+        log_message "WARNING" "Safe restart script not found, using manual approach"
+        cd docker
+        docker-compose down --remove-orphans
+        export COMPOSE_PROJECT_NAME=msb
+        docker-compose build --no-cache
+        docker-compose up -d
+        cd ..
+    fi
     
     print_status "Services started"
     
@@ -478,12 +487,34 @@ create_demo_users() {
 
 # Function to clean up
 cleanup() {
-    print_info "Cleaning up..."
+    print_warning "⚠️  DANGER: This will remove MSB containers, volumes, and data!"
+    print_info "Use ./scripts/msb-docker-clean.sh for safer cleanup with confirmations"
+    echo ""
+    read -p "Are you sure you want to proceed? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Cleanup cancelled"
+        return
+    fi
     
-    cd docker
-    docker-compose down --volumes --remove-orphans
-    docker system prune -f
-    cd ..
+    print_info "Cleaning up MSB resources only..."
+    
+    # Use safe cleanup script if available
+    if [ -f "scripts/msb-docker-clean.sh" ]; then
+        log_message "INFO" "Using safe cleanup script"
+        chmod +x scripts/msb-docker-clean.sh
+        ./scripts/msb-docker-clean.sh
+    else
+        log_message "WARNING" "Safe cleanup script not found, using manual approach"
+        cd docker
+        docker-compose down --volumes --remove-orphans
+        # Remove only MSB containers and networks
+        docker rm $(docker ps -aq -f name=msb) 2>/dev/null || true
+        docker rm $(docker ps -aq -f name=docker_) 2>/dev/null || true
+        docker network rm myschoolbuddies-network 2>/dev/null || true
+        docker volume rm docker_backend_logs docker_backend_uploads 2>/dev/null || true
+        cd ..
+    fi
     
     print_status "Cleanup completed"
 }
