@@ -45,14 +45,13 @@ export const FloatingCTA = () => {
             Join 500+ institutions already on our platform
           </p>
           
-          <Link to="/register">
-            <Button 
-              size="sm" 
-              className="w-full bg-primary hover:bg-primary/90 text-white font-medium"
-            >
-              Get Started Free
-            </Button>
-          </Link>
+          <Button 
+            size="sm" 
+            className="w-full bg-primary hover:bg-primary/90 text-white font-medium"
+            onClick={() => window.location.href = 'https://login.hostingmanager.in/realms/myschoolbuddies-realm/protocol/openid-connect/registrations?client_id=myschoolbuddies-client&redirect_uri=' + encodeURIComponent(window.location.origin + '/auth/callback') + '&response_type=code&scope=openid%20profile%20email'}
+          >
+            Get Started Free
+          </Button>
         </div>
 
         {/* Trust Indicator */}

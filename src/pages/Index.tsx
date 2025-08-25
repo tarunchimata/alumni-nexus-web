@@ -308,23 +308,21 @@ const Index = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link to="/login">
-              <Button 
-                size="lg" 
-                className="bg-white text-gray-900 hover:bg-gray-100 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 shadow-2xl"
-              >
-                Get Started Today
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="border-3 border-white text-white hover:bg-white hover:text-gray-900 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 backdrop-blur-sm"
-              >
-                Register Your School
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              className="bg-white text-gray-900 hover:bg-gray-100 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 shadow-2xl"
+              onClick={() => window.location.href = 'https://login.hostingmanager.in/realms/myschoolbuddies-realm/protocol/openid-connect/auth?client_id=myschoolbuddies-client&redirect_uri=' + encodeURIComponent(window.location.origin + '/auth/callback') + '&response_type=code&scope=openid%20profile%20email'}
+            >
+              Get Started Today
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="border-3 border-white text-white hover:bg-white hover:text-gray-900 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+              onClick={() => window.location.href = 'https://login.hostingmanager.in/realms/myschoolbuddies-realm/protocol/openid-connect/registrations?client_id=myschoolbuddies-client&redirect_uri=' + encodeURIComponent(window.location.origin + '/auth/callback') + '&response_type=code&scope=openid%20profile%20email'}
+            >
+              Register Your School
+            </Button>
           </div>
           
           <div className="mt-12 text-lg text-white/80">

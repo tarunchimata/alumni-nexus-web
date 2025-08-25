@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 import { keycloakAdminClient } from './keycloakAdmin';
 import { socketServer } from '../socket/socketServer';
 
-export type ImportJobStatus = 'uploaded'|'approved'|'provisioning'|'provisioned'|'activated'|'rolled_back'|'failed';
+export type ImportJobStatus = 'uploaded'|'approved'|'provisioning'|'provisioned'|'activated'|'rolled_back'|'failed'|'dry_run'|'dry_run_complete';
 export type ImportRowStatus = 'pending'|'valid'|'invalid'|'provisioned'|'activated'|'failed'|'skipped'|'will_update';
 
 const CONCURRENCY = parseInt(process.env.IMPORT_CONCURRENCY || '5');
@@ -35,7 +35,7 @@ export interface CSVUserRow {
   graduationYear?: string;
 }
 
-export async function createUserImportJob(fileBuffer: Buffer, filename: string, uploaderId: number, uploaderSchoolId?: number) {
+export async function createUserImportJob(fileBuffer: Buffer, filename: string, uploaderId: number, uploaderSchoolId?: number, isDryRun: boolean = false) {
   // Parse CSV
   const rows: any[] = [];
   const readable = Readable.from(fileBuffer);
@@ -90,7 +90,8 @@ export async function createUserImportJob(fileBuffer: Buffer, filename: string, 
     data: {
       uploaderId,
       filename,
-      status: 'uploaded',
+      status: isDryRun ? 'dry_run' : 'uploaded',
+      isDryRun,
       rows: {
         create: validation.map(v => ({
           rowNumber: v.rowNumber,
