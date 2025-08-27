@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, School, Settings, Database, TrendingUp, Shield, AlertTriangle, CheckCircle, Clock, UserPlus } from "lucide-react";
 import CSVImport from "@/components/CSVImport";
+import SchoolApprovalQueue from "@/components/admin/SchoolApprovalQueue";
 
 interface DashboardData {
   stats: {
@@ -199,67 +200,7 @@ const PlatformAdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Approval Queue</CardTitle>
-            <CardDescription>Real users and schools requiring approval</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {dashboardData.pendingSchools.length > 0 ? (
-              dashboardData.pendingSchools.map((school) => (
-                <div key={school.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <School className="w-4 h-4 text-blue-500" />
-                    <div>
-                      <p className="text-sm font-medium">{school.name}</p>
-                      <p className="text-xs text-muted-foreground">New school registration</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="default">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Approve
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Review
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">No pending approvals</p>
-              </div>
-            )}
-
-            {dashboardData.recentActivity.slice(0, 3).map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Users className="w-4 h-4 text-green-500" />
-                  <div>
-                    <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
-                    <p className="text-xs text-muted-foreground">{user.userType} registration</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {user.status === 'pending_approval' ? (
-                    <>
-                      <Button size="sm" variant="default">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Approve
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        Review
-                      </Button>
-                    </>
-                  ) : (
-                    <Badge variant="default" className="text-xs">{user.status}</Badge>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <SchoolApprovalQueue onApprovalAction={fetchDashboardData} />
       </div>
 
       {/* Recent Activity & Analytics */}

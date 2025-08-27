@@ -155,6 +155,22 @@ class ApiService {
     return this.get('/schools');
   }
 
+  async getSchool(id: string) {
+    return this.get(`/schools/${id}`);
+  }
+
+  async updateSchool(id: string, data: any) {
+    return this.put(`/schools/${id}`, data);
+  }
+
+  async approveSchool(id: string) {
+    return this.post(`/schools/${id}/approve`, {});
+  }
+
+  async validateSchool(id: string) {
+    return this.post(`/schools/${id}/validate`, {});
+  }
+
   async connectUser(userId: string) {
     return this.post(`/connections/request`, { userId });
   }
