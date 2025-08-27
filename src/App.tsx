@@ -26,6 +26,7 @@ import Messages from "@/pages/Messages";
 import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import CSVUploadPage from "@/pages/CSVUploadPage";
+import SchoolsManagement from "@/pages/SchoolsManagement";
 import WelcomePage from "@/pages/WelcomePage";
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ function App() {
                 <Route path="profile/edit" element={<ProfileEdit />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="admin/csv-upload" element={<CSVUploadPage />} />
+                <Route path="schools" element={<SchoolsManagement />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route path="school-analytics" element={<AnalyticsPage />} />
                 <Route path="welcome" element={<WelcomePage />} />

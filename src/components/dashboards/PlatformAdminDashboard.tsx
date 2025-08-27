@@ -1,11 +1,12 @@
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { apiClient, endpoints } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, School, Settings, Database, TrendingUp, Shield, AlertTriangle, CheckCircle, Clock, UserPlus } from "lucide-react";
-import CSVImport from "@/components/CSVImport";
+import { EnhancedCSVImport } from "@/components/csv/EnhancedCSVImport";
 import SchoolApprovalQueue from "@/components/admin/SchoolApprovalQueue";
 
 interface DashboardData {
@@ -175,11 +176,13 @@ const PlatformAdminDashboard = () => {
             <CardDescription>Platform-wide administration tools</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start" variant="outline">
-              <School className="w-4 h-4 mr-2" />
-              Manage Schools
-              <Badge variant="destructive" className="ml-auto">3 pending</Badge>
-            </Button>
+            <Link to="/schools" className="w-full">
+              <Button className="w-full justify-start" variant="outline">
+                <School className="w-4 h-4 mr-2" />
+                Manage Schools
+                <Badge variant="destructive" className="ml-auto">{dashboardData.pendingSchools.length} pending</Badge>
+              </Button>
+            </Link>
             <Button className="w-full justify-start" variant="outline">
               <Users className="w-4 h-4 mr-2" />
               User Management
@@ -249,12 +252,8 @@ const PlatformAdminDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-medium mb-3">Import Schools</h3>
-              <CSVImport type="schools" onSuccess={fetchDashboardData} />
-            </div>
-            <div>
               <h3 className="text-sm font-medium mb-3">Import Users</h3>
-              <CSVImport type="users" onSuccess={fetchDashboardData} />
+              <EnhancedCSVImport />
             </div>
           </CardContent>
         </Card>

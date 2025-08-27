@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,21 @@ import loginBg from '@/assets/login-bg.jpg';
 export const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
+
+  // Auto-redirect to login on mount
+  useEffect(() => {
+    const autoLogin = async () => {
+      try {
+        setIsSubmitting(true);
+        await login();
+      } catch (error) {
+        console.error('Auto-login failed:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+    autoLogin();
+  }, []);
 
   const handleLogin = async () => {
     try {
