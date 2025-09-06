@@ -61,6 +61,7 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
         locationType: true,
         status: true,
         createdAt: true,
+        updatedAt: true,
         // Legacy compatibility fields
         name: true,
         udiseCode: true,
@@ -78,6 +79,7 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       schools: schools.map(school => ({
         id: school.id,
         name: school.schoolName || school.name,
+        schoolName: school.schoolName || school.name,
         udiseCode: school.udiseSchoolCode || school.udiseCode,
         districtName: school.districtName,
         stateName: school.stateName,
@@ -86,6 +88,8 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
         status: school.status,
         userCount: school._count.users,
         classCount: school._count.classes,
+        createdAt: school.createdAt,
+        updatedAt: school.updatedAt,
       })),
       pagination: {
         page: Number(page),

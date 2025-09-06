@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/api';
 import { 
   Upload, 
   FileText, 
@@ -17,26 +18,56 @@ import {
   Download,
   Eye,
   RotateCcw,
-  Settings
+  Settings,
+  Shield,
+  Database
 } from 'lucide-react';
 import { ValidationFeedback } from './ValidationFeedback';
 import { ImportLogger } from './ImportLogger';
 import { TroubleshootingGuide } from './TroubleshootingGuide';
-import { apiService } from '@/services/apiService';
 
-interface CSVRow {
+interface ProcessedRow {
   row: number;
   data: Record<string, any>;
   errors: string[];
   warnings: string[];
   isValid: boolean;
+  operation?: 'create' | 'update' | 'skip';
 }
 
-interface ImportResult {
+interface ValidationSummary {
   total: number;
-  successful: number;
-  failed: number;
-  errors: Array<{ row: number; message: string; }>;
+  valid: number;
+  invalid: number;
+  toCreate: number;
+  toUpdate: number;
+  toSkip: number;
+}
+
+interface StrictValidationResult {
+  isValid: boolean;
+  summary: ValidationSummary;
+  processedRows: ProcessedRow[];
+  readyForImport: boolean;
+}
+
+interface BatchExecutionResult {
+  success: boolean;
+  keycloakResult: {
+    successful: number;
+    failed: number;
+    errors: string[];
+  };
+  databaseResult: {
+    synced: number;
+    failed: number;
+    errors: string[];
+  };
+  summary: {
+    totalProcessed: number;
+    keycloakSuccessful: number;
+    databaseSynced: number;
+  };
 }
 
 interface LogEntry {
@@ -62,11 +93,9 @@ type ImportType = 'users' | 'schools' | 'alumni' | 'teachers' | 'students';
 export const EnhancedCSVImport: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState<ImportType>('users');
-  const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [stats, setStats] = useState<ImportStats>({
     totalAttempts: 0,
@@ -74,25 +103,12 @@ export const EnhancedCSVImport: React.FC = () => {
     failedImports: 0,
     averageImportTime: 0
   });
-  const [validationResult, setValidationResult] = useState({
-    isValid: false,
-    errors: [] as any[],
-    warnings: [] as any[],
-    totalRows: 0,
-    validRows: 0,
-    stage: 'idle' as 'parsing' | 'validating' | 'complete' | 'idle',
-    progress: 0
-  });
+  
+  // Strict validation state
+  const [validationResult, setValidationResult] = useState<StrictValidationResult | null>(null);
+  const [importResult, setImportResult] = useState<BatchExecutionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('import');
-  const [retryAttempts, setRetryAttempts] = useState(0);
-  const [batchSize, setBatchSize] = useState(50);
-
-  // PR2 job-based import state
-  const [jobId, setJobId] = useState<number | null>(null);
-  const [jobPreview, setJobPreview] = useState<any | null>(null);
-  const [jobLoading, setJobLoading] = useState(false);
-  const [jobLogs, setJobLogs] = useState<any[]>([]);
-
 
   const { toast } = useToast();
 
@@ -124,10 +140,15 @@ export const EnhancedCSVImport: React.FC = () => {
     }
 
     setFile(uploadedFile);
+    setError(null);
+    setValidationResult(null);
+    setImportResult(null);
     addLog('info', `File uploaded: ${uploadedFile.name} (${(uploadedFile.size / 1024).toFixed(1)} KB)`, 'FILE_UPLOAD');
     
-    // Auto-validate on file upload
-    await validateCSV(uploadedFile);
+    // Auto-validate on file upload for users
+    if (importType === 'users') {
+      await validateStrictCSV(uploadedFile);
+    }
   }, [importType]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -139,118 +160,49 @@ export const EnhancedCSVImport: React.FC = () => {
     maxSize: 10 * 1024 * 1024 // 10MB
   });
 
-  const validateCSV = async (fileToValidate?: File) => {
+  const validateStrictCSV = async (fileToValidate?: File) => {
     const targetFile = fileToValidate || file;
-    if (!targetFile) return;
+    if (!targetFile || importType !== 'users') return;
 
     setIsValidating(true);
-    setValidationResult(prev => ({ ...prev, stage: 'parsing', progress: 0 }));
-    addLog('info', `Starting validation for ${importType} import`, 'VALIDATION_START');
+    setError(null);
+    addLog('info', 'Starting Keycloak-first validation', 'STRICT_VALIDATION_START');
 
     try {
-      // Simulate parsing progress
-      setValidationResult(prev => ({ ...prev, progress: 20 }));
+      const response: any = await apiClient.uploadFile('/csv-strict/validate-strict', file);
+
+      const validationData: StrictValidationResult = {
+        isValid: response.validationPassed || false,
+        summary: response.summary || {},
+        processedRows: response.processedRows || [],
+        readyForImport: response.readyForImport || false
+      };
+
+      setValidationResult(validationData);
       
-      const text = await targetFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      setValidationResult(prev => ({ ...prev, stage: 'validating', progress: 40 }));
-      
-      if (lines.length < 2) {
-        throw new Error('CSV file must contain a header row and at least one data row');
-      }
-
-      const headers = lines[0].split(',').map(h => h.trim());
-      const requiredFields = getRequiredFields(importType);
-      
-      // Check for missing required fields
-      const missingFields = requiredFields.filter(field => !headers.includes(field));
-      if (missingFields.length > 0) {
-        throw new Error(`Missing required columns: ${missingFields.join(', ')}`);
-      }
-
-      setValidationResult(prev => ({ ...prev, progress: 60 }));
-
-      // Validate data rows
-      const rows: CSVRow[] = [];
-      const errors: any[] = [];
-      const warnings: any[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        if (values.length !== headers.length) continue;
-
-        const rowData: Record<string, any> = {};
-        headers.forEach((header, index) => {
-          rowData[header] = values[index];
+      if (response.validationPassed) {
+        addLog('success', 
+          `Validation passed: ${response.summary?.valid || 0}/${response.summary?.total || 0} valid rows`, 
+          'STRICT_VALIDATION_SUCCESS', 
+          response.summary
+        );
+        toast({
+          title: "Validation successful",
+          description: `${response.summary?.valid || 0} valid rows ready for Keycloak import`,
         });
-
-        const rowErrors: string[] = [];
-        const rowWarnings: string[] = [];
-
-        // Validate required fields
-        requiredFields.forEach(field => {
-          if (!rowData[field] || rowData[field].trim() === '') {
-            rowErrors.push(`${field} is required`);
-          }
-        });
-
-        // Validate email format
-        if (rowData.email && !isValidEmail(rowData.email)) {
-          rowErrors.push('Invalid email format');
-        }
-
-        // Validate role for user imports
-        if (importType === 'users' && rowData.role && !isValidRole(rowData.role)) {
-          rowErrors.push(`Invalid role: ${rowData.role}`);
-        }
-
-        const row: CSVRow = {
-          row: i,
-          data: rowData,
-          errors: rowErrors,
-          warnings: rowWarnings,
-          isValid: rowErrors.length === 0
-        };
-
-        rows.push(row);
-
-        // Collect all errors and warnings
-        rowErrors.forEach(error => errors.push({ row: i, field: '', message: error, severity: 'error' }));
-        rowWarnings.forEach(warning => warnings.push({ row: i, field: '', message: warning, severity: 'warning' }));
+      } else {
+        addLog('warning', 
+          `Validation completed with issues: ${response.summary?.invalid || 0} invalid rows`, 
+          'STRICT_VALIDATION_WARNING', 
+          response.summary
+        );
+        setError(`${response.summary?.invalid || 0} rows have validation errors`);
       }
 
-      setValidationResult(prev => ({ ...prev, progress: 80 }));
-
-      setCsvData(rows);
-      const validRows = rows.filter(row => row.isValid).length;
-      
-      setValidationResult({
-        isValid: errors.length === 0,
-        errors,
-        warnings,
-        totalRows: rows.length,
-        validRows,
-        stage: 'complete',
-        progress: 100
-      });
-
-      addLog(
-        errors.length === 0 ? 'success' : 'warning',
-        `Validation complete: ${validRows}/${rows.length} valid rows`,
-        'VALIDATION_COMPLETE',
-        { validRows, totalRows: rows.length, errorCount: errors.length }
-      );
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Validation failed';
-      setValidationResult(prev => ({ 
-        ...prev, 
-        stage: 'complete',
-        progress: 0,
-        errors: [{ row: 0, message: errorMessage, severity: 'error' as const }]
-      }));
-      addLog('error', errorMessage, 'VALIDATION_ERROR', { error });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Strict validation failed';
+      setError(errorMessage);
+      addLog('error', errorMessage, 'STRICT_VALIDATION_ERROR', { error });
       toast({
         title: "Validation failed",
         description: errorMessage,
@@ -261,88 +213,72 @@ export const EnhancedCSVImport: React.FC = () => {
     }
   };
 
-  const handleImport = async () => {
-    if (!csvData.length || !validationResult.isValid) return;
+  const executeKeycloakBatch = async () => {
+    if (!file || !validationResult?.readyForImport || importType !== 'users') {
+      setError('Please validate a users CSV file first');
+      return;
+    }
 
     const startTime = Date.now();
     setIsImporting(true);
     setImportProgress(0);
-    setRetryAttempts(0);
+    setError(null);
     
-    const validRows = csvData.filter(row => row.isValid);
-    addLog('info', `Starting import of ${validRows.length} ${importType}`, 'IMPORT_START');
+    addLog('info', `Starting Keycloak-first batch execution for ${validationResult.summary.valid} valid rows`, 'BATCH_EXECUTION_START');
 
     try {
-      let successful = 0;
-      const errors: Array<{ row: number; message: string; }> = [];
+      setImportProgress(25);
+      
+      const response: any = await apiClient.uploadFile('/csv-strict/execute-batch', file);
 
-      // Process in batches
-      for (let i = 0; i < validRows.length; i += batchSize) {
-        const batch = validRows.slice(i, i + batchSize);
+      setImportProgress(75);
+
+      if (response.success) {
+        const result: BatchExecutionResult = {
+          success: response.success,
+          keycloakResult: response.keycloakResult || { successful: 0, failed: 0, errors: [] },
+          databaseResult: response.databaseResult || { synced: 0, failed: 0, errors: [] },
+          summary: response.summary || { totalProcessed: 0, keycloakSuccessful: 0, databaseSynced: 0 }
+        };
+        setImportResult(result);
         
-        try {
-          const response = await apiService.importCSV(
-            batch.map(row => row.data),
-            importType as 'users' | 'schools'
-          );
-          
-          successful += batch.length;
-          addLog('success', `Batch ${Math.floor(i / batchSize) + 1} imported successfully (${batch.length} rows)`, 'BATCH_IMPORT');
-          
-        } catch (error) {
-          batch.forEach(row => {
-            errors.push({
-              row: row.row,
-              message: error instanceof Error ? error.message : 'Import failed'
-            });
-          });
-          addLog('error', `Batch ${Math.floor(i / batchSize) + 1} failed`, 'BATCH_ERROR', { error });
-        }
-        
-        setImportProgress(((i + batch.length) / validRows.length) * 100);
-        
-        // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+        const endTime = Date.now();
+        const importTime = (endTime - startTime) / 1000;
 
-      const endTime = Date.now();
-      const importTime = (endTime - startTime) / 1000;
+        // Update stats
+        setStats(prev => ({
+          totalAttempts: prev.totalAttempts + 1,
+          successfulImports: prev.successfulImports + (result.keycloakResult.successful > 0 ? 1 : 0),
+          failedImports: prev.failedImports + (result.keycloakResult.failed > 0 ? 1 : 0),
+          averageImportTime: prev.totalAttempts > 0 
+            ? (prev.averageImportTime * prev.totalAttempts + importTime) / (prev.totalAttempts + 1)
+            : importTime,
+          lastImportTime: new Date()
+        }));
 
-      // Update stats
-      setStats(prev => ({
-        totalAttempts: prev.totalAttempts + 1,
-        successfulImports: prev.successfulImports + (successful > 0 ? 1 : 0),
-        failedImports: prev.failedImports + (errors.length > 0 ? 1 : 0),
-        averageImportTime: prev.totalAttempts > 0 
-          ? (prev.averageImportTime * prev.totalAttempts + importTime) / (prev.totalAttempts + 1)
-          : importTime,
-        lastImportTime: new Date()
-      }));
+        addLog('success', 
+          `Batch execution completed: Keycloak ${result.keycloakResult.successful}/${result.summary.totalProcessed}, Database ${result.databaseResult.synced}/${result.keycloakResult.successful}`, 
+          'BATCH_EXECUTION_SUCCESS', 
+          result.summary
+        );
 
-      setImportResult({
-        total: validRows.length,
-        successful,
-        failed: errors.length,
-        errors
-      });
-
-      addLog(
-        successful > 0 ? 'success' : 'error',
-        `Import completed: ${successful}/${validRows.length} successful`,
-        'IMPORT_COMPLETE',
-        { successful, failed: errors.length, importTime }
-      );
-
-      if (successful > 0) {
         toast({
           title: "Import successful",
-          description: `Successfully imported ${successful} ${importType}`,
+          description: `Keycloak: ${result.keycloakResult.successful} users, Database: ${result.databaseResult.synced} synced`,
         });
+
+        // Reset form
+        setFile(null);
+        setValidationResult(null);
+
+      } else {
+        throw new Error(response.message || 'Batch execution failed');
       }
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Import failed';
-      addLog('error', errorMessage, 'IMPORT_ERROR', { error });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Batch execution failed';
+      setError(errorMessage);
+      addLog('error', errorMessage, 'BATCH_EXECUTION_ERROR', { error });
       toast({
         title: "Import failed",
         description: errorMessage,
@@ -350,143 +286,39 @@ export const EnhancedCSVImport: React.FC = () => {
       });
     } finally {
       setIsImporting(false);
+      setImportProgress(100);
     }
   };
 
   const downloadTemplate = useCallback(() => {
-    const templates = {
-      users: 'email,firstName,lastName,role,schoolId\nexample@school.edu,John,Doe,student,1',
-      schools: 'name,address,type,contactEmail\nLincoln High School,123 Main St,public,admin@lincoln.edu',
-      alumni: 'email,firstName,lastName,graduationYear,degree\nalumni@example.com,Jane,Smith,2020,Computer Science',
-      teachers: 'email,firstName,lastName,subject,department\nteacher@school.edu,Prof,Johnson,Mathematics,STEM',
-      students: 'email,firstName,lastName,grade,class\nstudent@school.edu,Alex,Wilson,10,10A'
-    };
+    const templateUrl = importType === 'users' 
+      ? '/templates/users-strict-template.csv'
+      : `/templates/${importType}-template.csv`;
     
-    const template = templates[importType];
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = templateUrl;
     a.download = `${importType}_template.csv`;
     a.click();
-    URL.revokeObjectURL(url);
     
     addLog('info', `Template downloaded for ${importType}`, 'TEMPLATE_DOWNLOAD');
   }, [importType, addLog]);
 
-  const getRequiredFields = (type: ImportType): string[] => {
-    const fieldMap = {
-      users: ['email', 'firstName', 'lastName', 'role'],
-      schools: ['name', 'address', 'type'],
-      alumni: ['email', 'firstName', 'lastName', 'graduationYear'],
-      teachers: ['email', 'firstName', 'lastName', 'subject'],
-      students: ['email', 'firstName', 'lastName', 'grade']
-    };
-    return fieldMap[type] || [];
-  };
-
-  const isValidEmail = (email: string): boolean => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  const isValidRole = (role: string): boolean => {
-    return ['student', 'teacher', 'alumni', 'school_admin', 'platform_admin'].includes(role);
-  };
-
   const resetImport = () => {
     setFile(null);
-    setCsvData([]);
+    setValidationResult(null);
     setImportResult(null);
-    setValidationResult({
-      isValid: false,
-      errors: [] as any[],
-      warnings: [] as any[],
-      totalRows: 0,
-      validRows: 0,
-      stage: 'idle' as 'parsing' | 'validating' | 'complete' | 'idle',
-      progress: 0
-    });
+    setError(null);
     setImportProgress(0);
-    setRetryAttempts(0);
     addLog('info', 'Import reset', 'RESET');
   };
 
-  // PR2: Stage users CSV to create a job (Keycloak-first)
-  const stageUsersJob = async () => {
-    if (!file || importType !== 'users') {
-      toast({ title: 'Select a users CSV first', variant: 'destructive' });
-      return;
-    }
-    setJobLoading(true);
+  const getValidationRules = async () => {
     try {
-      const res: any = await apiService.uploadUsersCSV(file);
-      setJobId(res.jobId);
-      setJobPreview(res);
-      addLog('success', `Staged users CSV as job ${res.jobId}`, 'JOB_STAGE', res.counts);
-      toast({ title: 'CSV staged', description: `Job #${res.jobId} created` });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Staging failed';
-      addLog('error', msg, 'JOB_STAGE_ERROR', e);
-      toast({ title: 'Staging failed', description: msg, variant: 'destructive' });
-    } finally {
-      setJobLoading(false);
-    }
-  };
-
-  const approveJobAction = async () => {
-    if (!jobId) return;
-    try {
-      await apiService.approveCsvJob(jobId);
-      addLog('success', `Approve triggered for job ${jobId}`, 'JOB_APPROVE');
-      toast({ title: 'Approve started', description: `Job #${jobId}` });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Approve failed';
-      addLog('error', msg, 'JOB_APPROVE_ERROR', e);
-      toast({ title: 'Approve failed', description: msg, variant: 'destructive' });
-    }
-  };
-
-  const activateJobAction = async () => {
-    if (!jobId) return;
-    try {
-      await apiService.activateCsvJob(jobId);
-      addLog('success', `Activation completed for job ${jobId}`, 'JOB_ACTIVATE');
-      toast({ title: 'Activation completed', description: `Job #${jobId}` });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Activation failed';
-      addLog('error', msg, 'JOB_ACTIVATE_ERROR', e);
-      toast({ title: 'Activation failed', description: msg, variant: 'destructive' });
-    }
-  };
-
-  const exportFailedAction = async () => {
-    if (!jobId) return;
-    try {
-      const blob = await apiService.exportFailedCsvRows(jobId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `job-${jobId}-failed.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      addLog('info', `Exported failed rows for job ${jobId}`, 'JOB_EXPORT_FAILED');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Export failed';
-      addLog('error', msg, 'JOB_EXPORT_FAILED_ERROR', e);
-      toast({ title: 'Export failed', description: msg, variant: 'destructive' });
-    }
-  };
-
-  const fetchLogsAction = async () => {
-    if (!jobId) return;
-    try {
-      const res: any = await apiService.getCsvJobLogs(jobId);
-      setJobLogs(res.events || []);
-      addLog('info', `Fetched logs for job ${jobId}`, 'JOB_LOGS');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Logs fetch failed';
-      addLog('error', msg, 'JOB_LOGS_ERROR', e);
-      toast({ title: 'Logs fetch failed', description: msg, variant: 'destructive' });
+      const response = await apiClient.get('/csv-strict/validation-rules');
+      addLog('info', 'Fetched validation rules', 'VALIDATION_RULES');
+      return response;
+    } catch (error) {
+      addLog('error', 'Failed to fetch validation rules', 'VALIDATION_RULES_ERROR', error);
     }
   };
 
@@ -495,8 +327,8 @@ export const EnhancedCSVImport: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Enhanced CSV Data Import
+            <Shield className="w-5 h-5" />
+            Keycloak-First CSV Import
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -505,11 +337,11 @@ export const EnhancedCSVImport: React.FC = () => {
               <TabsTrigger value="import">Import</TabsTrigger>
               <TabsTrigger value="validation">Validation</TabsTrigger>
               <TabsTrigger value="logs">Activity Logs</TabsTrigger>
-              <TabsTrigger value="help">Troubleshooting</TabsTrigger>
+              <TabsTrigger value="help">Help</TabsTrigger>
             </TabsList>
 
             <TabsContent value="import" className="space-y-6">
-              {/* Import Type & Settings */}
+              {/* Import Type Selection */}
               <div className="flex gap-4 items-center">
                 <div className="flex-1">
                   <label className="text-sm font-medium mb-2 block">Import Type</label>
@@ -518,24 +350,16 @@ export const EnhancedCSVImport: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="users">Users</SelectItem>
+                      <SelectItem value="users">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4" />
+                          Users (Keycloak-First)
+                        </div>
+                      </SelectItem>
                       <SelectItem value="schools">Schools</SelectItem>
                       <SelectItem value="alumni">Alumni</SelectItem>
                       <SelectItem value="teachers">Teachers</SelectItem>
                       <SelectItem value="students">Students</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Batch Size</label>
-                  <Select value={batchSize.toString()} onValueChange={(value) => setBatchSize(parseInt(value))}>
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -544,6 +368,17 @@ export const EnhancedCSVImport: React.FC = () => {
                   Template
                 </Button>
               </div>
+
+              {/* Keycloak-first notice for users */}
+              {importType === 'users' && (
+                <Alert>
+                  <Shield className="w-4 h-4" />
+                  <AlertDescription>
+                    <strong>Keycloak-First Import:</strong> Users will be created in Keycloak first, then synced to the database. 
+                    This ensures authentication consistency and supports rollback operations.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* File Upload */}
               <div
@@ -559,7 +394,9 @@ export const EnhancedCSVImport: React.FC = () => {
                 ) : (
                   <div>
                     <p className="text-foreground font-medium">Drop your CSV file here, or click to browse</p>
-                    <p className="text-sm text-muted-foreground mt-2">Supports CSV files up to 10MB</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {importType === 'users' ? 'Supports strict validation with Keycloak integration' : 'Standard CSV import'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -578,14 +415,53 @@ export const EnhancedCSVImport: React.FC = () => {
                 </Alert>
               )}
 
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive">
+                  <XCircle className="w-4 h-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               {/* Validation Progress */}
               {isValidating && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Validating data...</span>
-                    <span>{validationResult.progress}%</span>
+                    <span>Validating with Keycloak rules...</span>
+                    <span>Processing...</span>
                   </div>
-                  <Progress value={validationResult.progress} />
+                  <Progress value={undefined} className="animate-pulse" />
+                </div>
+              )}
+
+              {/* Validation Results */}
+              {validationResult && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium">Keycloak-First Validation Results</h4>
+                    <Badge variant={validationResult.readyForImport ? "default" : "destructive"}>
+                      {validationResult.readyForImport ? "Ready for Import" : "Issues Found"}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-semibold text-blue-600">{validationResult.summary.total}</div>
+                      <div className="text-blue-700">Total Rows</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-lg font-semibold text-green-600">{validationResult.summary.valid}</div>
+                      <div className="text-green-700">Valid</div>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <div className="text-lg font-semibold text-yellow-600">{validationResult.summary.toUpdate}</div>
+                      <div className="text-yellow-700">Updates</div>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <div className="text-lg font-semibold text-red-600">{validationResult.summary.invalid}</div>
+                      <div className="text-red-700">Invalid</div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -593,93 +469,106 @@ export const EnhancedCSVImport: React.FC = () => {
               {isImporting && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Importing data...</span>
+                    <span>Executing Keycloak-first batch import...</span>
                     <span>{Math.round(importProgress)}%</span>
                   </div>
                   <Progress value={importProgress} />
                 </div>
               )}
 
-              {/* Import Result */}
+              {/* Import Results */}
               {importResult && (
-                <Alert variant={importResult.failed > 0 ? "destructive" : "default"}>
-                  {importResult.failed > 0 ? (
-                    <XCircle className="w-4 h-4" />
-                  ) : (
+                <Alert variant={importResult.success ? "default" : "destructive"}>
+                  {importResult.success ? (
                     <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <XCircle className="w-4 h-4" />
                   )}
                   <AlertDescription>
-                    Import completed: {importResult.successful} successful, {importResult.failed} failed
-                    {importResult.errors.length > 0 && (
-                      <details className="mt-2">
-                        <summary className="cursor-pointer">View errors</summary>
-                        <ul className="mt-2 space-y-1">
-                          {importResult.errors.slice(0, 5).map((error, index) => (
-                            <li key={index} className="text-sm">Row {error.row}: {error.message}</li>
-                          ))}
-                          {importResult.errors.length > 5 && (
-                            <li className="text-sm">...and {importResult.errors.length - 5} more</li>
+                    <div className="space-y-2">
+                      <div className="font-semibold">
+                        Batch Execution {importResult.success ? 'Completed' : 'Failed'}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            <strong>Keycloak:</strong>
+                          </div>
+                          <div>✓ {importResult.keycloakResult.successful} successful</div>
+                          {importResult.keycloakResult.failed > 0 && (
+                            <div>✗ {importResult.keycloakResult.failed} failed</div>
                           )}
-                        </ul>
-                      </details>
-                    )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Database className="w-4 h-4" />
+                            <strong>Database:</strong>
+                          </div>
+                          <div>✓ {importResult.databaseResult.synced} synced</div>
+                          {importResult.databaseResult.failed > 0 && (
+                            <div>✗ {importResult.databaseResult.failed} failed</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleImport}
-                  disabled={!csvData.length || !validationResult.isValid || isImporting}
-                  className="flex-1"
-                >
-                  {isImporting ? 'Importing...' : `Import ${importType}`}
-                </Button>
-                {file && (
-                  <Button variant="outline" onClick={() => validateCSV()} disabled={isValidating}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    {isValidating ? 'Validating...' : 'Re-validate'}
+              <div className="space-y-3">
+                {importType === 'users' ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => validateStrictCSV()}
+                        disabled={!file || isValidating}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        {isValidating ? 'Validating...' : 'Validate CSV'}
+                      </Button>
+                      
+                      <Button
+                        onClick={executeKeycloakBatch}
+                        disabled={!validationResult?.readyForImport || isImporting}
+                        className="flex-1"
+                      >
+                        {isImporting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4 mr-2" />
+                            Execute Keycloak Batch
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground text-center">
+                      Keycloak-first import ensures authentication consistency with automatic rollback on failures
+                    </p>
+                  </>
+                ) : (
+                  <Button
+                    disabled={!file}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    Standard Import (Coming Soon)
                   </Button>
                 )}
               </div>
-
-              {/* PR2 Job-based flow for Users */}
-              {importType === 'users' && (
-                <div className="mt-6 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={stageUsersJob} disabled={!file || jobLoading}>
-                      {jobLoading ? 'Staging...' : 'Stage (PR2)'}
-                    </Button>
-                    <Button variant="outline" onClick={approveJobAction} disabled={!jobId}>Approve</Button>
-                    <Button variant="outline" onClick={activateJobAction} disabled={!jobId}>Activate</Button>
-                    <Button variant="outline" onClick={exportFailedAction} disabled={!jobId}>Export Failed</Button>
-                    <Button variant="outline" onClick={fetchLogsAction} disabled={!jobId}>View Logs</Button>
-                  </div>
-
-                  {jobId && (
-                    <div className="text-sm text-muted-foreground">
-                      Job #{jobId} {jobPreview?.counts && `— valid: ${jobPreview.counts.valid}, invalid: ${jobPreview.counts.invalid}`}
-                    </div>
-                  )}
-
-                  {jobLogs.length > 0 && (
-                    <div className="max-h-48 overflow-auto border rounded-md p-3 text-sm">
-                      <ul className="space-y-1">
-                        {jobLogs.slice(-100).map((e: any, i: number) => (
-                          <li key={i}>[{new Date(e.timestamp).toLocaleTimeString()}] {e.level?.toUpperCase?.()}: {e.message}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
             </TabsContent>
 
             <TabsContent value="validation">
               <ValidationFeedback 
-                result={validationResult}
+                result={validationResult as any}
                 onShowDetails={() => setActiveTab('logs')}
               />
             </TabsContent>
@@ -693,7 +582,7 @@ export const EnhancedCSVImport: React.FC = () => {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `import-logs-${new Date().toISOString().split('T')[0]}.json`;
+                  a.download = `keycloak-import-logs-${new Date().toISOString().split('T')[0]}.json`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -703,11 +592,11 @@ export const EnhancedCSVImport: React.FC = () => {
 
             <TabsContent value="help">
               <TroubleshootingGuide
-                errorType={importResult?.errors?.[0]?.message}
-                errorMessage={validationResult.errors?.[0]?.message}
+                errorType={error}
+                errorMessage={error}
                 onDownloadTemplate={downloadTemplate}
-                onRetryImport={() => handleImport()}
-                onValidateData={() => validateCSV()}
+                onRetryImport={() => executeKeycloakBatch()}
+                onValidateData={() => validateStrictCSV()}
               />
             </TabsContent>
           </Tabs>

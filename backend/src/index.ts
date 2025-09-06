@@ -19,6 +19,7 @@ import institutionsRoutes from './routes/institutions';
 import registrationRoutes from './routes/registration';
 import dashboardRoutes from './routes/dashboards';
 import csvRoutes from './routes/csv';
+import strictCsvRoutes from './routes/strictCsv';
 import dashboardRouter from './routes/dashboard';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/users';
@@ -286,6 +287,7 @@ app.use('/api/registration', registrationRoutes); // No CSRF for registration
 app.use('/api/dashboards', skipCSRF, dashboardRoutes); // Legacy dashboard routes
 app.use('/api/dashboard', skipCSRF, dashboardRouter); // Real dashboard data routes
 app.use('/api/csv', csvRoutes); // CSV import routes - no CSRF
+app.use('/api/csv-strict', skipCSRF, strictCsvRoutes); // Keycloak-first CSV routes - no CSRF
 app.use('/api/analytics', skipCSRF, analyticsRoutes); // Analytics routes
 app.use('/api/users', skipCSRF, userRoutes); // User management routes
 

@@ -23,7 +23,8 @@ import {
   Bell,
   Search,
   Moon,
-  Sun
+  Sun,
+  School
 } from "lucide-react";
 import { useState } from "react";
 
@@ -53,6 +54,7 @@ export const ProductionDashboardLayout = () => {
 
     const roleSpecificItems = {
       platform_admin: [
+        { name: 'Schools', href: '/dashboard/schools', icon: School },
         { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
         { name: 'CSV Import', href: '/dashboard/admin/csv-upload', icon: Upload },
       ],

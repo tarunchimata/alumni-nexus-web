@@ -176,7 +176,7 @@ const PlatformAdminDashboard = () => {
             <CardDescription>Platform-wide administration tools</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Link to="/schools" className="w-full">
+            <Link to="/dashboard/schools" className="w-full">
               <Button className="w-full justify-start" variant="outline">
                 <School className="w-4 h-4 mr-2" />
                 Manage Schools
