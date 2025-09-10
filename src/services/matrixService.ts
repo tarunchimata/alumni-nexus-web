@@ -223,7 +223,7 @@ class MatrixService {
       type: content.msgtype === 'm.image' ? 'image' : 'text',
       sender: {
         displayName: sender?.name || event.getSender()!,
-        avatarUrl: sender?.getAvatarUrl(this.client?.getHomeserverUrl() || '', 32, 32, 'scale', false) || undefined,
+        avatarUrl: undefined, // Will implement avatar handling later
       },
     };
   }
