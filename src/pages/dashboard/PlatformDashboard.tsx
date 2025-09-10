@@ -98,6 +98,10 @@ const PlatformDashboard = () => {
                       <span className="text-green-600">Online</span>
                     </div>
                     <div className="flex items-center justify-between">
+                      <span>Matrix Chat</span>
+                      <span className="text-green-600">Connected</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span>API Response Time</span>
                       <span className="text-green-600">142ms</span>
                     </div>

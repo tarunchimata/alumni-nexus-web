@@ -28,6 +28,7 @@ import AnalyticsPage from "@/pages/AnalyticsPage";
 import CSVUploadPage from "@/pages/CSVUploadPage";
 import SchoolsManagement from "@/pages/SchoolsManagement";
 import WelcomePage from "@/pages/WelcomePage";
+import MatrixAdminPage from "@/pages/MatrixAdminPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +76,7 @@ function App() {
                 <Route path="schools" element={<SchoolsManagement />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route path="school-analytics" element={<AnalyticsPage />} />
+                <Route path="admin/matrix" element={<MatrixAdminPage />} />
                 <Route path="welcome" element={<WelcomePage />} />
               </Route>
 

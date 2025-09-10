@@ -45,7 +45,8 @@ export const Sidebar = ({ className }: SidebarProps) => {
     if (user?.role === 'platform_admin') {
       roleItems.push(
         { href: "/dashboard/admin/csv-upload", icon: Upload, label: "Data Import" },
-        { href: "/dashboard/admin/analytics", icon: BarChart3, label: "Analytics" }
+        { href: "/dashboard/admin/analytics", icon: BarChart3, label: "Analytics" },
+        { href: "/dashboard/admin/matrix", icon: MessageCircle, label: "Matrix Admin" }
       );
     }
     
