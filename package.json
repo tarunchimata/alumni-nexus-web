@@ -68,6 +68,7 @@
     "inquirer": "^12.9.0",
     "keycloak-js": "^26.2.0",
     "lucide-react": "^0.462.0",
+    "matrix-js-sdk": "^38.1.0",
     "multer": "^2.0.2",
     "next-themes": "^0.3.0",
     "p-limit": "^5.0.0",
