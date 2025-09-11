@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 import { 
   Upload, 
   FileText, 
@@ -169,7 +169,13 @@ export const EnhancedCSVImport: React.FC = () => {
     addLog('info', 'Starting Keycloak-first validation', 'STRICT_VALIDATION_START');
 
     try {
-      const response: any = await apiClient.uploadFile('/csv-strict/validate-strict', file);
+      // Parse CSV client-side first
+      const content = await targetFile.text();
+      const formData = new FormData();
+      formData.append('file', targetFile);
+      formData.append('parsedData', JSON.stringify({ content }));
+
+      const response: any = await apiService.uploadFile('/csv-strict/validate-strict', targetFile);
 
       const validationData: StrictValidationResult = {
         isValid: response.validationPassed || false,
@@ -229,7 +235,7 @@ export const EnhancedCSVImport: React.FC = () => {
     try {
       setImportProgress(25);
       
-      const response: any = await apiClient.uploadFile('/csv-strict/execute-batch', file);
+      const response: any = await apiService.uploadFile('/csv-strict/execute-batch', file);
 
       setImportProgress(75);
 
@@ -314,7 +320,7 @@ export const EnhancedCSVImport: React.FC = () => {
 
   const getValidationRules = async () => {
     try {
-      const response = await apiClient.get('/csv-strict/validation-rules');
+      const response = await apiService.get('/csv-strict/validation-rules');
       addLog('info', 'Fetched validation rules', 'VALIDATION_RULES');
       return response;
     } catch (error) {

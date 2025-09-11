@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, Users, School, TrendingUp, Calendar, Download } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 
 // Sample data for analytics
 const sampleUserGrowthData = [
@@ -49,38 +49,23 @@ const AnalyticsPage = () => {
     try {
       setLoading(true);
       
-      // Get token from localStorage for API authentication
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-
-      const response = await fetch('http://localhost:3033/api/analytics', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use the proper apiClient which handles authentication
+      const response = await apiService.get<any>('/analytics');
       
       // Map the API response to our expected format
       setAnalyticsData({
-        totalUsers: data.totalUsers || 0,
-        totalSchools: data.totalSchools || 0,
-        activeUsers: data.activeUsers || 0,
-        growthRate: data.userGrowthRate || 0,
-        recentActivity: data.recentActivityData || [],
-        userGrowth: data.userGrowthData || []
+        totalUsers: response.totalUsers || 0,
+        totalSchools: response.totalSchools || 0,
+        activeUsers: response.activeUsers || 0,
+        growthRate: response.userGrowthRate || 0,
+        recentActivity: response.recentActivityData || [],
+        userGrowth: response.userGrowthData || []
       });
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Analytics API error:', err);
-      setError(`Failed to load real analytics data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to load analytics data';
+      setError(errorMessage);
       
       // Show zero data instead of fake sample data
       setAnalyticsData({

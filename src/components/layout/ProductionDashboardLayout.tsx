@@ -57,6 +57,7 @@ export const ProductionDashboardLayout = () => {
         { name: 'Schools', href: '/dashboard/schools', icon: School },
         { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
         { name: 'CSV Import', href: '/dashboard/admin/csv-upload', icon: Upload },
+        { name: 'Matrix Admin', href: '/dashboard/admin/matrix', icon: MessageCircle },
       ],
       school_admin: [
         { name: 'Analytics', href: '/dashboard/school-analytics', icon: BarChart3 },

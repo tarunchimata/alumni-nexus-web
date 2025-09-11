@@ -31,6 +31,28 @@ export const useMatrix = () => {
     };
   }, [isAuthenticated]);
 
+  // Enhanced event listeners with error handling
+  useEffect(() => {
+    if (!matrixService) return;
+
+    const handleConnected = (connected: boolean) => {
+      setIsConnected(connected);
+    };
+
+    const handleConnectionError = (error: string) => {
+      console.error('[Matrix] Connection error:', error);
+      setIsConnected(false);
+    };
+
+    matrixService.on('connected', handleConnected);
+    matrixService.on('connectionError', handleConnectionError);
+
+    return () => {
+      matrixService.off('connected', handleConnected);
+      matrixService.off('connectionError', handleConnectionError);
+    };
+  }, []);
+
   // Setup event listeners
   useEffect(() => {
     if (!isConnected) return;
