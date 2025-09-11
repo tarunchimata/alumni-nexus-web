@@ -44,11 +44,23 @@ All colors MUST be HSL. Role-based gradients and modern themes.
   --student-secondary: 320 81% 70%;
   --student-gradient: linear-gradient(135deg, hsl(330, 81%, 60%) 0%, hsl(320, 81%, 70%) 100%);
 
-  /* Modern Gradients */
-  --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(234, 91%, 70%) 100%);
-  --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 45%) 0%, hsl(234, 91%, 65%) 100%);
-  --gradient-subtle: linear-gradient(135deg, hsl(217, 91%, 95%) 0%, hsl(234, 91%, 97%) 100%);
-  --gradient-glass: linear-gradient(135deg, hsl(217, 91%, 98%) 0%, hsl(234, 91%, 99%) 100%);
+  /* Modern Enhanced Gradients for Visual Appeal */
+  --gradient-vibrant: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(283, 83%, 70%) 50%, hsl(330, 81%, 60%) 100%);
+  --gradient-success: linear-gradient(135deg, hsl(142, 71%, 45%) 0%, hsl(160, 71%, 55%) 100%);
+  --gradient-warning: linear-gradient(135deg, hsl(32, 95%, 44%) 0%, hsl(45, 95%, 54%) 100%);
+  --gradient-error: linear-gradient(135deg, hsl(0, 84%, 60%) 0%, hsl(15, 84%, 70%) 100%);
+  
+  /* Interactive Elements */
+  --glow: 0 0 20px hsl(var(--primary) / 0.3);
+  --glow-hover: 0 0 30px hsl(var(--primary) / 0.5);
+  --shimmer: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.1) 50%, transparent 100%);
+
+  /* Animation Utilities */
+  --bounce-subtle: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
 
   /* Semantic Colors */
   --success: 142 71% 45%;
@@ -135,4 +147,46 @@ All colors MUST be HSL. Role-based gradients and modern themes.
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Modern UI Enhancements */
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--shimmer);
+    animation: shimmer 2s infinite;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+  }
+  
+  .gradient-text {
+    background: var(--gradient-vibrant);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: var(--glow); }
+  50% { box-shadow: var(--glow-hover); }
 }

@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/useAuth";
+import { RoleProvider } from "@/contexts/RoleContext";
+import { ErrorBoundary } from "react-error-boundary";
+import { ErrorFallback } from "@/components/ErrorFallback";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // Pages
@@ -45,8 +48,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <div className="min-h-screen bg-background">
-            <Routes>
+          <RoleProvider>
+            <ErrorBoundary FallbackComponent={ErrorFallback}>
+              <div className="min-h-screen w-full bg-background">
+                <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
@@ -97,8 +102,10 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             
-            <Toaster />
-          </div>
+                <Toaster />
+              </div>
+            </ErrorBoundary>
+          </RoleProvider>
         </AuthProvider>
       </Router>
     </QueryClientProvider>

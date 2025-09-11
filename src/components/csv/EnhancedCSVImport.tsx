@@ -91,6 +91,29 @@ interface ImportStats {
 type ImportType = 'users' | 'schools' | 'alumni' | 'teachers' | 'students';
 
 export const EnhancedCSVImport: React.FC = () => {
+  // Add error boundary for this component
+  const [hasError, setHasError] = useState(false);
+  
+  if (hasError) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <XCircle className="w-12 h-12 text-error mx-auto" />
+              <h3 className="text-lg font-semibold text-foreground">CSV Import Error</h3>
+              <p className="text-muted-foreground">
+                There was an error loading the CSV import interface. Please refresh the page or contact support.
+              </p>
+              <Button onClick={() => setHasError(false)} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState<ImportType>('users');
   const [isValidating, setIsValidating] = useState(false);
@@ -214,6 +237,7 @@ export const EnhancedCSVImport: React.FC = () => {
         description: errorMessage,
         variant: "destructive"
       });
+      setHasError(true); // Set error state for component
     } finally {
       setIsValidating(false);
     }
@@ -290,6 +314,7 @@ export const EnhancedCSVImport: React.FC = () => {
         description: errorMessage,
         variant: "destructive"
       });
+      setHasError(true); // Set error state for component
     } finally {
       setIsImporting(false);
       setImportProgress(100);
@@ -451,22 +476,22 @@ export const EnhancedCSVImport: React.FC = () => {
                   </div>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <div className="text-lg font-semibold text-blue-600">{validationResult.summary.total}</div>
-                      <div className="text-blue-700">Total Rows</div>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <div className="text-lg font-semibold text-green-600">{validationResult.summary.valid}</div>
-                      <div className="text-green-700">Valid</div>
-                    </div>
-                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                      <div className="text-lg font-semibold text-yellow-600">{validationResult.summary.toUpdate}</div>
-                      <div className="text-yellow-700">Updates</div>
-                    </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <div className="text-lg font-semibold text-red-600">{validationResult.summary.invalid}</div>
-                      <div className="text-red-700">Invalid</div>
-                    </div>
+                  <div className="text-center p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                    <div className="text-lg font-semibold text-primary">{validationResult.summary.total}</div>
+                    <div className="text-primary/80">Total Rows</div>
+                  </div>
+                  <div className="text-center p-3 bg-success/10 border border-success/20 rounded-lg">
+                    <div className="text-lg font-semibold text-success">{validationResult.summary.valid}</div>
+                    <div className="text-success/80">Valid</div>
+                  </div>
+                  <div className="text-center p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                    <div className="text-lg font-semibold text-warning">{validationResult.summary.toUpdate}</div>
+                    <div className="text-warning/80">Updates</div>
+                  </div>
+                  <div className="text-center p-3 bg-error/10 border border-error/20 rounded-lg">
+                    <div className="text-lg font-semibold text-error">{validationResult.summary.invalid}</div>
+                    <div className="text-error/80">Invalid</div>
+                  </div>
                   </div>
                 </div>
               )}

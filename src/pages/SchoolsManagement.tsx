@@ -18,10 +18,13 @@ interface ValidationResult {
 
 interface School {
   id: string;
+  name: string;
   schoolName: string;
   stateName: string;
   districtName: string;
   status: string;
+  schoolType?: string;
+  management?: string;
   userCount: number;
   classCount: number;
   createdAt: string;
@@ -63,8 +66,9 @@ const SchoolsManagement = () => {
       });
 
       const data = await apiService.get<SchoolsResponse>(`/schools?${params}`);
-      setSchools(data.schools);
-      setPagination(data.pagination);
+      console.log('Schools API Response:', data); // Debug log
+      setSchools(data.schools || []);
+      setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
     } catch (error) {
       console.error('Failed to fetch schools:', error);
       toast({
@@ -120,15 +124,17 @@ const SchoolsManagement = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'approved':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
+      case 'active':
+        return <Badge className="bg-success text-success-foreground"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
       case 'pending':
         return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
       case 'rejected':
-        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" />Rejected</Badge>;
+      case 'inactive':
+        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" />Inactive</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
   };
 
@@ -202,7 +208,7 @@ const SchoolsManagement = () => {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <School className="h-5 w-5" />
-                    {school.schoolName}
+                    {school.schoolName || school.name}
                   </CardTitle>
                   <CardDescription className="flex items-center gap-4 mt-1">
                     <span className="flex items-center gap-1">

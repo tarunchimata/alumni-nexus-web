@@ -60,84 +60,129 @@ export const ProductionPeopleDirectory = () => {
   const fetchPeople = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call with realistic data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const samplePeople: Person[] = [
-        {
-          id: '1',
-          firstName: 'Sarah',
-          lastName: 'Chen',
-          email: 'sarah.chen@school.edu',
-          role: 'alumni',
-          avatar: '',
-          status: 'online',
-          school: 'Lincoln High School',
-          graduationYear: 2019,
-          connections: 45,
-          isConnected: false,
-          isPendingConnection: false
-        },
-        {
-          id: '2',
-          firstName: 'Michael',
-          lastName: 'Rodriguez',
-          email: 'michael.r@school.edu',
-          role: 'teacher',
-          avatar: '',
-          status: 'online',
-          school: 'Lincoln High School',
-          department: 'Mathematics',
-          connections: 78,
-          isConnected: true,
-          isPendingConnection: false
-        },
-        {
-          id: '3',
-          firstName: 'Emma',
-          lastName: 'Wilson',
-          email: 'emma.wilson@school.edu',
-          role: 'student',
-          avatar: '',
-          status: 'away',
-          school: 'Lincoln High School',
-          connections: 23,
-          isConnected: false,
-          isPendingConnection: true
-        },
-        {
-          id: '4',
-          firstName: 'David',
-          lastName: 'Kim',
-          email: 'david.kim@school.edu',
-          role: 'alumni',
-          avatar: '',
-          status: 'offline',
-          school: 'Lincoln High School',
-          graduationYear: 2018,
-          connections: 67,
-          isConnected: false,
-          isPendingConnection: false
-        },
-        {
-          id: '5',
-          firstName: 'Lisa',
-          lastName: 'Johnson',
-          email: 'lisa.j@school.edu',
-          role: 'school_admin',
-          avatar: '',
-          status: 'online',
-          school: 'Lincoln High School',
-          connections: 156,
-          isConnected: true,
-          isPendingConnection: false
+      // Fetch real users from API
+      const usersResponse = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      ];
+      });
       
-      setPeople(samplePeople);
+      if (usersResponse.ok) {
+        const data = await usersResponse.json();
+        const realPeople: Person[] = (data.users || []).map((user: any) => ({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          avatar: user.profile?.avatar || '',
+          status: 'offline', // Default status
+          school: user.school?.name || user.schoolName,
+          department: user.profile?.department,
+          graduationYear: user.profile?.graduationYear,
+          connections: 0, // Default connections
+          isConnected: false,
+          isPendingConnection: false
+        }));
+        
+        setPeople(realPeople);
+      } else {
+        // Fallback to sample data if API fails
+        console.log('API failed, using sample data');
+        const samplePeople: Person[] = [
+          {
+            id: '1',
+            firstName: 'Sarah',
+            lastName: 'Chen',
+            email: 'sarah.chen@school.edu',
+            role: 'alumni',
+            avatar: '',
+            status: 'online',
+            school: 'Lincoln High School',
+            graduationYear: 2019,
+            connections: 45,
+            isConnected: false,
+            isPendingConnection: false
+          },
+          {
+            id: '2',
+            firstName: 'Michael',
+            lastName: 'Rodriguez',
+            email: 'michael.r@school.edu',
+            role: 'teacher',
+            avatar: '',
+            status: 'online',
+            school: 'Lincoln High School',
+            department: 'Mathematics',
+            connections: 78,
+            isConnected: true,
+            isPendingConnection: false
+          },
+          {
+            id: '3',
+            firstName: 'Emma',
+            lastName: 'Wilson',
+            email: 'emma.wilson@school.edu',
+            role: 'student',
+            avatar: '',
+            status: 'away',
+            school: 'Lincoln High School',
+            connections: 23,
+            isConnected: false,
+            isPendingConnection: true
+          },
+          {
+            id: '4',
+            firstName: 'David',
+            lastName: 'Kim',
+            email: 'david.kim@school.edu',
+            role: 'alumni',
+            avatar: '',
+            status: 'offline',
+            school: 'Lincoln High School',
+            graduationYear: 2018,
+            connections: 67,
+            isConnected: false,
+            isPendingConnection: false
+          },
+          {
+            id: '5',
+            firstName: 'Lisa',
+            lastName: 'Johnson',
+            email: 'lisa.j@school.edu',
+            role: 'school_admin',
+            avatar: '',
+            status: 'online',
+            school: 'Lincoln High School',
+            connections: 156,
+            isConnected: true,
+            isPendingConnection: false
+          }
+        ];
+        
+        setPeople(samplePeople);
+      }
     } catch (error) {
       toast.error('Failed to load people directory');
       console.error('Failed to fetch people:', error);
+      // Set sample data on error
+      const samplePeople: Person[] = [
+        {
+          id: '1',
+          firstName: 'Sample',
+          lastName: 'User',
+          email: 'sample@school.edu',
+          role: 'student',
+          avatar: '',
+          status: 'offline',
+          school: 'Sample School',
+          connections: 0,
+          isConnected: false,
+          isPendingConnection: false
+        }
+      ];
+      setPeople(samplePeople);
     } finally {
       setIsLoading(false);
     }
@@ -215,21 +260,21 @@ export const ProductionPeopleDirectory = () => {
 
   const getRoleColor = (role: string) => {
     const colors = {
-      student: 'bg-blue-100 text-blue-800',
-      teacher: 'bg-green-100 text-green-800',
-      alumni: 'bg-purple-100 text-purple-800',
-      school_admin: 'bg-orange-100 text-orange-800',
-      platform_admin: 'bg-red-100 text-red-800'
+      student: 'bg-student/10 text-student border-student/20',
+      teacher: 'bg-teacher/10 text-teacher border-teacher/20',
+      alumni: 'bg-alumni/10 text-alumni border-alumni/20',
+      school_admin: 'bg-school-admin/10 text-school-admin border-school-admin/20',
+      platform_admin: 'bg-platform-admin/10 text-platform-admin border-platform-admin/20'
     };
-    return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[role as keyof typeof colors] || 'bg-muted text-muted-foreground border-border';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
-      case 'offline': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'online': return 'bg-success';
+      case 'away': return 'bg-warning';
+      case 'offline': return 'bg-muted-foreground';
+      default: return 'bg-muted-foreground';
     }
   };
 
@@ -253,7 +298,7 @@ export const ProductionPeopleDirectory = () => {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search people by name or email..."
                 value={searchQuery}
@@ -303,10 +348,10 @@ export const ProductionPeopleDirectory = () => {
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                      <div className="w-12 h-12 bg-muted rounded-full"></div>
                       <div className="space-y-2">
-                        <div className="w-32 h-4 bg-gray-200 rounded"></div>
-                        <div className="w-24 h-3 bg-gray-200 rounded"></div>
+                        <div className="w-32 h-4 bg-muted rounded"></div>
+                        <div className="w-24 h-3 bg-muted rounded"></div>
                       </div>
                     </div>
                   </CardContent>
@@ -325,17 +370,17 @@ export const ProductionPeopleDirectory = () => {
                           <div className="relative">
                             <Avatar className="w-12 h-12">
                               <AvatarImage src={person.avatar} alt={person.firstName} />
-                              <AvatarFallback className="bg-gray-100">
+                              <AvatarFallback className="bg-muted text-muted-foreground">
                                 {person.firstName[0]}{person.lastName[0]}
                               </AvatarFallback>
                             </Avatar>
                             <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${getStatusColor(person.status)} rounded-full border-2 border-white`}></div>
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900">
+                            <h3 className="font-semibold text-foreground">
                               {person.firstName} {person.lastName}
                             </h3>
-                            <p className="text-sm text-gray-600">{person.email}</p>
+                            <p className="text-sm text-muted-foreground">{person.email}</p>
                           </div>
                         </div>
                       </div>
@@ -347,18 +392,18 @@ export const ProductionPeopleDirectory = () => {
                         </Badge>
                         
                         {person.graduationYear && (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-muted-foreground">
                             Class of {person.graduationYear}
                           </div>
                         )}
                         
                         {person.department && (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-muted-foreground">
                             {person.department} Department
                           </div>
                         )}
                         
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           {person.connections} connections
                         </div>
                       </div>
@@ -399,17 +444,17 @@ export const ProductionPeopleDirectory = () => {
 
         <TabsContent value="connections" className="space-y-4">
           <div className="text-center py-8">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Connections</h3>
-            <p className="text-gray-600">People you're connected with will appear here</p>
+            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Your Connections</h3>
+            <p className="text-muted-foreground">People you're connected with will appear here</p>
           </div>
         </TabsContent>
 
         <TabsContent value="requests" className="space-y-4">
           <div className="text-center py-8">
-            <UserPlus className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Requests</h3>
-            <p className="text-gray-600">Connection requests you've sent will appear here</p>
+            <UserPlus className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Pending Requests</h3>
+            <p className="text-muted-foreground">Connection requests you've sent will appear here</p>
           </div>
         </TabsContent>
       </Tabs>

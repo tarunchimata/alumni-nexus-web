@@ -1,32 +1,45 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ErrorFallbackProps {
   error: Error;
-  resetError: () => void;
+  resetErrorBoundary: () => void;
 }
 
-const ErrorFallback = ({ error, resetError }: ErrorFallbackProps) => {
+export const ErrorFallback = ({ error, resetErrorBoundary }: ErrorFallbackProps) => {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <CardTitle className="text-destructive">Something went wrong</CardTitle>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-error">
+            <AlertTriangle className="w-5 h-5" />
+            Something went wrong
+          </CardTitle>
         </CardHeader>
-        <CardContent className="text-center space-y-4">
+        <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            {error.message || "An unexpected error occurred"}
+            We're sorry, but something unexpected happened. Please try refreshing the page.
           </p>
-          <Button onClick={resetError} className="w-full">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
-          </Button>
+          {process.env.NODE_ENV === 'development' && (
+            <details className="bg-muted p-3 rounded-md text-sm">
+              <summary className="cursor-pointer font-medium mb-2">Error Details</summary>
+              <pre className="whitespace-pre-wrap text-xs overflow-auto max-h-32">
+                {error.message}
+                {error.stack}
+              </pre>
+            </details>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={resetErrorBoundary} variant="default">
+              Try again
+            </Button>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Reload page
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 };
-
-export default ErrorFallback;

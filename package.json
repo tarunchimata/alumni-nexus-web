@@ -76,6 +76,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
+    "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.53.0",
     "react-image-crop": "^11.0.10",
     "react-infinite-scroll-component": "^6.1.0",
