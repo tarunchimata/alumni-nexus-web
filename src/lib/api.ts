@@ -1,7 +1,7 @@
 // API utilities and configuration
 import { authService } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 console.log('[API Client] Using API base URL:', API_BASE_URL || '/api');
 
