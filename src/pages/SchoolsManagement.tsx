@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { School, MapPin, Users, CheckCircle, Clock, AlertTriangle, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { transformSchools, type School as TransformedSchool, type ApiSchool } from '@/lib/apiTransforms';
 
 interface ValidationResult {
   issues: Array<{
@@ -17,17 +18,21 @@ interface ValidationResult {
 }
 
 interface School {
-  id: string;
-  name: string;
+  id: number;
+  name?: string;
   schoolName: string;
   stateName: string;
   districtName: string;
+  blockName?: string | null;
+  udiseCode?: string | null;
+  institutionId: string;
   status: string;
-  schoolType?: string;
-  management?: string;
-  userCount: number;
-  classCount: number;
+  schoolType?: string | null;
+  management?: string | null;
+  userCount?: number;
+  classCount?: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface SchoolsResponse {
@@ -53,9 +58,9 @@ const SchoolsManagement = () => {
 
   // Dev fallback sample schools (used when API is unavailable in preview)
   const sampleSchools: School[] = [
-    { id: 'INC-IN-DL-001', name: 'Delhi Public School Vasant Kunj', schoolName: 'Delhi Public School Vasant Kunj', stateName: 'Delhi', districtName: 'New Delhi', status: 'active', schoolType: 'Private', management: 'Private Unaided', userCount: 215, classCount: 24, createdAt: new Date().toISOString() },
-    { id: 'INC-IN-MH-002', name: 'Government Higher Secondary School Bandra', schoolName: 'Government Higher Secondary School Bandra', stateName: 'Maharashtra', districtName: 'Mumbai', status: 'active', schoolType: 'Government', management: 'State Government', userCount: 180, classCount: 18, createdAt: new Date().toISOString() },
-    { id: 'INC-IN-KA-003', name: 'St. Josephs Boys High School', schoolName: "St. Josephs Boys High School", stateName: 'Karnataka', districtName: 'Bangalore', status: 'active', schoolType: 'Private', management: 'Private Aided', userCount: 200, classCount: 20, createdAt: new Date().toISOString() },
+    { id: 1, name: 'Delhi Public School Vasant Kunj', schoolName: 'Delhi Public School Vasant Kunj', stateName: 'Delhi', districtName: 'New Delhi', status: 'active', schoolType: 'Private', management: 'Private Unaided', userCount: 215, classCount: 24, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-DL-001' },
+    { id: 2, name: 'Government Higher Secondary School Bandra', schoolName: 'Government Higher Secondary School Bandra', stateName: 'Maharashtra', districtName: 'Mumbai', status: 'active', schoolType: 'Government', management: 'State Government', userCount: 180, classCount: 18, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-MH-002' },
+    { id: 3, name: "St. Josephs Boys High School", schoolName: "St. Josephs Boys High School", stateName: 'Karnataka', districtName: 'Bangalore', status: 'active', schoolType: 'Private', management: 'Private Aided', userCount: 200, classCount: 20, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-KA-003' },
   ];
 
   useEffect(() => {
@@ -73,40 +78,61 @@ const SchoolsManagement = () => {
         ...(typeFilter !== 'all' && { type: typeFilter }),
       });
 
-      const data = await apiService.get<SchoolsResponse>(`/schools?${params}`);
-      console.log('Schools API Response:', data);
-      const receivedSchools = data?.schools || [];
-
-      if (import.meta.env.DEV && receivedSchools.length === 0) {
-        setSchools(sampleSchools);
-        setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
-        setUsingFallback(true);
-      } else {
-        setSchools(receivedSchools);
-        setPagination(data.pagination || { page: 1, limit: 10, total: receivedSchools.length, totalPages: 1 });
-        setUsingFallback(false);
+      console.log('[SchoolsManagement] Fetching from external API:', `${import.meta.env.VITE_API_URL}/schools?${params}`);
+      
+      try {
+        // Fetch from external API - expects direct array response (snake_case)
+        const apiResponse = await apiService.get<ApiSchool[]>(`/schools?${params}`);
+        
+        if (Array.isArray(apiResponse)) {
+          console.log('[SchoolsManagement] API Response (direct array):', apiResponse.slice(0, 2));
+          
+          // Transform snake_case API response to camelCase frontend format
+          const transformedSchools = transformSchools(apiResponse);
+          
+          setSchools(transformedSchools);
+          setPagination({ 
+            page: page, 
+            limit: 10, 
+            total: transformedSchools.length, 
+            totalPages: Math.ceil(transformedSchools.length / 10) 
+          });
+          setUsingFallback(false);
+          
+          console.log('[SchoolsManagement] Successfully loaded', transformedSchools.length, 'schools from external API');
+        } else {
+          throw new Error('Expected array response from external API');
+        }
+      } catch (apiError) {
+        console.warn('[SchoolsManagement] External API failed, using fallback data:', apiError);
+        
+        if (import.meta.env.DEV) {
+          setSchools(sampleSchools);
+          setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
+          setUsingFallback(true);
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to load schools from API',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch schools:', error);
-      if (import.meta.env.DEV) {
-        setSchools(sampleSchools);
-        setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
-        setUsingFallback(true);
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to load schools',
-          variant: 'destructive',
-        });
-      }
+      console.error('[SchoolsManagement] Critical error:', error);
+      toast({
+        title: 'Error', 
+        description: 'Failed to load schools',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApproveSchool = async (schoolId: string) => {
+  const handleApproveSchool = async (schoolId: number) => {
     try {
-      await apiService.approveSchool(schoolId);
+      await apiService.approveSchool(schoolId.toString());
       toast({
         title: 'Success',
         description: 'School approved successfully',
@@ -121,9 +147,9 @@ const SchoolsManagement = () => {
     }
   };
 
-  const handleValidateSchool = async (schoolId: string) => {
+  const handleValidateSchool = async (schoolId: number) => {
     try {
-      const result = await apiService.validateSchool(schoolId) as ValidationResult;
+      const result = await apiService.validateSchool(schoolId.toString()) as ValidationResult;
       
       if (result.issues.length === 0) {
         toast({
@@ -245,7 +271,8 @@ const SchoolsManagement = () => {
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
-                      {school.userCount} users, {school.classCount} classes
+                      {school.userCount || 0} users
+                      {school.classCount && `, ${school.classCount} classes`}
                     </span>
                   </CardDescription>
                 </div>

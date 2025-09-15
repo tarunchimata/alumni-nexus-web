@@ -20,6 +20,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleTheme } from '@/hooks/useRoleTheme';
 import { toast } from 'sonner';
+import { apiService } from '@/services/apiService';
+import { transformUsers, type User as TransformedUser, type ApiUser } from '@/lib/apiTransforms';
 
 interface Person {
   id: string;
@@ -60,36 +62,44 @@ export const ProductionPeopleDirectory = () => {
   const fetchPeople = async () => {
     setIsLoading(true);
     try {
-      // Fetch real users from API
-      const usersResponse = await fetch('/api/users', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('[PeopleDirectory] Fetching users from external API');
       
-      if (usersResponse.ok) {
-        const data = await usersResponse.json();
-        const realPeople: Person[] = (data.users || []).map((user: any) => ({
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          avatar: user.profile?.avatar || '',
-          status: 'offline', // Default status
-          school: user.school?.name || user.schoolName,
-          department: user.profile?.department,
-          graduationYear: user.profile?.graduationYear,
-          connections: 0, // Default connections
-          isConnected: false,
-          isPendingConnection: false
-        }));
+      try {
+        // Fetch from external API - expects direct array response (snake_case)
+        const apiResponse = await apiService.get<ApiUser[]>('/users');
         
-        setPeople(realPeople);
-      } else {
+        if (Array.isArray(apiResponse)) {
+          console.log('[PeopleDirectory] API Response (direct array):', apiResponse.slice(0, 2));
+          
+          // Transform snake_case API response to camelCase frontend format
+          const transformedUsers = transformUsers(apiResponse);
+          
+          // Convert to Person format for the component
+          const realPeople: Person[] = transformedUsers.map((user) => ({
+            id: user.id.toString(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            avatar: '',
+            status: 'offline' as const,
+            school: user.schoolName || '',
+            department: '',
+            graduationYear: undefined,
+            connections: 0,
+            isConnected: false,
+            isPendingConnection: false
+          }));
+          
+          setPeople(realPeople);
+          console.log('[PeopleDirectory] Successfully loaded', realPeople.length, 'users from external API');
+        } else {
+          throw new Error('Expected array response from external API');
+        }
+      } catch (apiError) {
+        console.warn('[PeopleDirectory] External API failed, using fallback data:', apiError);
+        
         // Fallback to sample data if API fails
-        console.log('API failed, using sample data');
         const samplePeople: Person[] = [
           {
             id: '1',

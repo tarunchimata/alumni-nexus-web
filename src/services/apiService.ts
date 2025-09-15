@@ -1,5 +1,5 @@
 // Production API Service
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.hostingmanager.in/api';
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -21,6 +21,7 @@ class ApiService {
       let body = '';
       try { body = await response.text(); } catch {}
       const snippet = body ? ` - ${body.slice(0, 200)}` : '';
+      console.error(`[ApiService] ${response.status} ${response.statusText}${snippet}`);
       throw new Error(`API Error: ${response.status} ${response.statusText}${snippet}`);
     }
     if (response.status === 204) {
@@ -31,10 +32,12 @@ class ApiService {
       return response.json();
     }
     const text = await response.text();
+    console.warn(`[ApiService] Unexpected response (not JSON): ${contentType} - ${text.slice(0, 200)}`);
     throw new Error(`Unexpected response (not JSON): ${contentType} - ${text.slice(0, 200)}`);
   }
 
   async get<T>(endpoint: string): Promise<T> {
+    console.log(`[ApiService] GET ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
