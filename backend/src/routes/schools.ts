@@ -18,7 +18,7 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
     const { page = 1, limit = 1000, search, schoolType, managementType } = req.query;
     
-    const where: any = { status: 'active' };
+    const where: any = {}; // Remove status filter to get all schools
     
     // School admins and teachers can only see their own school
     if (req.user && !req.user.roles.includes('platform_admin')) {

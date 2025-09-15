@@ -1,13 +1,13 @@
 import { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { keycloakMiddleware, AuthenticatedRequest } from '../middleware/keycloak';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
 const router: Router = Router();
 
 // Get analytics data based on user role
-router.get('/', keycloakMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const userRole = (req as any).user?.role;

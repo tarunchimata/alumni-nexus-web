@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/services/apiService';
+import { ErrorBoundary } from 'react-error-boundary';
+import ErrorFallback from '@/components/ErrorFallback';
 import { 
   Upload, 
   FileText, 
@@ -354,7 +356,8 @@ export const EnhancedCSVImport: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+      <div className="max-w-7xl mx-auto space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -633,7 +636,8 @@ export const EnhancedCSVImport: React.FC = () => {
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 
