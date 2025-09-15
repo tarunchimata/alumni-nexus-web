@@ -48,7 +48,15 @@ const SchoolsManagement = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<SchoolsResponse['pagination']>();
+  const [usingFallback, setUsingFallback] = useState(false);
   const { toast } = useToast();
+
+  // Dev fallback sample schools (used when API is unavailable in preview)
+  const sampleSchools: School[] = [
+    { id: 'INC-IN-DL-001', name: 'Delhi Public School Vasant Kunj', schoolName: 'Delhi Public School Vasant Kunj', stateName: 'Delhi', districtName: 'New Delhi', status: 'active', schoolType: 'Private', management: 'Private Unaided', userCount: 215, classCount: 24, createdAt: new Date().toISOString() },
+    { id: 'INC-IN-MH-002', name: 'Government Higher Secondary School Bandra', schoolName: 'Government Higher Secondary School Bandra', stateName: 'Maharashtra', districtName: 'Mumbai', status: 'active', schoolType: 'Government', management: 'State Government', userCount: 180, classCount: 18, createdAt: new Date().toISOString() },
+    { id: 'INC-IN-KA-003', name: 'St. Josephs Boys High School', schoolName: "St. Josephs Boys High School", stateName: 'Karnataka', districtName: 'Bangalore', status: 'active', schoolType: 'Private', management: 'Private Aided', userCount: 200, classCount: 20, createdAt: new Date().toISOString() },
+  ];
 
   useEffect(() => {
     fetchSchools();
@@ -66,16 +74,31 @@ const SchoolsManagement = () => {
       });
 
       const data = await apiService.get<SchoolsResponse>(`/schools?${params}`);
-      console.log('Schools API Response:', data); // Debug log
-      setSchools(data.schools || []);
-      setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
+      console.log('Schools API Response:', data);
+      const receivedSchools = data?.schools || [];
+
+      if (import.meta.env.DEV && receivedSchools.length === 0) {
+        setSchools(sampleSchools);
+        setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
+        setUsingFallback(true);
+      } else {
+        setSchools(receivedSchools);
+        setPagination(data.pagination || { page: 1, limit: 10, total: receivedSchools.length, totalPages: 1 });
+        setUsingFallback(false);
+      }
     } catch (error) {
       console.error('Failed to fetch schools:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load schools',
-        variant: 'destructive',
-      });
+      if (import.meta.env.DEV) {
+        setSchools(sampleSchools);
+        setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
+        setUsingFallback(true);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to load schools',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -153,9 +176,14 @@ const SchoolsManagement = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-foreground">Schools Management</h2>
-        <p className="text-muted-foreground">Manage and approve schools in the system</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Schools Management</h2>
+          <p className="text-muted-foreground">Manage and approve schools in the system</p>
+        </div>
+        {usingFallback && (
+          <Badge variant="secondary">Demo data (API offline)</Badge>
+        )}
       </div>
 
       {/* Filters */}
