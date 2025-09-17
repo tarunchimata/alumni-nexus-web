@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, RefreshCw, CheckCircle, AlertCircle, Plus, Edit, Trash2, School, MapPin, Users } from 'lucide-react';
+import { Loader2, Search, RefreshCw, CheckCircle, AlertCircle, Plus, Edit, Trash2, School as SchoolIcon, MapPin, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { transformSchools } from '@/lib/apiTransforms';
+import { transformSchools, type School } from '@/lib/apiTransforms';
 import apiService from '@/services/apiService';
 import { SchoolFormModal } from '@/components/schools/SchoolFormModal';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -16,22 +16,6 @@ interface ValidationResult {
   issues: string[];
 }
 
-interface School {
-  id: number;
-  schoolName: string;
-  udiseCode?: string;
-  stateName: string;
-  districtName: string;
-  blockName?: string;
-  institutionId?: string;
-  schoolType?: string;
-  managementType?: string;
-  status: string;
-  userCount?: number;
-  classCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const SchoolsManagement: React.FC = () => {
   const [allSchools, setAllSchools] = useState<School[]>([]);
@@ -311,7 +295,7 @@ const SchoolsManagement: React.FC = () => {
       {currentSchools.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {currentSchools.map((school) => (
-            <Card key={school.id} className="hover:shadow-lg transition-shadow">
+            <Card key={`${school.id ?? school.institutionId ?? school.udiseCode ?? school.schoolName}`} className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -335,8 +319,8 @@ const SchoolsManagement: React.FC = () => {
                   {school.schoolType && (
                     <p className="text-sm"><span className="font-medium">Type:</span> {school.schoolType}</p>
                   )}
-                  {school.managementType && (
-                    <p className="text-sm"><span className="font-medium">Management:</span> {school.managementType}</p>
+                  {school.management && (
+                    <p className="text-sm"><span className="font-medium">Management:</span> {school.management}</p>
                   )}
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -347,7 +331,7 @@ const SchoolsManagement: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  {permissions.canApproveSchools() && school.status === 'pending' && (
+                  {permissions.canApproveSchools() && school.status?.toLowerCase() === 'pending' && typeof school.id === 'number' && (
                     <Button
                       size="sm"
                       onClick={() => handleApproveSchool(school.id)}
@@ -358,7 +342,7 @@ const SchoolsManagement: React.FC = () => {
                     </Button>
                   )}
                   
-                  {permissions.canApproveSchools() && (
+                  {permissions.canApproveSchools() && typeof school.id === 'number' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -382,7 +366,7 @@ const SchoolsManagement: React.FC = () => {
                     </Button>
                   )}
                   
-                  {permissions.canDeleteSchools() && (
+                  {permissions.canDeleteSchools() && typeof school.id === 'number' && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
