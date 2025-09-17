@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { apiService } from '@/services/apiService';
 
 interface School {
-  id?: number;
+  id?: number | string;
   schoolName: string;
   udiseCode?: string;
   stateName: string;
@@ -52,18 +52,40 @@ export const SchoolFormModal: React.FC<SchoolFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.schoolName.trim() || !formData.stateName.trim() || !formData.districtName.trim()) {
+    if (!formData.schoolName.trim() || !formData.stateName.trim()) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    if (mode === 'create' && !formData.institutionId?.trim()) {
+      toast.error('Institution ID is required for new schools');
       return;
     }
 
     setIsLoading(true);
     try {
       if (mode === 'create') {
-        await apiService.createSchool(formData);
+        const payload = {
+          institutionId: formData.institutionId,
+          schoolName: formData.schoolName,
+          stateName: formData.stateName,
+          districtName: formData.districtName || undefined,
+          udiseSchoolCode: formData.udiseCode || undefined,
+          address: formData.blockName || undefined,
+          contactNumber: undefined
+        };
+        console.log('[SchoolFormModal] Creating school with payload:', payload);
+        await apiService.createSchool(payload);
         toast.success('School created successfully and sent for approval');
       } else {
-        await apiService.updateSchool(school!.id!, formData);
+        const payload = {
+          schoolName: formData.schoolName,
+          stateName: formData.stateName,
+          districtName: formData.districtName || undefined,
+          status: formData.status || undefined
+        };
+        console.log('[SchoolFormModal] Updating school with payload:', payload);
+        await apiService.updateSchool(school!.id!, payload);
         toast.success('School updated successfully');
       }
       onSuccess();
@@ -130,6 +152,18 @@ export const SchoolFormModal: React.FC<SchoolFormModalProps> = ({
               onChange={(e) => handleInputChange('districtName', e.target.value)}
               placeholder="Enter district name"
               required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="institutionId">Institution ID {mode === 'create' ? '*' : ''}</Label>
+            <Input
+              id="institutionId"
+              value={formData.institutionId}
+              onChange={(e) => handleInputChange('institutionId', e.target.value)}
+              placeholder="Enter institution ID"
+              required={mode === 'create'}
+              disabled={mode === 'edit'}
             />
           </div>
 

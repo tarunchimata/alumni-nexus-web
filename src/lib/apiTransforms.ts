@@ -22,23 +22,36 @@ export const transformObjectKeys = (obj: any): any => {
 
 // School-specific transformations
 export interface ApiSchool {
-  id: number;
-  school_name: string;
-  udise_code: string | null;
-  state_name: string;
-  district_name: string;
-  block_name: string | null;
-  institution_id: string;
-  school_type: string | null;
-  management: string | null;
-  status: string;
-  created_at: string;
-  updated_at: string;
+  id: number | string;
+  school_name?: string;
+  schoolName?: string;
+  name?: string;
+  udise_code?: string | null;
+  udiseCode?: string | null;
+  udise_school_code?: string | null;
+  state_name?: string;
+  stateName?: string;
+  district_name?: string;
+  districtName?: string;
+  block_name?: string | null;
+  blockName?: string | null;
+  institution_id?: string;
+  institutionId?: string;
+  school_type?: string | null;
+  schoolType?: string | null;
+  management?: string | null;
+  managementType?: string | null;
+  status?: string;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
   user_count?: number;
+  userCount?: number;
 }
 
 export interface School {
-  id: number;
+  id: number | string;
   schoolName: string;
   udiseCode: string | null;
   stateName: string;
@@ -53,26 +66,33 @@ export interface School {
   userCount?: number;
 }
 
-export const transformSchool = (apiSchool: ApiSchool): School => {
+export const transformSchool = (apiSchool: any): School => {
+  // First normalize the object keys to handle both camelCase and snake_case
+  const normalized = transformObjectKeys(apiSchool);
+  
   return {
-    id: apiSchool.id,
-    schoolName: apiSchool.school_name,
-    udiseCode: apiSchool.udise_code,
-    stateName: apiSchool.state_name,
-    districtName: apiSchool.district_name,
-    blockName: apiSchool.block_name,
-    institutionId: apiSchool.institution_id,
-    schoolType: apiSchool.school_type,
-    management: apiSchool.management,
-    status: apiSchool.status,
-    createdAt: apiSchool.created_at,
-    updatedAt: apiSchool.updated_at,
-    userCount: apiSchool.user_count,
+    id: normalized.id || apiSchool.id || '',
+    schoolName: normalized.schoolName || normalized.name || apiSchool.school_name || apiSchool.schoolName || apiSchool.name || '',
+    udiseCode: normalized.udiseCode || normalized.udiseSchoolCode || apiSchool.udise_code || apiSchool.udise_school_code || null,
+    stateName: normalized.stateName || apiSchool.state_name || apiSchool.stateName || '',
+    districtName: normalized.districtName || apiSchool.district_name || apiSchool.districtName || '',
+    blockName: normalized.blockName || apiSchool.block_name || apiSchool.blockName || null,
+    institutionId: normalized.institutionId || apiSchool.institution_id || apiSchool.institutionId || '',
+    schoolType: normalized.schoolType || apiSchool.school_type || apiSchool.schoolType || null,
+    management: normalized.management || normalized.managementType || apiSchool.management || apiSchool.managementType || null,
+    status: normalized.status || apiSchool.status || 'pending',
+    createdAt: normalized.createdAt || apiSchool.created_at || apiSchool.createdAt || '',
+    updatedAt: normalized.updatedAt || apiSchool.updated_at || apiSchool.updatedAt || '',
+    userCount: normalized.userCount || apiSchool.user_count || apiSchool.userCount || 0,
   };
 };
 
-export const transformSchools = (apiSchools: ApiSchool[]): School[] => {
-  return apiSchools.map(transformSchool);
+export const transformSchools = (apiSchools: any[]): School[] => {
+  if (!Array.isArray(apiSchools)) {
+    console.warn('[transformSchools] Expected array, got:', typeof apiSchools);
+    return [];
+  }
+  return apiSchools.map(school => transformSchool(school));
 };
 
 // User-specific transformations  

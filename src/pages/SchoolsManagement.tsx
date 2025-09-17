@@ -68,7 +68,7 @@ const SchoolsManagement: React.FC = () => {
           school.stateName?.toLowerCase?.().includes(term) ||
           school.districtName?.toLowerCase?.().includes(term);
         const matchesStatus = statusFilter === 'all' || (school.status?.toLowerCase?.() === statusFilter.toLowerCase());
-        const matchesType = typeFilter === 'all' || (school.schoolType?.toLowerCase?.() === typeFilter.toLowerCase());
+        const matchesType = typeFilter === 'all' || (school.management?.toLowerCase?.() === typeFilter.toLowerCase());
         return matchesSearch && matchesStatus && matchesType;
       });
       setSchools(filteredSchools);
@@ -331,10 +331,10 @@ const SchoolsManagement: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  {permissions.canApproveSchools() && school.status?.toLowerCase() === 'pending' && typeof school.id === 'number' && (
+                  {permissions.canApproveSchools() && school.status?.toLowerCase() === 'pending' && school.id && (
                     <Button
                       size="sm"
-                      onClick={() => handleApproveSchool(school.id)}
+                      onClick={() => handleApproveSchool(Number(school.id))}
                       className="flex items-center gap-1"
                     >
                       <CheckCircle className="w-3 h-3" />
@@ -342,11 +342,11 @@ const SchoolsManagement: React.FC = () => {
                     </Button>
                   )}
                   
-                  {permissions.canApproveSchools() && typeof school.id === 'number' && (
+                  {permissions.canApproveSchools() && school.id && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleValidateSchool(school.id)}
+                      onClick={() => handleValidateSchool(Number(school.id))}
                       className="flex items-center gap-1"
                     >
                       <AlertCircle className="w-3 h-3" />
@@ -366,7 +366,7 @@ const SchoolsManagement: React.FC = () => {
                     </Button>
                   )}
                   
-                  {permissions.canDeleteSchools() && typeof school.id === 'number' && (
+                  {permissions.canDeleteSchools() && school.id && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -387,7 +387,7 @@ const SchoolsManagement: React.FC = () => {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteSchool(school.id)}>
+                          <AlertDialogAction onClick={() => handleDeleteSchool(Number(school.id))}>
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
