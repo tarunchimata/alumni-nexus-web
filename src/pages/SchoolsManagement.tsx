@@ -34,6 +34,7 @@ interface School {
 }
 
 const SchoolsManagement: React.FC = () => {
+  const [allSchools, setAllSchools] = useState<School[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,20 +73,20 @@ const SchoolsManagement: React.FC = () => {
       // Transform the data from snake_case to camelCase
       const transformedSchools = transformSchools(schoolsArray);
       console.log('[SchoolsManagement] Transformed schools:', transformedSchools.slice(0, 2));
+      // Save full list for stats and client-side filtering
+      setAllSchools(transformedSchools);
       
-      // Apply filters
-      const filteredSchools = transformedSchools.filter(school => {
-        const matchesSearch = !searchTerm || 
-          school.schoolName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          school.stateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          school.districtName.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesStatus = statusFilter === 'all' || school.status === statusFilter;
-        const matchesType = typeFilter === 'all' || school.schoolType === typeFilter;
-        
+      // Apply filters (case-insensitive)
+      const filteredSchools = transformedSchools.filter((school) => {
+        const term = searchTerm?.toLowerCase?.() || '';
+        const matchesSearch = !term ||
+          school.schoolName?.toLowerCase?.().includes(term) ||
+          school.stateName?.toLowerCase?.().includes(term) ||
+          school.districtName?.toLowerCase?.().includes(term);
+        const matchesStatus = statusFilter === 'all' || (school.status?.toLowerCase?.() === statusFilter.toLowerCase());
+        const matchesType = typeFilter === 'all' || (school.schoolType?.toLowerCase?.() === typeFilter.toLowerCase());
         return matchesSearch && matchesStatus && matchesType;
       });
-      
       setSchools(filteredSchools);
       setTotalPages(Math.ceil(filteredSchools.length / itemsPerPage));
       
@@ -224,7 +225,7 @@ const SchoolsManagement: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Schools</p>
-                <p className="text-2xl font-bold">{schools.length}</p>
+                <p className="text-2xl font-bold">{allSchools.length}</p>
               </div>
             </div>
           </CardContent>
@@ -239,7 +240,7 @@ const SchoolsManagement: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Active Schools</p>
                 <p className="text-2xl font-bold">
-                  {schools.filter(s => s.status === 'approved' || s.status === 'active').length}
+                  {allSchools.filter(s => (s.status?.toLowerCase() === 'approved' || s.status?.toLowerCase() === 'active')).length}
                 </p>
               </div>
             </div>
@@ -255,7 +256,7 @@ const SchoolsManagement: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Pending Approval</p>
                 <p className="text-2xl font-bold">
-                  {schools.filter(s => s.status === 'pending').length}
+                  {allSchools.filter(s => s.status?.toLowerCase() === 'pending').length}
                 </p>
               </div>
             </div>
