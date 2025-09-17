@@ -205,7 +205,7 @@ const SchoolsManagement: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <School className="w-6 h-6 text-blue-600" />
+                <SchoolIcon className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Schools</p>
@@ -403,7 +403,7 @@ const SchoolsManagement: React.FC = () => {
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <div className="text-center">
-              <School className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <SchoolIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No Schools Found</h3>
               <p className="text-muted-foreground">
                 {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
