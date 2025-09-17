@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Search, RefreshCw, CheckCircle, AlertCircle, Plus, Edit, Trash2, School as SchoolIcon, MapPin, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { transformSchools, type School } from '@/lib/apiTransforms';
-import apiService from '@/services/apiService';
+import { apiService } from '@/services/apiService';
 import { SchoolFormModal } from '@/components/schools/SchoolFormModal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
