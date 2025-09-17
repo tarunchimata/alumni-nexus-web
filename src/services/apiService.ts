@@ -1,5 +1,5 @@
 // Production API Service
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.hostingmanager.in/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -154,23 +154,32 @@ class ApiService {
     return this.get(`/users${queryParams}`);
   }
 
+  // Schools CRUD methods
   async getSchools() {
     return this.get('/schools');
   }
 
-  async getSchool(id: string) {
+  async getSchool(id: string | number) {
     return this.get(`/schools/${id}`);
   }
 
-  async updateSchool(id: string, data: any) {
+  async createSchool(data: any) {
+    return this.post('/schools', data);
+  }
+
+  async updateSchool(id: string | number, data: any) {
     return this.put(`/schools/${id}`, data);
   }
 
-  async approveSchool(id: string) {
+  async deleteSchool(id: string | number) {
+    return this.delete(`/schools/${id}`);
+  }
+
+  async approveSchool(id: string | number) {
     return this.post(`/schools/${id}/approve`, {});
   }
 
-  async validateSchool(id: string) {
+  async validateSchool(id: string | number) {
     return this.post(`/schools/${id}/validate`, {});
   }
 

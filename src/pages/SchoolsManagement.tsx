@@ -1,198 +1,196 @@
-import { useState, useEffect } from 'react';
-import { apiService } from '@/services/apiService';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { School, MapPin, Users, CheckCircle, Clock, AlertTriangle, Search } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { transformSchools, type School as TransformedSchool, type ApiSchool } from '@/lib/apiTransforms';
+import { Loader2, Search, RefreshCw, CheckCircle, AlertCircle, Plus, Edit, Trash2, School, MapPin, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { transformSchools } from '@/lib/apiTransforms';
+import apiService from '@/services/apiService';
+import { SchoolFormModal } from '@/components/schools/SchoolFormModal';
+import { usePermissions } from '@/hooks/usePermissions';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface ValidationResult {
-  issues: Array<{
-    type: string;
-    message: string;
-    field?: string;
-  }>;
+  issues: string[];
 }
 
 interface School {
   id: number;
-  name?: string;
   schoolName: string;
+  udiseCode?: string;
   stateName: string;
   districtName: string;
-  blockName?: string | null;
-  udiseCode?: string | null;
-  institutionId: string;
+  blockName?: string;
+  institutionId?: string;
+  schoolType?: string;
+  managementType?: string;
   status: string;
-  schoolType?: string | null;
-  management?: string | null;
   userCount?: number;
   classCount?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-interface SchoolsResponse {
-  schools: School[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-const SchoolsManagement = () => {
+const SchoolsManagement: React.FC = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState<SchoolsResponse['pagination']>();
-  const [usingFallback, setUsingFallback] = useState(false);
-  const { toast } = useToast();
-
-  // Dev fallback sample schools (used when API is unavailable in preview)
-  const sampleSchools: School[] = [
-    { id: 1, name: 'Delhi Public School Vasant Kunj', schoolName: 'Delhi Public School Vasant Kunj', stateName: 'Delhi', districtName: 'New Delhi', status: 'active', schoolType: 'Private', management: 'Private Unaided', userCount: 215, classCount: 24, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-DL-001' },
-    { id: 2, name: 'Government Higher Secondary School Bandra', schoolName: 'Government Higher Secondary School Bandra', stateName: 'Maharashtra', districtName: 'Mumbai', status: 'active', schoolType: 'Government', management: 'State Government', userCount: 180, classCount: 18, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-MH-002' },
-    { id: 3, name: "St. Josephs Boys High School", schoolName: "St. Josephs Boys High School", stateName: 'Karnataka', districtName: 'Bangalore', status: 'active', schoolType: 'Private', management: 'Private Aided', userCount: 200, classCount: 20, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), institutionId: 'INC-IN-KA-003' },
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const itemsPerPage = 12;
+  const permissions = usePermissions();
 
   useEffect(() => {
     fetchSchools();
-  }, [page, searchQuery, statusFilter, typeFilter]);
+  }, [currentPage, searchTerm, statusFilter, typeFilter]);
 
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '10',
-        ...(searchQuery && { search: searchQuery }),
-        ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(typeFilter !== 'all' && { type: typeFilter }),
-      });
-
-      console.log('[SchoolsManagement] Fetching from external API:', `${import.meta.env.VITE_API_URL}/schools?${params}`);
+      console.log('[SchoolsManagement] Fetching schools from API...');
       
-      try {
-        // Fetch from external API - expects direct array response (snake_case)
-        const apiResponse = await apiService.get<ApiSchool[]>(`/schools?${params}`);
-        
-        if (Array.isArray(apiResponse)) {
-          console.log('[SchoolsManagement] API Response (direct array):', apiResponse.slice(0, 2));
-          
-          // Transform snake_case API response to camelCase frontend format
-          const transformedSchools = transformSchools(apiResponse);
-          
-          setSchools(transformedSchools);
-          setPagination({ 
-            page: page, 
-            limit: 10, 
-            total: transformedSchools.length, 
-            totalPages: Math.ceil(transformedSchools.length / 10) 
-          });
-          setUsingFallback(false);
-          
-          console.log('[SchoolsManagement] Successfully loaded', transformedSchools.length, 'schools from external API');
-        } else {
-          throw new Error('Expected array response from external API');
-        }
-      } catch (apiError) {
-        console.warn('[SchoolsManagement] External API failed, using fallback data:', apiError);
-        
-        if (import.meta.env.DEV) {
-          setSchools(sampleSchools);
-          setPagination({ page: 1, limit: 10, total: sampleSchools.length, totalPages: 1 });
-          setUsingFallback(true);
-        } else {
-          toast({
-            title: 'Error',
-            description: 'Failed to load schools from API',
-            variant: 'destructive',
-          });
-        }
+      const response = await apiService.getSchools();
+      console.log('[SchoolsManagement] Raw API response:', response);
+      
+      // Handle direct array response from API
+      const schoolsArray = Array.isArray(response) ? response : 
+        (response as any)?.schools || (response as any)?.data || [];
+      console.log('[SchoolsManagement] Schools array:', schoolsArray);
+      
+      if (schoolsArray.length === 0) {
+        console.warn('[SchoolsManagement] No schools found in API response');
+        toast.info('No schools found');
       }
-    } catch (error) {
-      console.error('[SchoolsManagement] Critical error:', error);
-      toast({
-        title: 'Error', 
-        description: 'Failed to load schools',
-        variant: 'destructive',
+      
+      // Transform the data from snake_case to camelCase
+      const transformedSchools = transformSchools(schoolsArray);
+      console.log('[SchoolsManagement] Transformed schools:', transformedSchools.slice(0, 2));
+      
+      // Apply filters
+      const filteredSchools = transformedSchools.filter(school => {
+        const matchesSearch = !searchTerm || 
+          school.schoolName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          school.stateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          school.districtName.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'all' || school.status === statusFilter;
+        const matchesType = typeFilter === 'all' || school.schoolType === typeFilter;
+        
+        return matchesSearch && matchesStatus && matchesType;
       });
+      
+      setSchools(filteredSchools);
+      setTotalPages(Math.ceil(filteredSchools.length / itemsPerPage));
+      
+    } catch (error) {
+      console.error('[SchoolsManagement] Error fetching schools:', error);
+      toast.error('Failed to fetch schools from API. Please check your connection.');
+      setSchools([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleApproveSchool = async (schoolId: number) => {
+    if (!permissions.canApproveSchools()) {
+      toast.error('You do not have permission to approve schools');
+      return;
+    }
+    
     try {
-      await apiService.approveSchool(schoolId.toString());
-      toast({
-        title: 'Success',
-        description: 'School approved successfully',
-      });
-      fetchSchools();
+      await apiService.approveSchool(schoolId);
+      toast.success('School approved successfully');
+      fetchSchools(); // Refresh the list
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to approve school',
-        variant: 'destructive',
-      });
+      console.error('Error approving school:', error);
+      toast.error('Failed to approve school');
     }
   };
 
   const handleValidateSchool = async (schoolId: number) => {
     try {
-      const result = await apiService.validateSchool(schoolId.toString()) as ValidationResult;
-      
-      if (result.issues.length === 0) {
-        toast({
-          title: 'Validation Success',
-          description: 'No issues found with this school',
-        });
+      const result = await apiService.validateSchool(schoolId) as ValidationResult;
+      if (result.issues && result.issues.length > 0) {
+        toast.error(`Validation failed: ${result.issues.join(', ')}`);
       } else {
-        toast({
-          title: 'Validation Issues Found',
-          description: `${result.issues.length} issues detected`,
-          variant: 'destructive',
-        });
+        toast.success('School validation passed');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to validate school',
-        variant: 'destructive',
-      });
+      console.error('Error validating school:', error);
+      toast.error('Failed to validate school');
     }
+  };
+
+  const handleCreateSchool = () => {
+    setModalMode('create');
+    setEditingSchool(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditSchool = (school: School) => {
+    if (!permissions.canEditSchools()) {
+      toast.error('You do not have permission to edit schools');
+      return;
+    }
+    
+    setModalMode('edit');
+    setEditingSchool(school);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteSchool = async (schoolId: number) => {
+    if (!permissions.canDeleteSchools()) {
+      toast.error('You do not have permission to delete schools');
+      return;
+    }
+    
+    try {
+      await apiService.deleteSchool(schoolId);
+      toast.success('School deleted successfully');
+      fetchSchools(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting school:', error);
+      toast.error('Failed to delete school');
+    }
+  };
+
+  const handleModalSuccess = () => {
+    fetchSchools(); // Refresh the list
   };
 
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'approved':
       case 'active':
-        return <Badge className="bg-success text-success-foreground"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
       case 'pending':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Pending</Badge>;
       case 'rejected':
       case 'inactive':
-        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" />Inactive</Badge>;
+        return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
       default:
         return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
   };
 
-  if (loading && schools.length === 0) {
+  // Pagination logic
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSchools = schools.slice(startIndex, endIndex);
+
+  if (loading) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto" />
             <p className="mt-2 text-muted-foreground">Loading schools...</p>
           </div>
         </div>
@@ -202,42 +200,96 @@ const SchoolsManagement = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Schools Management</h2>
+          <h1 className="text-3xl font-bold">Schools Management</h1>
           <p className="text-muted-foreground">Manage and approve schools in the system</p>
         </div>
-        {usingFallback && (
-          <Badge variant="secondary">Demo data (API offline)</Badge>
+        
+        {permissions.canCreateSchools() && (
+          <Button onClick={handleCreateSchool} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add School
+          </Button>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="relative">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <School className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Schools</p>
+                <p className="text-2xl font-bold">{schools.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Schools</p>
+                <p className="text-2xl font-bold">
+                  {schools.filter(s => s.status === 'approved' || s.status === 'active').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Approval</p>
+                <p className="text-2xl font-bold">
+                  {schools.filter(s => s.status === 'pending').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search schools..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
         
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
 
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent>
@@ -248,116 +300,178 @@ const SchoolsManagement = () => {
           </SelectContent>
         </Select>
 
-        <Button onClick={fetchSchools} variant="outline">
+        <Button onClick={fetchSchools} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="w-4 h-4" />
           Refresh
         </Button>
       </div>
 
-      {/* Schools List */}
-      <div className="space-y-4">
-        {schools.map((school) => (
-          <Card key={school.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <School className="h-5 w-5" />
-                    {school.schoolName || school.name}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-4 mt-1">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {school.districtName}, {school.stateName}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {school.userCount || 0} users
-                      {school.classCount && `, ${school.classCount} classes`}
-                    </span>
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
+      {/* Schools Grid */}
+      {currentSchools.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {currentSchools.map((school) => (
+            <Card key={school.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg line-clamp-2">
+                      {school.schoolName}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      <span>{school.districtName}, {school.stateName}</span>
+                    </div>
+                  </div>
                   {getStatusBadge(school.status)}
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Added on {new Date(school.createdAt).toLocaleDateString()}
-                </div>
-                <div className="flex gap-2">
-                  {school.status === 'pending' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleValidateSchool(school.id)}
-                      >
-                        Validate
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveSchool(school.id)}
-                      >
-                        Approve
-                      </Button>
-                    </>
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                <div className="space-y-2 mb-4">
+                  {school.udiseCode && (
+                    <p className="text-sm"><span className="font-medium">UDISE:</span> {school.udiseCode}</p>
                   )}
-                  {school.status === 'approved' && (
+                  {school.schoolType && (
+                    <p className="text-sm"><span className="font-medium">Type:</span> {school.schoolType}</p>
+                  )}
+                  {school.managementType && (
+                    <p className="text-sm"><span className="font-medium">Management:</span> {school.managementType}</p>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      {school.userCount || 0} users
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  {permissions.canApproveSchools() && school.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleApproveSchool(school.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-3 h-3" />
+                      Approve
+                    </Button>
+                  )}
+                  
+                  {permissions.canApproveSchools() && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleValidateSchool(school.id)}
+                      className="flex items-center gap-1"
                     >
-                      Re-validate
+                      <AlertCircle className="w-3 h-3" />
+                      Validate
                     </Button>
                   )}
+                  
+                  {permissions.canEditSchools() && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditSchool(school)}
+                      className="flex items-center gap-1"
+                    >
+                      <Edit className="w-3 h-3" />
+                      Edit
+                    </Button>
+                  )}
+                  
+                  {permissions.canDeleteSchools() && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete School</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{school.schoolName}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteSchool(school.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <School className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Schools Found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+                  ? 'No schools match your current filters.' 
+                  : 'No schools have been added yet.'}
+              </p>
+              {permissions.canCreateSchools() && (
+                <Button onClick={handleCreateSchool} className="mt-4">
+                  Add First School
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} schools
+            Showing {startIndex + 1} to {Math.min(endIndex, schools.length)} of {schools.length} schools
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={pagination.page === 1}
-              onClick={() => setPage(page - 1)}
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(currentPage - 1)}
             >
               Previous
             </Button>
+            <span className="text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"
-              disabled={pagination.page === pagination.totalPages}
-              onClick={() => setPage(page + 1)}
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(currentPage + 1)}
             >
               Next
             </Button>
           </div>
         </div>
       )}
-
-      {schools.length === 0 && !loading && (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <School className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No Schools Found</h3>
-              <p className="text-muted-foreground">No schools match your current filters.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      
+      <SchoolFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        school={editingSchool}
+        mode={modalMode}
+      />
     </div>
   );
 };
