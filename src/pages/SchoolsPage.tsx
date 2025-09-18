@@ -39,7 +39,7 @@ const SchoolsPage = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get<{ schools: School[] }>('/schools');
+      const response = await apiClient.getPublic<{ schools: School[] }>('/schools');
       setSchools(response.schools || []);
       
     } catch (error: any) {

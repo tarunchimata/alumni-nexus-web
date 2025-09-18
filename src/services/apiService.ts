@@ -46,6 +46,15 @@ class ApiService {
     return this.handleResponse<T>(response);
   }
 
+  async getPublic<T>(endpoint: string): Promise<T> {
+    console.log(`[ApiService] GET (public) ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return this.handleResponse<T>(response);
+  }
+
   async post<T>(endpoint: string, data: any): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
@@ -156,7 +165,16 @@ class ApiService {
 
   // Schools CRUD methods
   async getSchools() {
-    return this.get('/schools');
+    try {
+      return await this.get('/schools');
+    } catch (err: any) {
+      const msg = (err?.message || '').toString();
+      if (msg.includes('401') || msg.includes('403')) {
+        console.warn('[ApiService] GET /schools failed with auth, retrying as public');
+        return await this.getPublic('/schools');
+      }
+      throw err;
+    }
   }
 
   async getSchool(id: string | number) {
