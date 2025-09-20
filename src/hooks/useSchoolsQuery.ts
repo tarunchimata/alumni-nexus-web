@@ -50,24 +50,52 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
       let schools, pagination;
       
       if (Array.isArray(response)) {
-        // Direct array response
+        // Direct array response - likely incomplete, try to get total count
         schools = transformSchools(response);
-        pagination = {
-          page: filters.page || 1,
-          limit: filters.limit || 20,
-          total: response.length, // This is not accurate for total count
-          pages: 1
-        };
+        
+        // For pagination, we need to make a separate count request if not provided
+        try {
+          const countResponse = await apiService.getSchools({ ...apiFilters, count: 'true' } as any);
+          const totalCount = (countResponse as any)?.total || (countResponse as any)?.count || response.length;
+          
+          pagination = {
+            page: filters.page || 1,
+            limit: filters.limit || 20,
+            total: totalCount,
+            pages: Math.ceil(totalCount / (filters.limit || 20))
+          };
+        } catch (error) {
+          console.warn('[useSchoolsQuery] Could not get total count, using current page size');
+          pagination = {
+            page: filters.page || 1,
+            limit: filters.limit || 20,
+            total: response.length,
+            pages: 1
+          };
+        }
       } else if ((response as any)?.schools || (response as any)?.data) {
         // Wrapped response with pagination
         const schoolsArray = (response as any).schools || (response as any).data;
         schools = transformSchools(schoolsArray);
-        pagination = (response as any).pagination || {
-          page: filters.page || 1,
-          limit: filters.limit || 20,
-          total: schoolsArray.length,
-          pages: 1
-        };
+        
+        const apiPagination = (response as any).pagination;
+        if (apiPagination && apiPagination.total) {
+          // Use API pagination if available
+          pagination = {
+            page: apiPagination.page || filters.page || 1,
+            limit: apiPagination.limit || filters.limit || 20,
+            total: apiPagination.total,
+            pages: apiPagination.pages || Math.ceil(apiPagination.total / (apiPagination.limit || 20))
+          };
+        } else {
+          // Fallback pagination
+          pagination = {
+            page: filters.page || 1,
+            limit: filters.limit || 20,
+            total: schoolsArray.length,
+            pages: Math.max(1, Math.ceil(schoolsArray.length / (filters.limit || 20)))
+          };
+        }
       } else {
         schools = [];
         pagination = {
@@ -93,19 +121,38 @@ export const useSchoolsStats = () => {
       console.log('[useSchoolsStats] Fetching statistics...');
       
       try {
-        // Try to get a large sample for statistics
-        const response = await apiService.getSchools({ limit: '10000' });
+        // First try to get total count efficiently
+        let totalCount = 0;
+        try {
+          const countResponse = await apiService.getSchools({ count: 'true' } as any);
+          totalCount = (countResponse as any)?.total || (countResponse as any)?.count || 0;
+        } catch (error) {
+          console.warn('[useSchoolsStats] Count endpoint not available, fetching sample');
+        }
+        
+        // Get a sample for status breakdown if total count is available
+        const sampleSize = Math.min(totalCount || 1000, 1000);
+        const response = await apiService.getSchools({ limit: sampleSize.toString() });
         const schoolsArray = Array.isArray(response) ? response : 
           (response as any)?.schools || (response as any)?.data || [];
         const schools = transformSchools(schoolsArray);
         
+        // Calculate statistics
+        const sampleTotal = schools.length;
+        const activeCount = schools.filter(s => 
+          s.status?.toLowerCase() === 'approved' || s.status?.toLowerCase() === 'active'
+        ).length;
+        const pendingCount = schools.filter(s => s.status?.toLowerCase() === 'pending').length;
+        const rejectedCount = schools.filter(s => s.status?.toLowerCase() === 'rejected').length;
+        
+        // Scale up the counts if we have a total count and sample is smaller
+        const scaleFactor = totalCount > 0 && sampleTotal > 0 ? totalCount / sampleTotal : 1;
+        
         const stats = {
-          total: schools.length,
-          active: schools.filter(s => 
-            s.status?.toLowerCase() === 'approved' || s.status?.toLowerCase() === 'active'
-          ).length,
-          pending: schools.filter(s => s.status?.toLowerCase() === 'pending').length,
-          rejected: schools.filter(s => s.status?.toLowerCase() === 'rejected').length,
+          total: totalCount || sampleTotal,
+          active: Math.round(activeCount * scaleFactor),
+          pending: Math.round(pendingCount * scaleFactor),
+          rejected: Math.round(rejectedCount * scaleFactor),
           byState: schools.reduce((acc, school) => {
             const state = school.stateName || 'Unknown';
             acc[state] = (acc[state] || 0) + 1;

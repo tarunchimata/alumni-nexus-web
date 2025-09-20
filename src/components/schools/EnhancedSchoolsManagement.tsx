@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -47,16 +47,26 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SchoolTab>('overview');
   const [filters, setFilters] = useState<SchoolFilters>({
     page: 1,
-    limit: 20,
+    limit: 50, // Increase default limit to show more schools
     search: '',
     status: 'all',
     management: 'all',
     state: 'all',
     district: 'all'
   });
+  const [searchInput, setSearchInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({ ...prev, search: searchInput, page: 1 }));
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Hooks
   const permissions = usePermissions();
@@ -71,6 +81,11 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
 
   // Handlers
   const handleFilterChange = (key: keyof SchoolFilters, value: any) => {
+    if (key === 'search') {
+      setSearchInput(value);
+      return;
+    }
+    
     setFilters(prev => ({
       ...prev,
       [key]: value,
@@ -170,7 +185,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
               loading={schoolsLoading}
               totalCount={totalCount}
               currentPage={filters.page || 1}
-              pageSize={filters.limit || 20}
+              pageSize={filters.limit || 50}
               onPageChange={(page) => handleFilterChange('page', page)}
               onPageSizeChange={(size) => handleFilterChange('limit', size)}
               onApprove={handleApproveSchool}
@@ -355,7 +370,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search schools..."
-                      value={filters.search || ''}
+                      value={searchInput}
                       onChange={(e) => handleFilterChange('search', e.target.value)}
                       className="pl-10"
                     />
@@ -396,11 +411,27 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                     <Badge variant="secondary" className="text-xs">
                       {totalCount.toLocaleString()} schools
                     </Badge>
-                    {Object.values(filters).filter(v => v && v !== 'all' && v !== 1 && v !== 20).length > 0 && (
+                    {Object.values(filters).filter(v => v && v !== 'all' && v !== 1 && v !== 50).length > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        {Object.values(filters).filter(v => v && v !== 'all' && v !== 1 && v !== 20).length} filters
+                        {Object.values(filters).filter(v => v && v !== 'all' && v !== 1 && v !== 50).length} filters
                       </Badge>
                     )}
+                    
+                    {/* Page Size Selector */}
+                    <Select 
+                      value={filters.limit?.toString() || '50'} 
+                      onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
+                    >
+                      <SelectTrigger className="w-auto">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25 per page</SelectItem>
+                        <SelectItem value="50">50 per page</SelectItem>
+                        <SelectItem value="100">100 per page</SelectItem>
+                        <SelectItem value="200">200 per page</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>

@@ -55,7 +55,7 @@ const tabs = [
 
 export const SchoolsTabs: React.FC<SchoolsTabsProps> = ({ activeTab, onTabChange }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -63,45 +63,48 @@ export const SchoolsTabs: React.FC<SchoolsTabsProps> = ({ activeTab, onTabChange
         return (
           <motion.div
             key={tab.id}
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.03, y: -2 }}
             whileTap={{ scale: 0.98 }}
             className="relative"
           >
             <button
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "w-full p-6 rounded-xl border-2 transition-all duration-200 text-left",
-                "hover:shadow-lg hover:shadow-black/5",
+                "w-full p-6 rounded-2xl transition-all duration-300 text-left relative overflow-hidden",
+                "hover:shadow-2xl transform-gpu",
                 isActive 
-                  ? "border-primary shadow-lg bg-gradient-to-br shadow-primary/25" 
-                  : "border-border hover:border-primary/50 bg-card"
+                  ? "shadow-2xl ring-2 ring-white/20" 
+                  : "hover:shadow-xl"
               )}
+              style={{
+                background: isActive 
+                  ? `linear-gradient(135deg, ${getGradientColors(tab.gradient)})` 
+                  : 'hsl(var(--card))',
+                borderColor: isActive ? 'transparent' : 'hsl(var(--border))'
+              }}
             >
-              {/* Background Gradient */}
-              <div 
-                className={cn(
-                  "absolute inset-0 rounded-xl opacity-0 transition-opacity duration-200",
-                  `bg-gradient-to-br ${tab.gradient}`,
-                  isActive && "opacity-5"
-                )}
-              />
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-white/20 transform translate-x-6 -translate-y-6" />
+                <div className="absolute bottom-0 left-0 w-16 h-16 rounded-full bg-white/10 transform -translate-x-4 translate-y-4" />
+              </div>
               
               {/* Content */}
               <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center justify-between mb-4">
                   <div className={cn(
-                    "p-2 rounded-lg transition-all duration-200",
+                    "p-3 rounded-xl transition-all duration-200",
                     isActive 
-                      ? `bg-gradient-to-br ${tab.gradient} text-white shadow-lg` 
-                      : "bg-muted"
+                      ? "bg-white/20 text-white shadow-lg backdrop-blur-sm" 
+                      : "bg-gradient-to-br " + tab.gradient + " text-white shadow-lg"
                   )}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-6 h-6" />
                   </div>
                   
                   {tab.count && (
                     <div className={cn(
-                      "px-2 py-1 rounded-full text-xs font-medium",
-                      isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      "px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm",
+                      isActive ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
                     )}>
                       {tab.count}
                     </div>
@@ -109,35 +112,43 @@ export const SchoolsTabs: React.FC<SchoolsTabsProps> = ({ activeTab, onTabChange
                 </div>
                 
                 <h3 className={cn(
-                  "font-semibold text-lg mb-2 transition-colors duration-200",
-                  isActive ? "text-foreground" : "text-foreground/80"
+                  "font-bold text-xl mb-2 transition-colors duration-200",
+                  isActive ? "text-white" : "text-foreground"
                 )}>
                   {tab.label}
                 </h3>
                 
                 <p className={cn(
-                  "text-sm transition-colors duration-200",
-                  isActive ? "text-muted-foreground" : "text-muted-foreground/70"
+                  "text-sm transition-colors duration-200 leading-relaxed",
+                  isActive ? "text-white/90" : "text-muted-foreground"
                 )}>
                   {tab.description}
                 </p>
               </div>
 
-              {/* Active indicator */}
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className={cn(
-                    "absolute bottom-0 left-0 right-0 h-1 rounded-b-xl",
-                    `bg-gradient-to-r ${tab.gradient}`
-                  )}
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                />
-              )}
+              {/* Hover Glow Effect */}
+              <div 
+                className={cn(
+                  "absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300",
+                  `bg-gradient-to-br ${tab.gradient}`,
+                  !isActive && "hover:opacity-20"
+                )}
+              />
             </button>
           </motion.div>
         );
       })}
     </div>
   );
+};
+
+// Helper function to get gradient colors
+const getGradientColors = (gradient: string) => {
+  const colorMap: Record<string, string> = {
+    'from-blue-500 to-blue-600': '#3b82f6, #2563eb',
+    'from-emerald-500 to-emerald-600': '#10b981, #059669', 
+    'from-purple-500 to-purple-600': '#8b5cf6, #7c3aed',
+    'from-rose-500 to-rose-600': '#f43f5e, #e11d48'
+  };
+  return colorMap[gradient] || '#3b82f6, #2563eb';
 };
