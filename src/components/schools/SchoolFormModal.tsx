@@ -70,9 +70,11 @@ export const SchoolFormModal: React.FC<SchoolFormModalProps> = ({
           schoolName: formData.schoolName,
           stateName: formData.stateName,
           districtName: formData.districtName || undefined,
-          udiseSchoolCode: formData.udiseCode || undefined,
+          udiseCode: formData.udiseCode || undefined, // Fixed field name
           address: formData.blockName || undefined,
-          contactNumber: undefined
+          contactNumber: undefined,
+          schoolType: formData.schoolType || undefined,
+          managementType: formData.managementType || undefined
         };
         console.log('[SchoolFormModal] Creating school with payload:', payload);
         await apiService.createSchool(payload);
