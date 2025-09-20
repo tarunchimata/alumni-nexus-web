@@ -1,6 +1,10 @@
-import { supabase } from '@/integrations/supabase/client';
+
 // Production API Service
-const RAW_BASE_URL = (import.meta.env.VITE_SCHOOLS_API_URL as string) || (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in';
+const RAW_BASE_URL =
+  (import.meta.env.VITE_SCHOOLS_API_URL as string) ||
+  (import.meta.env.VITE_API_BASE_URL as string) ||
+  (import.meta.env.VITE_API_URL as string) ||
+  'https://schoolapi.hostingmanager.in/api';
 
 function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, '');
@@ -32,10 +36,12 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private getAuthHeaders(includeContentType = true): Record<string, string> {
-    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
-    const headers: Record<string, string> = {
-      'x-api-key': apiKey,
-    };
+    const apiKey =
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
+    const headers: Record<string, string> = {};
+    if (apiKey) headers['x-api-key'] = apiKey;
     if (includeContentType) {
       headers['Content-Type'] = 'application/json';
     }
@@ -169,12 +175,17 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const apiKey =
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
+
+    const headers: Record<string, string> = {};
+    if (apiKey) headers['x-api-key'] = apiKey;
+
     const response = await fetch(buildApiUrl(endpoint), {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-      },
+      headers,
       body: formData,
     });
 
@@ -225,12 +236,15 @@ class ApiService {
   }
 
   async exportFailedCsvRows(id: number): Promise<Blob> {
-    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const apiKey =
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
     const url = buildApiUrl(`/csv/jobs/${id}/export-failed`);
+    const headers: Record<string, string> = {};
+    if (apiKey) headers['x-api-key'] = apiKey;
     const resp = await fetch(url, {
-      headers: {
-        'x-api-key': apiKey,
-      },
+      headers,
     });
     if (!resp.ok) {
       const text = await resp.text();
@@ -253,25 +267,11 @@ class ApiService {
     limit?: string; 
     offset?: string; 
   }) {
-    console.log(`[ApiService] getSchools called with filters:`, filters);
-    try {
-      const { data, error } = await supabase.functions.invoke('schools-proxy', {
-        body: {
-          endpoint: 'schools',
-          params: filters ?? {}
-        }
-      });
-      if (error) {
-        console.error('[ApiService] Cloud proxy error', error);
-        throw new Error(error.message || 'Cloud proxy error');
-      }
-      const schoolsArray = this.unwrapSchoolsResponse(data);
-      console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
-      return schoolsArray;
-    } catch (err: any) {
-      console.error('[ApiService] getSchools via Cloud failed', err);
-      throw err;
-    }
+    console.log(`[ApiService] getSchools (direct) called with filters:`, filters);
+    const result = await this.getWithParams<any>('/schools', filters ?? {});
+    const schoolsArray = this.unwrapSchoolsResponse(result);
+    console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
+    return schoolsArray;
   }
 
   async getSchool(id: string | number) {
