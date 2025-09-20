@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 // Production API Service
 const RAW_BASE_URL = (import.meta.env.VITE_SCHOOLS_API_URL as string) || (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in';
 
@@ -253,17 +254,24 @@ class ApiService {
     offset?: string; 
   }) {
     console.log(`[ApiService] getSchools called with filters:`, filters);
-    let response;
-    if (filters && Object.keys(filters).length > 0) {
-      response = await this.getWithParams('/schools', filters);
-    } else {
-      response = await this.get('/schools');
+    try {
+      const { data, error } = await supabase.functions.invoke('schools-proxy', {
+        body: {
+          endpoint: 'schools',
+          params: filters ?? {}
+        }
+      });
+      if (error) {
+        console.error('[ApiService] Cloud proxy error', error);
+        throw new Error(error.message || 'Cloud proxy error');
+      }
+      const schoolsArray = this.unwrapSchoolsResponse(data);
+      console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
+      return schoolsArray;
+    } catch (err: any) {
+      console.error('[ApiService] getSchools via Cloud failed', err);
+      throw err;
     }
-    
-    // Use unwrapper to handle various response shapes
-    const schoolsArray = this.unwrapSchoolsResponse(response);
-    console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
-    return schoolsArray;
   }
 
   async getSchool(id: string | number) {
