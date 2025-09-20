@@ -1,7 +1,7 @@
 // API utilities and configuration
-import { authService } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in/api';
 
 console.log('[API Client] Using API base URL:', API_BASE_URL || '/api');
 
@@ -13,11 +13,15 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
-    return {
+    const apiKey =
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
     };
+    if (apiKey) headers['x-api-key'] = apiKey;
+    return headers;
   }
 
   async get<T>(endpoint: string): Promise<T> {
@@ -99,15 +103,19 @@ export class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
-    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const apiKey =
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
     const formData = new FormData();
     formData.append('file', file);
 
+    const headers: Record<string, string> = {};
+    if (apiKey) headers['x-api-key'] = apiKey;
+
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-      },
+      headers,
       body: formData,
     });
 
