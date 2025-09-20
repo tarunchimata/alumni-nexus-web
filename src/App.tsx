@@ -17,6 +17,7 @@ import OAuth2Callback from "@/pages/OAuth2Callback";
 import Health from "@/pages/Health";
 import SchoolsTest from "@/pages/SchoolsTest";
 import SchoolsAPIDebug from "@/pages/SchoolsAPIDebug";
+import APITestLab from "@/pages/APITestLab";
 
 // Production Dashboard Layout and Pages
 import { ProductionDashboardLayout } from "@/components/layout/ProductionDashboardLayout";
@@ -62,6 +63,7 @@ function App() {
               <Route path="/auth/pending-approval" element={<PendingApproval />} />
                <Route path="/schools-test" element={<SchoolsTest />} />
                <Route path="/schools-debug" element={<SchoolsAPIDebug />} />
+               <Route path="/api-test" element={<APITestLab />} />
 
               {/* Production Dashboard Routes with Nested Layout */}
               <Route 
