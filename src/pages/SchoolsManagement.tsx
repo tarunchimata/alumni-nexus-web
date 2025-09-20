@@ -21,6 +21,7 @@ const SchoolsManagement: React.FC = () => {
   const [allSchools, setAllSchools] = useState<School[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -42,15 +43,38 @@ const SchoolsManagement: React.FC = () => {
 
   const fetchAllSchoolsStats = async () => {
     try {
+      setStatsLoading(true);
       console.log('[SchoolsManagement] Fetching all schools for statistics...');
-      const response = await apiService.getSchools({ limit: '1000' }); // Get large batch for stats
+      // Remove the limit to get all schools, or use a very high limit
+      const response = await apiService.getSchools({}); // No limit = get all schools
       const schoolsArray = Array.isArray(response) ? response : 
         (response as any)?.schools || (response as any)?.data || [];
       const transformedSchools = transformSchools(schoolsArray);
       setAllSchools(transformedSchools);
       console.log('[SchoolsManagement] Statistics updated with', transformedSchools.length, 'total schools');
+      
+      if (transformedSchools.length > 500000) { // 500K+ schools
+        toast.success(`Loaded ${transformedSchools.length.toLocaleString()} schools successfully!`);
+      }
+      
     } catch (error) {
       console.error('[SchoolsManagement] Error fetching schools stats:', error);
+      // Fallback: try with a very high limit if no-limit fails
+      try {
+        console.log('[SchoolsManagement] Trying with high limit fallback...');
+        const response = await apiService.getSchools({ limit: '999999' }); // Very high limit
+        const schoolsArray = Array.isArray(response) ? response : 
+          (response as any)?.schools || (response as any)?.data || [];
+        const transformedSchools = transformSchools(schoolsArray);
+        setAllSchools(transformedSchools);
+        console.log('[SchoolsManagement] Statistics updated with fallback:', transformedSchools.length, 'total schools');
+        toast.success(`Loaded ${transformedSchools.length.toLocaleString()} schools with fallback method`);
+      } catch (fallbackError) {
+        console.error('[SchoolsManagement] Fallback also failed:', fallbackError);
+        toast.error('Unable to load complete school statistics');
+      }
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -231,7 +255,16 @@ const SchoolsManagement: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Schools</p>
-                <p className="text-2xl font-bold">{allSchools.length}</p>
+                <p className="text-2xl font-bold">
+                  {statsLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    allSchools.length.toLocaleString()
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -246,7 +279,14 @@ const SchoolsManagement: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Active Schools</p>
                 <p className="text-2xl font-bold">
-                  {allSchools.filter(s => (s.status?.toLowerCase() === 'approved' || s.status?.toLowerCase() === 'active')).length}
+                  {statsLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    allSchools.filter(s => (s.status?.toLowerCase() === 'approved' || s.status?.toLowerCase() === 'active')).length.toLocaleString()
+                  )}
                 </p>
               </div>
             </div>
@@ -262,7 +302,14 @@ const SchoolsManagement: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Pending Approval</p>
                 <p className="text-2xl font-bold">
-                  {allSchools.filter(s => s.status?.toLowerCase() === 'pending').length}
+                  {statsLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    allSchools.filter(s => s.status?.toLowerCase() === 'pending').length.toLocaleString()
+                  )}
                 </p>
               </div>
             </div>
