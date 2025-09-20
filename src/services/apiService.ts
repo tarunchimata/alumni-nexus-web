@@ -54,24 +54,35 @@ class ApiService {
     if (Array.isArray(response)) {
       return response;
     }
-    // Try common wrapper patterns
-    const possibleArrays = [
-      response.schools,
-      response.data,
-      response.rows,
-      response.records,
-      response.items,
-      response.result
+
+    // Collect common wrapper patterns (including nested arrays)
+    const candidates = [
+      response?.schools,
+      response?.data,
+      response?.rows,
+      response?.records,
+      response?.items,
+      response?.result,
+      // Nested commonly-used containers
+      response?.data?.schools,
+      response?.data?.rows,
+      response?.data?.items,
+      response?.result?.rows,
+      response?.result?.items,
+      response?.payload?.data,
+      response?.payload?.rows,
+      response?.payload?.items,
+      response?.results,
     ];
-    
-    for (const arr of possibleArrays) {
+
+    for (const arr of candidates) {
       if (Array.isArray(arr)) {
-        console.log('[ApiService] Found schools in wrapper, length:', arr.length);
+        console.log('[ApiService] Found schools array, length:', arr.length);
         return arr;
       }
     }
-    
-    console.warn('[ApiService] Could not find schools array in response, returning empty array');
+
+    console.warn('[ApiService] Could not find schools array in response. Top-level keys:', Object.keys(response || {}));
     return [];
   }
 
