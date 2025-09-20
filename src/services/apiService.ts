@@ -8,12 +8,42 @@ interface ApiResponse<T = any> {
 }
 
 class ApiService {
-  private getAuthHeaders(): Record<string, string> {
+  private getAuthHeaders(includeContentType = true): Record<string, string> {
     const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
-    return {
-      'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
       'x-api-key': apiKey,
     };
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return headers;
+  }
+
+  private unwrapSchoolsResponse(response: any): any[] {
+    console.log('[ApiService] Unwrapping schools response:', response);
+    // Handle various API response shapes
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Try common wrapper patterns
+    const possibleArrays = [
+      response.schools,
+      response.data,
+      response.rows,
+      response.records,
+      response.items,
+      response.result
+    ];
+    
+    for (const arr of possibleArrays) {
+      if (Array.isArray(arr)) {
+        console.log('[ApiService] Found schools in wrapper, length:', arr.length);
+        return arr;
+      }
+    }
+    
+    console.warn('[ApiService] Could not find schools array in response, returning empty array');
+    return [];
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
@@ -40,7 +70,7 @@ class ApiService {
     console.log(`[ApiService] GET ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
-      headers: this.getAuthHeaders(),
+      headers: this.getAuthHeaders(false), // No Content-Type for GET requests
     });
 
     return this.handleResponse<T>(response);
@@ -56,7 +86,7 @@ class ApiService {
     console.log(`[ApiService] GET ${url.toString()}`);
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: this.getAuthHeaders(),
+      headers: this.getAuthHeaders(false), // No Content-Type for GET requests
     });
     return this.handleResponse<T>(response);
   }
@@ -178,10 +208,17 @@ class ApiService {
     offset?: string; 
   }) {
     console.log(`[ApiService] getSchools called with filters:`, filters);
+    let response;
     if (filters && Object.keys(filters).length > 0) {
-      return await this.getWithParams('/schools', filters);
+      response = await this.getWithParams('/schools', filters);
+    } else {
+      response = await this.get('/schools');
     }
-    return await this.get('/schools');
+    
+    // Use unwrapper to handle various response shapes
+    const schoolsArray = this.unwrapSchoolsResponse(response);
+    console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
+    return schoolsArray;
   }
 
   async getSchool(id: string | number) {

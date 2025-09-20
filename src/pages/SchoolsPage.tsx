@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { apiClient } from '@/lib/api';
+import { apiService } from '@/services/apiService';
 import { Search, School, Users, Calendar, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,8 +39,10 @@ const SchoolsPage = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get<School[] | { schools: School[] }>('/schools');
-      setSchools(Array.isArray(response) ? response : response.schools || []);
+      console.log('[SchoolsPage] Fetching schools from external API...');
+      const schoolsArray = await apiService.getSchools();
+      console.log('[SchoolsPage] Received schools:', schoolsArray.length);
+      setSchools(Array.isArray(schoolsArray) ? schoolsArray : []);
       
     } catch (error: any) {
       console.error('Failed to fetch schools:', error);

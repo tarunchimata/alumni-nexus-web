@@ -21,7 +21,11 @@ export class ApiClient {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    // Prevent duplicate /api prefixes
+    const cleanEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(4) : endpoint;
+    const url = `${this.baseURL}${cleanEndpoint.startsWith('/') ? cleanEndpoint : '/' + cleanEndpoint}`;
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: await this.getAuthHeaders(),
     });

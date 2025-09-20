@@ -62,12 +62,14 @@ const SchoolApprovalQueue = ({ onApprovalAction }: SchoolApprovalQueueProps) => 
   const fetchPendingSchools = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getSchools() as SchoolsResponse;
+      const schoolsArray = await apiService.getSchools();
       
-      // Filter for pending schools
-      const pending = response.schools?.filter((school: PendingSchool) => 
-        school.status === 'pending' || school.status === 'pending_approval'
-      ) || [];
+      // Filter for pending schools - now response is direct array
+      const pending = Array.isArray(schoolsArray) 
+        ? schoolsArray.filter((school: PendingSchool) => 
+            school.status === 'pending' || school.status === 'pending_approval'
+          )
+        : [];
       
       setPendingSchools(pending);
     } catch (error) {
