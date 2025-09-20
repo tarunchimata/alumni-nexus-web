@@ -1,5 +1,27 @@
 // Production API Service
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
+const RAW_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in';
+
+function trimTrailingSlash(url: string) {
+  return url.replace(/\/+$/, '');
+}
+
+function buildApiUrl(endpoint: string): string {
+  const baseRaw = trimTrailingSlash(RAW_BASE_URL);
+  const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  try {
+    const u = new URL(baseRaw);
+    const pathHasApi = /\/api(\/|$)/.test(u.pathname);
+    const basePath = trimTrailingSlash(u.pathname || '');
+    const finalPath = pathHasApi ? ep : (ep.startsWith('/api') ? ep : `/api${ep}`);
+    const url = `${u.origin}${basePath}${finalPath}`;
+    return url.replace(/([^:]\/)\/+?/g, '$1');
+  } catch {
+    const pathHasApi = /\/api(\/|$)/.test(baseRaw);
+    const finalPath = pathHasApi ? ep : (ep.startsWith('/api') ? ep : `/api${ep}`);
+    const url = `${baseRaw}${finalPath}`;
+    return url.replace(/([^:]\/)\/+?/g, '$1');
+  }
+}
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -9,7 +31,7 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private getAuthHeaders(includeContentType = true): Record<string, string> {
-    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     const headers: Record<string, string> = {
       'x-api-key': apiKey,
     };
@@ -59,7 +81,12 @@ class ApiService {
     }
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
-      return response.json();
+      try {
+        return await response.json();
+      } catch (e) {
+        console.error('[ApiService] JSON parse error', e);
+        throw new Error('Invalid JSON in response');
+      }
     }
     const text = await response.text();
     console.warn(`[ApiService] Unexpected response (not JSON): ${contentType} - ${text.slice(0, 200)}`);
@@ -67,8 +94,9 @@ class ApiService {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    console.log(`[ApiService] GET ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = buildApiUrl(endpoint);
+    console.log(`[ApiService] GET ${url}`);
+    const response = await fetch(url, {
       method: 'GET',
       headers: this.getAuthHeaders(false), // No Content-Type for GET requests
     });
@@ -77,7 +105,8 @@ class ApiService {
   }
 
   async getWithParams<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
-    const url = new URL(`${API_BASE_URL}${endpoint}`);
+    const base = buildApiUrl(endpoint);
+    const url = new URL(base);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value) url.searchParams.append(key, value);
@@ -92,7 +121,7 @@ class ApiService {
   }
 
   async post<T>(endpoint: string, data: any): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(buildApiUrl(endpoint), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data),
@@ -102,7 +131,7 @@ class ApiService {
   }
 
   async put<T>(endpoint: string, data: any): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(buildApiUrl(endpoint), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data),
@@ -112,7 +141,7 @@ class ApiService {
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(buildApiUrl(endpoint), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -124,8 +153,8 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const response = await fetch(buildApiUrl(endpoint), {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
@@ -180,8 +209,9 @@ class ApiService {
   }
 
   async exportFailedCsvRows(id: number): Promise<Blob> {
-    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
-    const resp = await fetch(`${API_BASE_URL}/csv/jobs/${id}/export-failed`, {
+    const apiKey = (import.meta.env.VITE_SCHOOL_API_KEY as string) || (import.meta.env.VITE_API_KEY as string) || (import.meta.env.VITE_SCHOOLS_API_KEY as string) || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
+    const url = buildApiUrl(`/csv/jobs/${id}/export-failed`);
+    const resp = await fetch(url, {
       headers: {
         'x-api-key': apiKey,
       },
