@@ -4,7 +4,7 @@ const RAW_BASE_URL =
   (import.meta.env.VITE_SCHOOLS_API_URL as string) ||
   (import.meta.env.VITE_API_BASE_URL as string) ||
   (import.meta.env.VITE_API_URL as string) ||
-  '/api';
+  'https://schoolapi.hostingmanager.in/api';
 
 function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, '');

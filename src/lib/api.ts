@@ -1,7 +1,7 @@
 // API utilities and configuration
 
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string) || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in/api';
 
 console.log('[API Client] Using API base URL:', API_BASE_URL || '/api');
 
