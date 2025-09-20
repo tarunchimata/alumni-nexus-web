@@ -13,10 +13,10 @@ export class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const token = localStorage.getItem('auth_access_token');
+    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     return {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      'x-api-key': apiKey,
     };
   }
 
@@ -33,12 +33,17 @@ export class ApiClient {
     return response.json();
   }
 
-  async getPublic<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+  async getWithParams<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    const url = new URL(`${this.baseURL}${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await this.getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -90,14 +95,14 @@ export class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
-    const token = localStorage.getItem('auth_access_token');
+    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'x-api-key': apiKey,
       },
       body: formData,
     });

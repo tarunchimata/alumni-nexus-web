@@ -34,14 +34,44 @@ const SchoolsManagement: React.FC = () => {
 
   useEffect(() => {
     fetchSchools();
+    // Fetch all schools for statistics on initial load
+    if (currentPage === 1 && !searchTerm && statusFilter === 'all' && typeFilter === 'all') {
+      fetchAllSchoolsStats();
+    }
   }, [currentPage, searchTerm, statusFilter, typeFilter]);
+
+  const fetchAllSchoolsStats = async () => {
+    try {
+      console.log('[SchoolsManagement] Fetching all schools for statistics...');
+      const response = await apiService.getSchools({ limit: '1000' }); // Get large batch for stats
+      const schoolsArray = Array.isArray(response) ? response : 
+        (response as any)?.schools || (response as any)?.data || [];
+      const transformedSchools = transformSchools(schoolsArray);
+      setAllSchools(transformedSchools);
+      console.log('[SchoolsManagement] Statistics updated with', transformedSchools.length, 'total schools');
+    } catch (error) {
+      console.error('[SchoolsManagement] Error fetching schools stats:', error);
+    }
+  };
 
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      console.log('[SchoolsManagement] Fetching schools from API...');
+      console.log('[SchoolsManagement] Fetching schools with server-side filtering...');
       
-      const response = await apiService.getSchools();
+      // Build server-side filters
+      const filters: any = {};
+      if (searchTerm) filters.search = searchTerm;
+      if (statusFilter !== 'all') filters.status = statusFilter;
+      if (typeFilter !== 'all') filters.management = typeFilter;
+      
+      const offset = ((currentPage - 1) * itemsPerPage).toString();
+      filters.limit = itemsPerPage.toString();
+      filters.offset = offset;
+      
+      console.log('[SchoolsManagement] API filters:', filters);
+      
+      const response = await apiService.getSchools(filters);
       console.log('[SchoolsManagement] Raw API response:', response);
       
       // Handle direct array response from API
@@ -51,28 +81,22 @@ const SchoolsManagement: React.FC = () => {
       
       if (schoolsArray.length === 0) {
         console.warn('[SchoolsManagement] No schools found in API response');
-        toast.info('No schools found');
+        toast.info('No schools found matching your filters');
       }
       
       // Transform the data from snake_case to camelCase
       const transformedSchools = transformSchools(schoolsArray);
       console.log('[SchoolsManagement] Transformed schools:', transformedSchools.slice(0, 2));
-      // Save full list for stats and client-side filtering
-      setAllSchools(transformedSchools);
       
-      // Apply filters (case-insensitive)
-      const filteredSchools = transformedSchools.filter((school) => {
-        const term = searchTerm?.toLowerCase?.() || '';
-        const matchesSearch = !term ||
-          school.schoolName?.toLowerCase?.().includes(term) ||
-          school.stateName?.toLowerCase?.().includes(term) ||
-          school.districtName?.toLowerCase?.().includes(term);
-        const matchesStatus = statusFilter === 'all' || (school.status?.toLowerCase?.() === statusFilter.toLowerCase());
-        const matchesType = typeFilter === 'all' || (school.management?.toLowerCase?.() === typeFilter.toLowerCase());
-        return matchesSearch && matchesStatus && matchesType;
-      });
-      setSchools(filteredSchools);
-      setTotalPages(Math.ceil(filteredSchools.length / itemsPerPage));
+      // For stats, we need all schools (separate API call without filters)
+      if (!searchTerm && statusFilter === 'all' && typeFilter === 'all' && currentPage === 1) {
+        setAllSchools(transformedSchools);
+      }
+      
+      setSchools(transformedSchools);
+      // Server-side pagination - assume more pages exist if we got full page of results
+      const hasMorePages = transformedSchools.length === itemsPerPage;
+      setTotalPages(hasMorePages ? currentPage + 1 : currentPage);
       
     } catch (error) {
       console.error('[SchoolsManagement] Error fetching schools:', error);
@@ -165,10 +189,8 @@ const SchoolsManagement: React.FC = () => {
     }
   };
 
-  // Pagination logic
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentSchools = schools.slice(startIndex, endIndex);
+  // Pagination - now shows current batch instead of slicing
+  const currentSchools = schools;
 
   if (loading) {
     return (
@@ -424,7 +446,7 @@ const SchoolsManagement: React.FC = () => {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(endIndex, schools.length)} of {schools.length} schools
+            Page {currentPage} of {totalPages} ({schools.length} schools on this page)
           </div>
           <div className="flex items-center gap-2">
             <Button

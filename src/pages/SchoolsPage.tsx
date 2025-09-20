@@ -39,8 +39,8 @@ const SchoolsPage = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.getPublic<{ schools: School[] }>('/schools');
-      setSchools(response.schools || []);
+      const response = await apiClient.get<School[] | { schools: School[] }>('/schools');
+      setSchools(Array.isArray(response) ? response : response.schools || []);
       
     } catch (error: any) {
       console.error('Failed to fetch schools:', error);

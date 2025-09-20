@@ -9,10 +9,10 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('auth_access_token');
+    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     return {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      'x-api-key': apiKey,
     };
   }
 
@@ -46,11 +46,17 @@ class ApiService {
     return this.handleResponse<T>(response);
   }
 
-  async getPublic<T>(endpoint: string): Promise<T> {
-    console.log(`[ApiService] GET (public) ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  async getWithParams<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    const url = new URL(`${API_BASE_URL}${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+    console.log(`[ApiService] GET ${url.toString()}`);
+    const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
     });
     return this.handleResponse<T>(response);
   }
@@ -88,11 +94,11 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const token = localStorage.getItem('auth_access_token');
+    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'x-api-key': apiKey,
       },
       body: formData,
     });
@@ -144,10 +150,10 @@ class ApiService {
   }
 
   async exportFailedCsvRows(id: number): Promise<Blob> {
-    const token = localStorage.getItem('auth_access_token');
+    const apiKey = import.meta.env.VITE_SCHOOL_API_KEY || '029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9';
     const resp = await fetch(`${API_BASE_URL}/csv/jobs/${id}/export-failed`, {
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'x-api-key': apiKey,
       },
     });
     if (!resp.ok) {
@@ -164,17 +170,18 @@ class ApiService {
   }
 
   // Schools CRUD methods
-  async getSchools() {
-    try {
-      return await this.get('/schools');
-    } catch (err: any) {
-      const msg = (err?.message || '').toString();
-      if (msg.includes('401') || msg.includes('403')) {
-        console.warn('[ApiService] GET /schools failed with auth, retrying as public');
-        return await this.getPublic('/schools');
-      }
-      throw err;
+  async getSchools(filters?: { 
+    state?: string; 
+    search?: string; 
+    status?: string; 
+    limit?: string; 
+    offset?: string; 
+  }) {
+    console.log(`[ApiService] getSchools called with filters:`, filters);
+    if (filters && Object.keys(filters).length > 0) {
+      return await this.getWithParams('/schools', filters);
     }
+    return await this.get('/schools');
   }
 
   async getSchool(id: string | number) {
