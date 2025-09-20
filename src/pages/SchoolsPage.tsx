@@ -41,15 +41,17 @@ const SchoolsPage = () => {
       
       console.log('[SchoolsPage] Fetching schools from external API...');
       const schoolsArray = await apiService.getSchools();
-      console.log('[SchoolsPage] Received schools:', schoolsArray.length);
+      console.log('[SchoolsPage] Received schools:', schoolsArray?.length || 0);
+      console.log('[SchoolsPage] Sample school data:', schoolsArray?.[0]);
       setSchools(Array.isArray(schoolsArray) ? schoolsArray : []);
       
     } catch (error: any) {
-      console.error('Failed to fetch schools:', error);
-      setError('Failed to load schools. Please try again.');
+      console.error('[SchoolsPage] Failed to fetch schools:', error);
+      const errorMessage = error?.message || 'Failed to load schools. Please try again.';
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to load schools",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -75,6 +75,26 @@ class ApiService {
     return [];
   }
 
+  private normalizeSchool(school: any): any {
+    // Transform various API field formats to consistent camelCase format
+    const anyS = school as any;
+    return {
+      id: school.id ?? anyS.institution_id ?? anyS.school_id ?? school.udiseCode,
+      name: school.name ?? school.schoolName ?? anyS.school_name ?? anyS.institution_name ?? 'Unnamed School',
+      schoolName: school.schoolName ?? school.name ?? anyS.school_name ?? anyS.institution_name ?? 'Unnamed School',
+      udiseCode: school.udiseCode ?? anyS.udise_code ?? anyS.udise ?? '',
+      districtName: school.districtName ?? anyS.district_name ?? anyS.district ?? '',
+      stateName: school.stateName ?? anyS.state_name ?? anyS.state ?? '',
+      schoolType: school.schoolType ?? anyS.school_type ?? anyS.type ?? '',
+      management: school.management ?? anyS.management_type ?? anyS.management ?? '',
+      status: school.status ?? (anyS.is_active !== undefined ? (anyS.is_active ? 'active' : 'inactive') : anyS.status_text) ?? 'unknown',
+      userCount: school.userCount ?? anyS.user_count ?? anyS.users ?? 0,
+      classCount: school.classCount ?? anyS.class_count ?? anyS.classes ?? 0,
+      createdAt: school.createdAt ?? anyS.created_at ?? anyS.date_created ?? new Date().toISOString(),
+      updatedAt: school.updatedAt ?? anyS.updated_at ?? anyS.date_updated ?? new Date().toISOString(),
+    };
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       let body = '';
@@ -270,8 +290,10 @@ class ApiService {
     console.log(`[ApiService] getSchools (direct) called with filters:`, filters);
     const result = await this.getWithParams<any>('/schools', filters ?? {});
     const schoolsArray = this.unwrapSchoolsResponse(result);
-    console.log(`[ApiService] getSchools returning ${schoolsArray.length} schools`);
-    return schoolsArray;
+    // Normalize each school object to consistent field names
+    const normalizedSchools = schoolsArray.map(school => this.normalizeSchool(school));
+    console.log(`[ApiService] getSchools returning ${normalizedSchools.length} normalized schools`);
+    return normalizedSchools;
   }
 
   async getSchool(id: string | number) {
