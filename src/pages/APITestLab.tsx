@@ -17,13 +17,13 @@ interface TestResult {
 }
 
 export default function APITestLab() {
-  const [baseUrl, setBaseUrl] = useState(
-    (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || "https://schoolapi.hostingmanager.in/api"
-  );
+  const [baseUrl, setBaseUrl] = useState("https://schoolapi.hostingmanager.in/api");
   const [endpoint, setEndpoint] = useState("/schools");
   const [method, setMethod] = useState<"GET" | "POST" | "PUT" | "DELETE">("GET");
-  const [apiKey, setApiKey] = useState((import.meta as any).env?.VITE_API_KEY || "");
+  const [apiKey, setApiKey] = useState("029e2e53b24775059b0cca69f23498210c397d4360ecdb68eb3465a0f7d9c7b9");
   const [authHeader, setAuthHeader] = useState("x-api-key");
+  const [connectivityTest, setConnectivityTest] = useState<any>(null);
+  const [loadingConnectivity, setLoadingConnectivity] = useState(false);
   const [customHeaders, setCustomHeaders] = useState("{}");
   const [body, setBody] = useState("{}");
 
@@ -97,6 +97,111 @@ export default function APITestLab() {
       setBrowserResult({ error: e?.message || String(e) });
     } finally {
       setLoadingBrowser(false);
+    }
+  };
+
+  const testConnectivity = async () => {
+    setLoadingConnectivity(true);
+    setConnectivityTest(null);
+    
+    const tests = {
+      dnsResolution: null as any,
+      httpConnectivity: null as any,
+      httpsConnectivity: null as any,
+      apiEndpoint: null as any,
+      corsCheck: null as any
+    };
+
+    try {
+      // Test 1: Basic HTTP connectivity
+      console.log('Testing HTTP connectivity...');
+      const httpStart = performance.now();
+      try {
+        const httpResponse = await fetch('http://httpbin.org/get', { 
+          method: 'GET',
+          signal: AbortSignal.timeout(10000)
+        });
+        tests.httpConnectivity = {
+          success: httpResponse.ok,
+          status: httpResponse.status,
+          time: Math.round(performance.now() - httpStart)
+        };
+      } catch (e: any) {
+        tests.httpConnectivity = { success: false, error: e.message };
+      }
+
+      // Test 2: HTTPS connectivity
+      console.log('Testing HTTPS connectivity...');
+      const httpsStart = performance.now();
+      try {
+        const httpsResponse = await fetch('https://httpbin.org/get', { 
+          method: 'GET',
+          signal: AbortSignal.timeout(10000)
+        });
+        tests.httpsConnectivity = {
+          success: httpsResponse.ok,
+          status: httpsResponse.status,
+          time: Math.round(performance.now() - httpsStart)
+        };
+      } catch (e: any) {
+        tests.httpsConnectivity = { success: false, error: e.message };
+      }
+
+      // Test 3: Direct API endpoint test
+      console.log('Testing API endpoint...');
+      const apiStart = performance.now();
+      try {
+        const apiResponse = await fetch(fullUrl, {
+          method: 'GET',
+          headers: { 'x-api-key': apiKey },
+          signal: AbortSignal.timeout(15000)
+        });
+        
+        const responseText = await apiResponse.text();
+        let responseJson = null;
+        try {
+          responseJson = JSON.parse(responseText);
+        } catch {}
+        
+        tests.apiEndpoint = {
+          success: apiResponse.ok,
+          status: apiResponse.status,
+          statusText: apiResponse.statusText,
+          time: Math.round(performance.now() - apiStart),
+          headers: Object.fromEntries(apiResponse.headers.entries()),
+          bodyPreview: responseJson ? JSON.stringify(responseJson).substring(0, 200) + '...' : responseText.substring(0, 200) + '...',
+          bodySize: responseText.length
+        };
+      } catch (e: any) {
+        tests.apiEndpoint = { success: false, error: e.message };
+      }
+
+      // Test 4: CORS preflight check
+      console.log('Testing CORS...');
+      try {
+        const corsResponse = await fetch(fullUrl, {
+          method: 'OPTIONS',
+          headers: { 
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'GET',
+            'Access-Control-Request-Headers': 'x-api-key'
+          },
+          signal: AbortSignal.timeout(10000)
+        });
+        tests.corsCheck = {
+          success: corsResponse.ok,
+          status: corsResponse.status,
+          headers: Object.fromEntries(corsResponse.headers.entries())
+        };
+      } catch (e: any) {
+        tests.corsCheck = { success: false, error: e.message };
+      }
+
+      setConnectivityTest(tests);
+    } catch (e: any) {
+      setConnectivityTest({ error: e.message });
+    } finally {
+      setLoadingConnectivity(false);
     }
   };
 
@@ -197,6 +302,9 @@ export default function APITestLab() {
           </div>
 
           <div className="flex flex-wrap gap-3 pt-2">
+            <Button onClick={testConnectivity} disabled={loadingConnectivity} variant="outline">
+              {loadingConnectivity ? "Running Diagnostics…" : "🔍 Network Diagnostics"}
+            </Button>
             <Button onClick={testBrowser} disabled={loadingBrowser}>
               {loadingBrowser ? "Testing Browser…" : "Test via Browser Fetch"}
             </Button>
@@ -211,6 +319,17 @@ export default function APITestLab() {
           </div>
         </CardContent>
       </Card>
+
+      {connectivityTest && (
+        <Card>
+          <CardHeader>
+            <CardTitle>🔍 Network Connectivity Diagnostics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ConnectivityView result={connectivityTest} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -256,6 +375,46 @@ function ResultView({ result }: { result: TestResult | null }) {
           {JSON.stringify(result.bodyJson ?? result.bodyText ?? null, null, 2)}
         </pre>
       </div>
+    </div>
+  );
+}
+
+function ConnectivityView({ result }: { result: any }) {
+  if (result.error) return <div className="text-sm text-red-600">Error: {result.error}</div>;
+  
+  return (
+    <div className="space-y-4 text-sm">
+      {Object.entries(result).map(([testName, testResult]: [string, any]) => (
+        <div key={testName} className="border rounded p-3">
+          <div className="font-medium mb-2 flex items-center gap-2">
+            {testResult.success ? '✅' : '❌'} {testName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+            {testResult.time && <span className="text-xs opacity-70">({testResult.time}ms)</span>}
+          </div>
+          
+          {testResult.error && (
+            <div className="text-red-600 text-xs mb-2">Error: {testResult.error}</div>
+          )}
+          
+          {testResult.status && (
+            <div className="text-xs opacity-70">Status: {testResult.status} {testResult.statusText}</div>
+          )}
+          
+          {testResult.bodyPreview && (
+            <div className="text-xs opacity-70 mt-1">
+              Preview: {testResult.bodyPreview} ({testResult.bodySize} bytes)
+            </div>
+          )}
+          
+          {testResult.headers && Object.keys(testResult.headers).length > 0 && (
+            <details className="mt-2">
+              <summary className="text-xs cursor-pointer opacity-70">Headers</summary>
+              <pre className="text-xs bg-muted rounded p-2 mt-1 overflow-auto max-h-32">
+                {JSON.stringify(testResult.headers, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
