@@ -106,6 +106,39 @@ class ApiService {
     };
   }
 
+  private async makeProxyRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+    console.log(`[ApiService] Making proxy request to: ${url}`);
+    
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const { data, error } = await supabase.functions.invoke('api-proxy', {
+        body: {
+          url,
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
+        }
+      });
+
+      if (error) {
+        console.error(`[ApiService] Proxy error:`, error);
+        throw new Error(`Proxy request failed: ${error.message}`);
+      }
+
+      if (!data.ok) {
+        console.error(`[ApiService] API returned error:`, data);
+        throw new Error(`API Error ${data.status}: ${data.statusText}`);
+      }
+
+      console.log(`[ApiService] Proxy response success:`, data);
+      return data.bodyJson || data.bodyText;
+    } catch (error) {
+      console.error(`[ApiService] Proxy request failed:`, error);
+      throw error;
+    }
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       let body = '';
@@ -138,14 +171,11 @@ class ApiService {
     url.searchParams.set('_ts', String(Date.now()));
     const finalUrl = url.toString();
     console.log(`[ApiService] GET ${finalUrl}`);
-    const response = await fetch(finalUrl, {
+    
+    return this.makeProxyRequest<T>(finalUrl, {
       method: 'GET',
       headers: this.getAuthHeaders(false), // No Content-Type for GET requests
-      cache: 'no-store',
-      mode: 'cors',
     });
-
-    return this.handleResponse<T>(response);
   }
 
   async getWithParams<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>): Promise<T> {
@@ -164,42 +194,34 @@ class ApiService {
     url.searchParams.set('_ts', String(Date.now()));
     const finalUrl = url.toString();
     console.log(`[ApiService] GET ${finalUrl}`);
-    const response = await fetch(finalUrl, {
+    
+    return this.makeProxyRequest<T>(finalUrl, {
       method: 'GET',
       headers: this.getAuthHeaders(false), // No Content-Type for GET requests
-      cache: 'no-store',
-      mode: 'cors',
     });
-    return this.handleResponse<T>(response);
   }
 
   async post<T>(endpoint: string, data: any): Promise<T> {
-    const response = await fetch(buildApiUrl(endpoint), {
+    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data),
     });
-
-    return this.handleResponse<T>(response);
   }
 
   async put<T>(endpoint: string, data: any): Promise<T> {
-    const response = await fetch(buildApiUrl(endpoint), {
+    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data),
     });
-
-    return this.handleResponse<T>(response);
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(buildApiUrl(endpoint), {
+    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
-
-    return this.handleResponse<T>(response);
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
