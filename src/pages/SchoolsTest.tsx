@@ -52,14 +52,23 @@ export default function SchoolsTest() {
         <section className="space-y-4">
           <p className="text-sm">Fetched {schools.length} schools.</p>
           <ul className="space-y-2">
-            {schools.slice(0, 10).map((s, idx) => (
-              <li key={(s.id as string) ?? idx} className="rounded-md border p-3">
-                <div className="font-medium">{s.name || s.schoolName || 'Unnamed School'}</div>
-                <div className="text-xs opacity-70">
-                  UDISE: {s.udiseCode || '—'} | District: {s.districtName || '—'} | State: {s.stateName || '—'} | Status: {s.status || '—'}
-                </div>
-              </li>
-            ))}
+            {schools.slice(0, 10).map((s, idx) => {
+              const anyS = s as any;
+              const key = (s.id ?? anyS.institution_id ?? anyS.school_id ?? s.udiseCode ?? idx) as string;
+              const title = s.name ?? s.schoolName ?? anyS.school_name ?? anyS.institution_name ?? 'Unnamed School';
+              const udise = s.udiseCode ?? anyS.udise_code ?? anyS.udise ?? '—';
+              const district = s.districtName ?? anyS.district_name ?? anyS.district ?? '—';
+              const state = s.stateName ?? anyS.state_name ?? anyS.state ?? '—';
+              const status = s.status ?? (anyS.is_active !== undefined ? (anyS.is_active ? 'active' : 'inactive') : anyS.status_text) ?? '—';
+              return (
+                <li key={String(key)} className="rounded-md border p-3">
+                  <div className="font-medium">{title}</div>
+                  <div className="text-xs opacity-70">
+                    UDISE: {udise} | District: {district} | State: {state} | Status: {status}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

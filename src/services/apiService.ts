@@ -1,5 +1,5 @@
 // Production API Service
-const RAW_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in';
+const RAW_BASE_URL = (import.meta.env.VITE_SCHOOLS_API_URL as string) || (import.meta.env.VITE_API_URL as string) || 'https://schoolapi.hostingmanager.in';
 
 function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, '');
@@ -94,28 +94,43 @@ class ApiService {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    const url = buildApiUrl(endpoint);
-    console.log(`[ApiService] GET ${url}`);
-    const response = await fetch(url, {
+    const base = buildApiUrl(endpoint);
+    const url = new URL(base);
+    // Cache-buster to avoid 304/opaque caching issues
+    url.searchParams.set('_ts', String(Date.now()));
+    const finalUrl = url.toString();
+    console.log(`[ApiService] GET ${finalUrl}`);
+    const response = await fetch(finalUrl, {
       method: 'GET',
       headers: this.getAuthHeaders(false), // No Content-Type for GET requests
+      cache: 'no-store',
+      mode: 'cors',
     });
 
     return this.handleResponse<T>(response);
   }
 
-  async getWithParams<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  async getWithParams<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>): Promise<T> {
     const base = buildApiUrl(endpoint);
     const url = new URL(base);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value) url.searchParams.append(key, value);
+        if (value === undefined || value === null) return;
+        const val = typeof value === 'string' ? value : String(value);
+        if (val && val !== 'undefined' && val !== 'null' && val !== '[object Object]') {
+          url.searchParams.append(key, val);
+        }
       });
     }
-    console.log(`[ApiService] GET ${url.toString()}`);
-    const response = await fetch(url.toString(), {
+    // Cache-buster
+    url.searchParams.set('_ts', String(Date.now()));
+    const finalUrl = url.toString();
+    console.log(`[ApiService] GET ${finalUrl}`);
+    const response = await fetch(finalUrl, {
       method: 'GET',
       headers: this.getAuthHeaders(false), // No Content-Type for GET requests
+      cache: 'no-store',
+      mode: 'cors',
     });
     return this.handleResponse<T>(response);
   }
