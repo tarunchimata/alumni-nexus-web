@@ -9,7 +9,7 @@ class SocketService {
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 
       (import.meta.env.PROD 
-        ? 'https://api.hostingmanager.in' 
+        ? import.meta.env.VITE_BACKEND_API_URL 
         : 'http://localhost:3033');
 
     this.socket = io(socketUrl, {

@@ -17,7 +17,7 @@ export class SocketServer {
   constructor(server: HttpServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.CORS_ORIGIN?.split(',') || ["http://localhost:8080", "https://school.hostingmanager.in"],
+        origin: process.env.CORS_ORIGIN?.split(',') || ["http://localhost:8080"],
         methods: ["GET", "POST"],
         credentials: true
       },
