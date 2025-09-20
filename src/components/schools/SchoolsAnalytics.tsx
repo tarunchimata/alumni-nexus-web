@@ -39,12 +39,15 @@ interface SchoolsAnalyticsProps {
 }
 
 const COLORS = {
-  active: 'hsl(var(--chart-1))',
-  pending: 'hsl(var(--chart-2))', 
-  rejected: 'hsl(var(--chart-3))',
-  government: 'hsl(var(--chart-4))',
-  private: 'hsl(var(--chart-5))',
-  aided: 'hsl(var(--chart-1))',
+  approved: 'hsl(142, 71%, 45%)',    // Green for active/approved
+  active: 'hsl(142, 71%, 45%)',      // Green for active/approved  
+  pending: 'hsl(25, 95%, 53%)',      // Orange for pending
+  rejected: 'hsl(0, 84%, 60%)',      // Red for rejected
+  government: 'hsl(217, 91%, 60%)',  // Blue for government
+  private: 'hsl(330, 81%, 60%)',     // Pink for private
+  aided: 'hsl(262, 83%, 58%)',       // Purple for aided
+  international: 'hsl(160, 71%, 55%)', // Teal for international
+  unknown: 'hsl(215, 16%, 47%)',     // Muted for unknown
 };
 
 export const SchoolsAnalytics: React.FC<SchoolsAnalyticsProps> = ({ stats, loading }) => {

@@ -94,6 +94,16 @@ All colors MUST be HSL. Role-based gradients and modern themes.
   --sidebar-border: 220 13% 91%;
   --sidebar-ring: 217 91% 60%;
 
+  /* Chart Colors - Vibrant and Professional */
+  --chart-1: 217 91% 60%;    /* Primary Blue */
+  --chart-2: 142 71% 45%;    /* Success Green */
+  --chart-3: 25 95% 53%;     /* Warning Orange */
+  --chart-4: 330 81% 60%;    /* Accent Pink */
+  --chart-5: 262 83% 58%;    /* Purple */
+  --chart-6: 160 71% 55%;    /* Teal */
+  --chart-7: 35 95% 63%;     /* Light Orange */
+  --chart-8: 283 83% 70%;    /* Light Purple */
+
   /* Animations & Transitions */
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);

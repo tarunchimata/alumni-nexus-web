@@ -8,6 +8,8 @@ export interface SchoolFilters {
   management?: string;
   state?: string;
   district?: string;
+  schoolType?: string;
+  establishment?: string;
   page?: number;
   limit?: number;
 }
@@ -37,9 +39,11 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
       if (filters.management && filters.management !== 'all') apiFilters.management = filters.management;
       if (filters.state && filters.state !== 'all') apiFilters.state = filters.state;
       if (filters.district && filters.district !== 'all') apiFilters.district = filters.district;
+      if (filters.schoolType && filters.schoolType !== 'all') apiFilters.school_type = filters.schoolType;
+      if (filters.establishment && filters.establishment !== 'all') apiFilters.establishment = filters.establishment;
       if (filters.limit) apiFilters.limit = filters.limit.toString();
       if (filters.page) {
-        const offset = ((filters.page - 1) * (filters.limit || 20));
+        const offset = ((filters.page - 1) * (filters.limit || 50));
         apiFilters.offset = offset.toString();
       }
       

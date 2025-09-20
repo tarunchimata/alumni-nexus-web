@@ -48,15 +48,10 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
   const [filters, setFilters] = useState<SchoolFilters>({
     page: 1,
     limit: 50, // Increase default limit to show more schools
-    search: '',
-    status: 'all',
-    management: 'all',
-    state: 'all',
-    district: 'all'
   });
   const [searchInput, setSearchInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   
   // Debounce search input
@@ -130,7 +125,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
     }
     
     setModalMode('create');
-    setEditingSchool(null);
+    setSelectedSchool(null);
     setIsModalOpen(true);
   };
 
@@ -141,7 +136,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
     }
     
     setModalMode('edit');
-    setEditingSchool(school);
+    setSelectedSchool(school);
     setIsModalOpen(true);
   };
 
@@ -255,6 +250,14 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                     <FileSpreadsheet className="w-6 h-6" />
                     Export Data
                   </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col items-center gap-2"
+                  >
+                    <Settings className="w-6 h-6" />
+                    Settings
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -276,7 +279,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
               <CardContent>
                 <div className="text-center py-12">
                   <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Reports Coming Soon</h3>
+                  <h3 className="text-lg font-semibold mb-2">Generate Reports</h3>
                   <p className="text-muted-foreground mb-4">
                     Advanced reporting features will be available in the next update.
                   </p>
@@ -365,6 +368,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* First row of filters */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -404,6 +408,69 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                       <SelectItem value="government">Government</SelectItem>
                       <SelectItem value="private">Private</SelectItem>
                       <SelectItem value="aided">Aided</SelectItem>
+                      <SelectItem value="international">International</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select 
+                    value={filters.state || 'all'} 
+                    onValueChange={(value) => handleFilterChange('state', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      <SelectItem value="Karnataka">Karnataka</SelectItem>
+                      <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                      <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                      <SelectItem value="Kerala">Kerala</SelectItem>
+                      <SelectItem value="Gujarat">Gujarat</SelectItem>
+                      <SelectItem value="Rajasthan">Rajasthan</SelectItem>
+                      <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
+                      <SelectItem value="West Bengal">West Bengal</SelectItem>
+                      <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
+                      <SelectItem value="Telangana">Telangana</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Second row of filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Select 
+                    value={filters.schoolType || 'all'} 
+                    onValueChange={(value) => handleFilterChange('schoolType', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="School type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="Primary">Primary School</SelectItem>
+                      <SelectItem value="Secondary">Secondary School</SelectItem>
+                      <SelectItem value="Higher Secondary">Higher Secondary</SelectItem>
+                      <SelectItem value="Senior Secondary">Senior Secondary</SelectItem>
+                      <SelectItem value="Composite">Composite School</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select 
+                    value={filters.district || 'all'} 
+                    onValueChange={(value) => handleFilterChange('district', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by district" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Districts</SelectItem>
+                      <SelectItem value="Bangalore Urban">Bangalore Urban</SelectItem>
+                      <SelectItem value="Mumbai">Mumbai</SelectItem>
+                      <SelectItem value="Chennai">Chennai</SelectItem>
+                      <SelectItem value="Thiruvananthapuram">Thiruvananthapuram</SelectItem>
+                      <SelectItem value="Ahmedabad">Ahmedabad</SelectItem>
+                      <SelectItem value="Jaipur">Jaipur</SelectItem>
+                      <SelectItem value="Lucknow">Lucknow</SelectItem>
+                      <SelectItem value="Kolkata">Kolkata</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -416,23 +483,23 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                         {Object.values(filters).filter(v => v && v !== 'all' && v !== 1 && v !== 50).length} filters
                       </Badge>
                     )}
-                    
-                    {/* Page Size Selector */}
-                    <Select 
-                      value={filters.limit?.toString() || '50'} 
-                      onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
-                    >
-                      <SelectTrigger className="w-auto">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">25 per page</SelectItem>
-                        <SelectItem value="50">50 per page</SelectItem>
-                        <SelectItem value="100">100 per page</SelectItem>
-                        <SelectItem value="200">200 per page</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
+                  
+                  {/* Page Size Selector */}
+                  <Select 
+                    value={filters.limit?.toString() || '50'} 
+                    onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
+                  >
+                    <SelectTrigger className="w-auto">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25 per page</SelectItem>
+                      <SelectItem value="50">50 per page</SelectItem>
+                      <SelectItem value="100">100 per page</SelectItem>
+                      <SelectItem value="200">200 per page</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -441,25 +508,26 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
       </AnimatePresence>
 
       {/* Tab Content */}
-      <div className="min-h-[600px]">
-        <AnimatePresence mode="wait" initial={false}>
-          {renderTabContent()}
-        </AnimatePresence>
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {renderTabContent()}
+      </motion.div>
 
-      {/* Modal */}
+      {/* School Form Modal */}
       <SchoolFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleModalSuccess}
-        school={editingSchool}
+        school={selectedSchool}
         mode={modalMode}
       />
     </div>
   );
 };
 
-// Main component with QueryClient provider
 export const EnhancedSchoolsManagement: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
