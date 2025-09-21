@@ -40,10 +40,11 @@ const SchoolsPage = () => {
       setError(null);
       
       console.log('[SchoolsPage] Fetching schools from external API...');
-      const schoolsArray = await apiService.getSchools();
+      const schoolsResponse = await apiService.getSchools();
+      const schoolsArray = (schoolsResponse as any).schools || (Array.isArray(schoolsResponse) ? schoolsResponse : []);
       console.log('[SchoolsPage] Received schools:', schoolsArray?.length || 0);
       console.log('[SchoolsPage] Sample school data:', schoolsArray?.[0]);
-      setSchools(Array.isArray(schoolsArray) ? schoolsArray : []);
+      setSchools(schoolsArray);
       
     } catch (error: any) {
       console.error('[SchoolsPage] Failed to fetch schools:', error);

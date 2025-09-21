@@ -48,14 +48,23 @@ class ApiService {
     return headers;
   }
 
-  private unwrapSchoolsResponse(response: any): any[] {
+  private unwrapSchoolsResponse(response: any): { schools: any[], summary?: any } {
     console.log('[ApiService] Unwrapping schools response:', response);
-    // Handle various API response shapes
+    
+    // Handle {success: true, data: [...], summary: {...}} format
+    if (response?.success && response?.data) {
+      return {
+        schools: Array.isArray(response.data) ? response.data : [],
+        summary: response.summary || {}
+      };
+    }
+    
+    // Handle direct array response
     if (Array.isArray(response)) {
-      return response;
+      return { schools: response };
     }
 
-    // Collect common wrapper patterns (including nested arrays)
+    // Collect common wrapper patterns
     const candidates = [
       response?.schools,
       response?.data,
@@ -63,27 +72,21 @@ class ApiService {
       response?.records,
       response?.items,
       response?.result,
-      // Nested commonly-used containers
       response?.data?.schools,
       response?.data?.rows,
       response?.data?.items,
-      response?.result?.rows,
-      response?.result?.items,
-      response?.payload?.data,
-      response?.payload?.rows,
-      response?.payload?.items,
       response?.results,
     ];
 
     for (const arr of candidates) {
       if (Array.isArray(arr)) {
         console.log('[ApiService] Found schools array, length:', arr.length);
-        return arr;
+        return { schools: arr, summary: response?.summary };
       }
     }
 
     console.warn('[ApiService] Could not find schools array in response. Top-level keys:', Object.keys(response || {}));
-    return [];
+    return { schools: [] };
   }
 
   private normalizeSchool(school: any): any {
@@ -319,14 +322,38 @@ class ApiService {
     status?: string; 
     limit?: string; 
     offset?: string; 
+    district?: string;
+    management?: string;
+    school_type?: string;
   }) {
     console.log(`[ApiService] getSchools (direct) called with filters:`, filters);
     const result = await this.getWithParams<any>('/schools', filters ?? {});
-    const schoolsArray = this.unwrapSchoolsResponse(result);
+    const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
     // Normalize each school object to consistent field names
     const normalizedSchools = schoolsArray.map(school => this.normalizeSchool(school));
     console.log(`[ApiService] getSchools returning ${normalizedSchools.length} normalized schools`);
-    return normalizedSchools;
+    return { schools: normalizedSchools, summary, pagination: result.pagination };
+  }
+
+  // Statistics endpoints for real data
+  async getSchoolsStatistics() {
+    console.log('[ApiService] Fetching schools statistics');
+    return this.get('/schools/statistics/status');
+  }
+
+  async getStateWiseStats() {
+    console.log('[ApiService] Fetching state-wise statistics');
+    return this.get('/schools/statistics/states');
+  }
+
+  async getDistrictWiseStats() {
+    console.log('[ApiService] Fetching district-wise statistics');
+    return this.get('/schools/statistics/districts');
+  }
+
+  async getManagementStats() {
+    console.log('[ApiService] Fetching management-wise statistics');
+    return this.get('/schools/statistics/management');
   }
 
   async getSchool(id: string | number) {

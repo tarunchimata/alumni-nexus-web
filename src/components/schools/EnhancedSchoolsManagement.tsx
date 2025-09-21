@@ -23,7 +23,7 @@ import { SchoolsTabs, type SchoolTab } from './SchoolsTabs';
 import { SchoolsDataGrid } from './SchoolsDataGrid';
 import { SchoolsAnalytics } from './SchoolsAnalytics';
 import { SchoolFormModal } from './SchoolFormModal';
-import { useSchoolsQuery, useSchoolsStats, useInvalidateSchools, type SchoolFilters } from '@/hooks/useSchoolsQuery';
+import { useSchoolsQuery, useSchoolsStats, useStatesOptions, useInvalidateSchools, SchoolFilters } from '@/hooks/useSchoolsQuery';
 import { type School } from '@/lib/apiTransforms';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiService } from '@/services/apiService';
@@ -65,14 +65,17 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
 
   // Hooks
   const permissions = usePermissions();
-  const invalidate = useInvalidateSchools();
+  const { invalidateList, invalidateStats, invalidateAll } = useInvalidateSchools();
   
   // Queries
-  const { data: schoolsResponse, isLoading: schoolsLoading } = useSchoolsQuery(filters);
-  const { data: stats, isLoading: statsLoading } = useSchoolsStats();
+  const schoolsQuery = useSchoolsQuery(filters);
+  const statsQuery = useSchoolsStats();
+  const statesQuery = useStatesOptions();
 
-  const schools = schoolsResponse?.schools || [];
-  const totalCount = schoolsResponse?.pagination?.total || 0;
+  const schools = schoolsQuery.data?.schools || [];
+  const pagination = schoolsQuery.data?.pagination || { page: 1, limit: 50, total: 0, pages: 0 };
+  const totalCount = pagination.total;
+  const stats = statsQuery.data;
 
   // Handlers
   const handleFilterChange = (key: keyof SchoolFilters, value: any) => {
@@ -97,7 +100,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
     try {
       await apiService.approveSchool(schoolId);
       toast.success('School approved successfully');
-      invalidate.invalidateAll();
+      invalidateAll();
     } catch (error) {
       console.error('Error approving school:', error);
       toast.error('Failed to approve school');
@@ -149,7 +152,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
     try {
       await apiService.deleteSchool(schoolId);
       toast.success('School deleted successfully');
-      invalidate.invalidateAll();
+      invalidateAll();
     } catch (error) {
       console.error('Error deleting school:', error);
       toast.error('Failed to delete school');
@@ -157,12 +160,12 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
   };
 
   const handleModalSuccess = () => {
-    invalidate.invalidateAll();
+    invalidateAll();
     setIsModalOpen(false);
   };
 
   const handleRefresh = () => {
-    invalidate.invalidateAll();
+    invalidateAll();
     toast.success('Data refreshed');
   };
 
@@ -177,7 +180,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
           >
             <SchoolsDataGrid
               schools={schools}
-              loading={schoolsLoading}
+              loading={schoolsQuery.isLoading}
               totalCount={totalCount}
               currentPage={filters.page || 1}
               pageSize={filters.limit || 50}
@@ -207,7 +210,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                 byState: {},
                 byManagement: {}
               }}
-              loading={statsLoading}
+              loading={statsQuery.isLoading}
             />
           </motion.div>
         );
@@ -421,16 +424,11 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All States</SelectItem>
-                      <SelectItem value="Karnataka">Karnataka</SelectItem>
-                      <SelectItem value="Maharashtra">Maharashtra</SelectItem>
-                      <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
-                      <SelectItem value="Kerala">Kerala</SelectItem>
-                      <SelectItem value="Gujarat">Gujarat</SelectItem>
-                      <SelectItem value="Rajasthan">Rajasthan</SelectItem>
-                      <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
-                      <SelectItem value="West Bengal">West Bengal</SelectItem>
-                      <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
-                      <SelectItem value="Telangana">Telangana</SelectItem>
+                      {statesQuery.data?.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label} ({state.count.toLocaleString()})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

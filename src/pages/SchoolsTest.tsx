@@ -22,8 +22,9 @@ export default function SchoolsTest() {
       try {
         setLoading(true);
         setError(null);
-        const result = await apiService.getSchools();
-        setSchools(result || []);
+        const schoolsResponse = await apiService.getSchools({ limit: '10' });
+        const schoolsArray = (schoolsResponse as any).schools || (Array.isArray(schoolsResponse) ? schoolsResponse : []);
+        setSchools(schoolsArray);
       } catch (e: any) {
         setError(e?.message || 'Failed to fetch');
       } finally {
