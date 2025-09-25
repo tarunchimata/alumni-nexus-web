@@ -148,23 +148,64 @@ class ApiService {
   }
 
   private normalizeSchool(school: any): any {
-    // Transform various API field formats to consistent camelCase format
     const anyS = school as any;
+    const idRaw = school.id ?? anyS.institution_id ?? anyS.school_id ?? anyS.id ?? anyS._id ?? anyS.udiseCode ?? anyS.udise_code ?? anyS.udise;
+    const nameRaw = school.name ?? school.schoolName ?? anyS.school_name ?? anyS.institution_name;
+    const udiseRaw = school.udiseCode ?? anyS.udise_code ?? anyS.udise ?? anyS.udiseCode;
+    const districtRaw = school.districtName ?? anyS.district_name ?? anyS.district;
+    const stateRaw = school.stateName ?? anyS.state_name ?? anyS.state;
+    const typeRaw = school.schoolType ?? anyS.school_type ?? anyS.type;
+    const managementRaw = school.management ?? anyS.management_type ?? anyS.management;
+    const statusRaw = school.status ?? (anyS.is_active !== undefined ? (anyS.is_active ? 'active' : 'inactive') : anyS.status_text ?? anyS.status);
+
+    const userCount = Number(school.userCount ?? anyS.user_count ?? anyS.users ?? 0) || 0;
+    const classCount = Number(school.classCount ?? anyS.class_count ?? anyS.classes ?? 0) || 0;
+
     return {
-      id: school.id ?? anyS.institution_id ?? anyS.school_id ?? school.udiseCode,
-      name: school.name ?? school.schoolName ?? anyS.school_name ?? anyS.institution_name ?? 'Unnamed School',
-      schoolName: school.schoolName ?? school.name ?? anyS.school_name ?? anyS.institution_name ?? 'Unnamed School',
-      udiseCode: school.udiseCode ?? anyS.udise_code ?? anyS.udise ?? '',
-      districtName: school.districtName ?? anyS.district_name ?? anyS.district ?? '',
-      stateName: school.stateName ?? anyS.state_name ?? anyS.state ?? '',
-      schoolType: school.schoolType ?? anyS.school_type ?? anyS.type ?? '',
-      management: school.management ?? anyS.management_type ?? anyS.management ?? '',
-      status: school.status ?? (anyS.is_active !== undefined ? (anyS.is_active ? 'active' : 'inactive') : anyS.status_text) ?? 'unknown',
-      userCount: school.userCount ?? anyS.user_count ?? anyS.users ?? 0,
-      classCount: school.classCount ?? anyS.class_count ?? anyS.classes ?? 0,
+      id: this.sanitizeString(idRaw) || this.sanitizeString(udiseRaw),
+      name: this.sanitizeString(nameRaw) || 'Unnamed School',
+      schoolName: this.sanitizeString(nameRaw) || 'Unnamed School',
+      udiseCode: this.sanitizeString(udiseRaw),
+      districtName: this.sanitizeString(districtRaw),
+      stateName: this.sanitizeString(stateRaw),
+      schoolType: this.sanitizeString(typeRaw),
+      management: this.sanitizeString(managementRaw),
+      status: this.normalizeStatus(statusRaw),
+      userCount,
+      classCount,
       createdAt: school.createdAt ?? anyS.created_at ?? anyS.date_created ?? new Date().toISOString(),
       updatedAt: school.updatedAt ?? anyS.updated_at ?? anyS.date_updated ?? new Date().toISOString(),
     };
+  }
+
+  // Sanitization helpers
+  private sanitizeString(value: any): string {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    return str.replace(/\s+/g, ' ').trim();
+  }
+
+  private normalizeStatus(value: any): string {
+    const s = this.sanitizeString(value).toLowerCase();
+    if (!s) return 'unknown';
+    if (['active','approved','enabled','1','true','yes'].includes(s)) return 'active';
+    if (['inactive','disabled','0','false','no','deactivated'].includes(s)) return 'inactive';
+    if (['pending','awaiting','in review','review'].includes(s)) return 'pending';
+    return s;
+  }
+
+  private dedupeSchools(list: any[]): any[] {
+    const seen = new Set<string>();
+    const result: any[] = [];
+    for (const s of list) {
+      const idKey = this.sanitizeString(s?.udiseCode) || this.sanitizeString(s?.id);
+      if (!idKey) continue;
+      const key = idKey.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(s);
+    }
+    return result;
   }
 
   private async makeProxyRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -414,10 +455,12 @@ class ApiService {
     console.log(`[ApiService] getSchools (direct) called with filters:`, filters);
     const result = await this.getWithParams<any>('/schools', filters ?? {});
     const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
-    // Normalize each school object to consistent field names
-    const normalizedSchools = schoolsArray.map(school => this.normalizeSchool(school));
-    console.log(`[ApiService] getSchools returning ${normalizedSchools.length} normalized schools`);
-    return { schools: normalizedSchools, summary, pagination: result.pagination };
+    // Normalize and dedupe
+    const normalizedSchools = this.dedupeSchools(
+      (schoolsArray || []).map((school) => this.normalizeSchool(school))
+    );
+    console.log(`[ApiService] getSchools returning ${normalizedSchools.length} normalized schools (deduped)`);
+    return { schools: normalizedSchools, summary, pagination: result?.pagination };
   }
 
   // Statistics endpoints for real data
@@ -492,9 +535,11 @@ class ApiService {
     }
     const result = await this.getWithParams<any>('/schools', params);
     const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
-    const normalizedSchools = schoolsArray.map(school => this.normalizeSchool(school));
-    console.log(`[ApiService] searchSchools returning ${normalizedSchools.length} normalized schools`);
-    return { schools: normalizedSchools, summary, pagination: result.pagination };
+    const normalizedSchools = this.dedupeSchools(
+      (schoolsArray || []).map((school) => this.normalizeSchool(school))
+    );
+    console.log(`[ApiService] searchSchools returning ${normalizedSchools.length} normalized schools (deduped)`);
+    return { schools: normalizedSchools, summary, pagination: result?.pagination };
   }
 
   // Filter schools by state
