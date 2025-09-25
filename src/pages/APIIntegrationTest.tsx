@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { APITestComponent } from '@/components/debug/APITestComponent';
+import { ComprehensiveAPITester } from '@/components/debug/ComprehensiveAPITester';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -59,7 +60,10 @@ const APIIntegrationTest: React.FC = () => {
           </CardContent>
         </Card>
 
-        <APITestComponent />
+        <div className="space-y-6">
+          <ComprehensiveAPITester />
+          <APITestComponent />
+        </div>
       </div>
     </div>
   );

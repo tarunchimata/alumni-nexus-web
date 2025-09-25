@@ -44,6 +44,7 @@ const SchoolsPage = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('[SchoolsPage] Component mounted, auto-loading schools...');
     fetchSchools();
   }, []);
 
@@ -53,16 +54,34 @@ const SchoolsPage = () => {
       setError(null);
       
       console.log('[SchoolsPage] Fetching schools with filters:', filters);
-      const params = {
-        limit: '25',
-        ...filters
-      };
+      const params: any = { limit: '25' }; // Reasonable initial limit
       
+      // Add search and filters to params
+      if (filters?.search?.trim()) params.search = filters.search.trim();
+      if (filters?.state) params.state = filters.state;
+      if (filters?.status) params.status = filters.status;
+      
+      console.log('[SchoolsPage] Final params:', params);
       const schoolsResponse = await apiService.getSchools(params);
-      const schoolsArray = schoolsResponse.schools || [];
-      const total = schoolsResponse.pagination?.total || schoolsArray.length;
+      console.log('[SchoolsPage] Raw API response:', schoolsResponse);
       
-      console.log('[SchoolsPage] Received schools:', schoolsArray?.length || 0);
+      // Robust response parsing
+      let schoolsArray = [];
+      let total = 0;
+      
+      if (Array.isArray(schoolsResponse)) {
+        schoolsArray = schoolsResponse;
+        total = schoolsArray.length;
+      } else if (schoolsResponse?.schools && Array.isArray(schoolsResponse.schools)) {
+        schoolsArray = schoolsResponse.schools;
+        total = schoolsResponse.pagination?.total || schoolsArray.length;
+      } else {
+        console.warn('[SchoolsPage] Unexpected response format:', schoolsResponse);
+        schoolsArray = [];
+        total = 0;
+      }
+      
+      console.log('[SchoolsPage] Processed schools:', schoolsArray.length, 'items, total:', total);
       setSchools(schoolsArray);
       setTotalCount(total);
       
@@ -174,6 +193,11 @@ const SchoolsPage = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleFilterChange();
+                    }
+                  }}
                 />
               </div>
               <Button onClick={handleCreateSchool} className="flex items-center gap-2">

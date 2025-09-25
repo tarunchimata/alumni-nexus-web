@@ -86,6 +86,12 @@ class ApiService {
   private unwrapSchoolsResponse(response: any): { schools: any[], summary?: any } {
     console.log('[ApiService] Unwrapping schools response:', response);
     
+    // Handle null/undefined responses
+    if (!response) {
+      console.warn('[ApiService] Response is null/undefined');
+      return { schools: [] };
+    }
+    
     // Handle {success: true, data: [...], summary: {...}} format
     if (response?.success && response?.data) {
       return {
@@ -99,24 +105,38 @@ class ApiService {
       return { schools: response };
     }
 
-    // Collect common wrapper patterns
+    // Collect common wrapper patterns - extended list
     const candidates = [
       response?.schools,
+      response?.data?.schools,
       response?.data,
       response?.rows,
       response?.records,
       response?.items,
       response?.result,
-      response?.data?.schools,
+      response?.results,
       response?.data?.rows,
       response?.data?.items,
-      response?.results,
+      response?.data?.records,
+      response?.data?.result,
+      response?.data?.results,
     ];
 
     for (const arr of candidates) {
       if (Array.isArray(arr)) {
         console.log('[ApiService] Found schools array, length:', arr.length);
         return { schools: arr, summary: response?.summary };
+      }
+    }
+
+    // Check if response is a single school object
+    if (typeof response === 'object' && !Array.isArray(response)) {
+      const schoolFields = ['name', 'schoolName', 'school_name', 'institutionName', 'institution_name', 'udiseCode', 'udise_code'];
+      const hasSchoolField = schoolFields.some(field => response[field]);
+      
+      if (hasSchoolField) {
+        console.log('[ApiService] Detected single school object, wrapping in array');
+        return { schools: [response] };
       }
     }
 
