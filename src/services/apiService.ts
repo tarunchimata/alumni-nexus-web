@@ -38,8 +38,11 @@ class ApiService {
       (import.meta.env.VITE_API_KEY as string) ||
       (import.meta.env.VITE_SCHOOLS_API_KEY as string);
     
+    console.log(`[ApiService] API Key available: ${apiKey ? 'Yes' : 'No'}`);
+    
     const headers: Record<string, string> = {};
-    if (apiKey) headers['x-api-key'] = apiKey;
+    // Since user confirmed API works without key, let's not send it for now
+    // if (apiKey) headers['x-api-key'] = apiKey;
     
     // Add Bearer token if available
     try {
@@ -81,7 +84,9 @@ class ApiService {
   }
 
   private unwrapSchoolsResponse(response: any): { schools: any[], summary?: any } {
-    console.log('[ApiService] Unwrapping schools response:', response);
+    console.log('[ApiService] Raw API response:', JSON.stringify(response, null, 2));
+    console.log('[ApiService] Response type:', typeof response);
+    console.log('[ApiService] Is Array:', Array.isArray(response));
     
     // Handle null/undefined responses
     if (!response) {
@@ -207,17 +212,23 @@ class ApiService {
 
   private async makeProxyRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
     console.log(`[ApiService] Making proxy request to: ${url}`);
+    console.log(`[ApiService] Request headers:`, options.headers);
+    console.log(`[ApiService] Request method:`, options.method || 'GET');
     
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       
+      const requestData = {
+        url,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        body: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
+      };
+      
+      console.log(`[ApiService] Supabase function request:`, requestData);
+      
       const { data, error } = await supabase.functions.invoke('api-proxy', {
-        body: {
-          url,
-          method: options.method || 'GET',
-          headers: options.headers || {},
-          body: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
-        }
+        body: requestData
       });
 
       if (error) {
