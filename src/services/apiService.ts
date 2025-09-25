@@ -120,6 +120,9 @@ class ApiService {
       response?.data?.records,
       response?.data?.result,
       response?.data?.results,
+      response?.data?.data, // sometimes nested data under data
+      response?.payload?.schools,
+      response?.payload?.data,
     ];
 
     for (const arr of candidates) {

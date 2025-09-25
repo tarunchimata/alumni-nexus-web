@@ -15,6 +15,7 @@ import { useHealthCheck } from '@/hooks/useHealthCheck';
 import { SchoolFormModal } from '@/components/schools/SchoolFormModal';
 import { apiService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { ComprehensiveAPITester } from '@/components/debug/ComprehensiveAPITester';
 
 export default function APITestLab() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -120,6 +121,8 @@ export default function APITestLab() {
           Add New School
         </Button>
       </div>
+
+      <ComprehensiveAPITester />
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="schools" className="w-full">

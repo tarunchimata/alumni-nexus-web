@@ -18,7 +18,12 @@ import { toast } from 'sonner';
 import { apiService } from '@/services/apiService';
 
 export const ComprehensiveAPITester: React.FC = () => {
-  const [baseUrl, setBaseUrl] = useState(process.env.VITE_BACKEND_URL || 'http://localhost:3001');
+  const defaultBase =
+    (import.meta.env.VITE_SCHOOLS_API_URL as string) ||
+    (import.meta.env.VITE_API_BASE_URL as string) ||
+    (import.meta.env.VITE_API_URL as string) ||
+    'https://schoolapi.hostingmanager.in';
+  const [baseUrl, setBaseUrl] = useState(defaultBase);
   const [endpoint, setEndpoint] = useState('/api/schools');
   const [method, setMethod] = useState('GET');
   const [apiKey, setApiKey] = useState('');
@@ -31,7 +36,11 @@ export const ComprehensiveAPITester: React.FC = () => {
 
   useEffect(() => {
     // Load API key from environment
-    const envApiKey = process.env.VITE_X_API_KEY || process.env.VITE_API_KEY;
+    const envApiKey =
+      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
+      (import.meta.env.VITE_SCHOOLS_API_KEY as string) ||
+      (import.meta.env.VITE_API_KEY as string) ||
+      (import.meta.env.VITE_X_API_KEY as string);
     if (envApiKey) {
       setApiKey(envApiKey);
     }
@@ -166,7 +175,7 @@ export const ComprehensiveAPITester: React.FC = () => {
           <TabsContent value="proxy" className="space-y-4">
             <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>Proxy Mode:</strong> Uses Supabase Edge Function to bypass CORS. 
+                <strong>Proxy Mode:</strong> Uses a backend function to bypass CORS. 
                 Recommended for testing external APIs.
               </p>
             </div>
