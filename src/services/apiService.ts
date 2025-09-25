@@ -94,17 +94,30 @@ class ApiService {
       return { schools: [] };
     }
     
-    // Handle {success: true, data: [...], summary: {...}} format
-    if (response?.success && response?.data) {
-      return {
-        schools: Array.isArray(response.data) ? response.data : [],
-        summary: response.summary || {}
-      };
-    }
-    
-    // Handle direct array response
+    // Handle direct array response first
     if (Array.isArray(response)) {
+      console.log('[ApiService] Direct array response, length:', response.length);
       return { schools: response };
+    }
+
+    // Handle {success: true, data: {...}} format - FIXED to check for data.schools
+    if (response?.success) {
+      // Handle success + data as array
+      if (Array.isArray(response?.data)) {
+        console.log('[ApiService] Success + data array, length:', response.data.length);
+        return { 
+          schools: response.data, 
+          summary: response?.summary || response?.data?.summary 
+        };
+      }
+      // Handle success + data.schools (THIS WAS THE MISSING CASE!)
+      if (Array.isArray(response?.data?.schools)) {
+        console.log('[ApiService] Success + data.schools array, length:', response.data.schools.length);
+        return { 
+          schools: response.data.schools, 
+          summary: response?.summary || response?.data?.summary || { total: response?.data?.total } 
+        };
+      }
     }
 
     // Collect common wrapper patterns - extended list
@@ -129,7 +142,7 @@ class ApiService {
 
     for (const arr of candidates) {
       if (Array.isArray(arr)) {
-        console.log('[ApiService] Found schools array, length:', arr.length);
+        console.log('[ApiService] Found schools array via candidates, length:', arr.length);
         return { schools: arr, summary: response?.summary };
       }
     }
