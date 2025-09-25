@@ -38,6 +38,8 @@ export const APITestComponent: React.FC = () => {
     loading: searchLoading,
     error: searchError,
     search,
+    fetchAll,
+    fetchByFilters,
     totalResults,
     hasResults
   } = useSchoolSearch();
@@ -109,7 +111,7 @@ export const APITestComponent: React.FC = () => {
             School Directory
             <div className="flex gap-2">
               <Button 
-                onClick={() => search('all')}
+                onClick={() => fetchAll(25)}
                 variant="outline"
                 size="sm"
               >
@@ -133,7 +135,7 @@ export const APITestComponent: React.FC = () => {
           {!hasResults && !searchLoading && (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">No schools loaded yet</p>
-              <Button onClick={() => search('all')} variant="outline">
+              <Button onClick={() => fetchAll(25)} variant="outline">
                 Load Schools
               </Button>
             </div>
@@ -296,7 +298,7 @@ export const APITestComponent: React.FC = () => {
             
             <div className="flex gap-2">
               <Button 
-                onClick={() => search('all')}
+                onClick={() => fetchAll(25)}
                 variant="outline"
                 size="sm"
                 disabled={searchLoading}
@@ -304,7 +306,7 @@ export const APITestComponent: React.FC = () => {
                 Load All
               </Button>
               <Button 
-                onClick={() => search('Uttarakhand')}
+                onClick={() => fetchByFilters({ state: 'Uttarakhand', limit: '25' })}
                 variant="outline"
                 size="sm"
                 disabled={searchLoading}

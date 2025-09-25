@@ -39,6 +39,8 @@ export default function APITestLab() {
     loading: searchLoading,
     error: searchError,
     search,
+    fetchAll,
+    fetchByFilters,
     totalResults,
     hasResults
   } = useSchoolSearch();
@@ -91,11 +93,11 @@ export default function APITestLab() {
   };
 
   const loadAllSchools = () => {
-    search('all');
+    fetchAll(25);
   };
 
   const loadSampleData = () => {
-    search('Uttarakhand');
+    fetchByFilters({ state: 'Uttarakhand', limit: '25' });
   };
 
   return (
@@ -169,7 +171,7 @@ export default function APITestLab() {
                   Sample: Uttarakhand
                 </Button>
                 <Button 
-                  onClick={() => search('Primary')}
+                  onClick={() => fetchByFilters({ school_type: 'Primary', limit: '25' })}
                   variant="outline"
                   size="sm"
                   disabled={searchLoading}
@@ -177,7 +179,7 @@ export default function APITestLab() {
                   Primary Schools
                 </Button>
                 <Button 
-                  onClick={() => search('Secondary')}
+                  onClick={() => fetchByFilters({ school_type: 'Secondary', limit: '25' })}
                   variant="outline"
                   size="sm"
                   disabled={searchLoading}

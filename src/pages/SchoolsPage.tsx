@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { apiService } from '@/services/apiService';
-import { Search, School, Users, Calendar, MoreVertical } from 'lucide-react';
+import { Search, School, Users, Calendar, MoreVertical, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SchoolFormModal } from '@/components/schools/SchoolFormModal';
+import { School as ApiSchool } from '@/lib/apiTransforms';
 
 interface School {
   id: string;
@@ -21,13 +24,19 @@ interface School {
   classCount: number;
   createdAt: string;
   updatedAt: string;
+  blockName?: string;
+  institutionId?: string;
 }
 
 const SchoolsPage = () => {
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<ApiSchool[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<ApiSchool | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,8 +69,50 @@ const SchoolsPage = () => {
     }
   };
 
+  const handleCreateSchool = () => {
+    setSelectedSchool(null);
+    setModalMode('create');
+    setIsModalOpen(true);
+  };
+
+  const handleEditSchool = (school: ApiSchool) => {
+    setSelectedSchool(school);
+    setModalMode('edit');
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteSchool = async (schoolId: string, schoolName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${schoolName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleteLoading(schoolId);
+    try {
+      await apiService.deleteSchool(schoolId);
+      toast({
+        title: "Success",
+        description: "School deleted successfully"
+      });
+      // Refresh the schools list
+      await fetchSchools();
+    } catch (error) {
+      console.error('Delete school error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete school',
+        variant: "destructive"
+      });
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const handleModalSuccess = async () => {
+    // Refresh the schools list
+    await fetchSchools();
+  };
+
   const filteredSchools = schools.filter(school =>
-    school.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     school.schoolName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     school.udiseCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     school.districtName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -87,7 +138,7 @@ const SchoolsPage = () => {
         <p className="text-gray-600">Manage and monitor all schools in the platform</p>
       </div>
 
-      {/* Search and Filters */}
+      {/* Search and Controls */}
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
@@ -100,7 +151,11 @@ const SchoolsPage = () => {
                 className="pl-10"
               />
             </div>
-            <Button onClick={fetchSchools}>
+            <Button onClick={handleCreateSchool} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add School
+            </Button>
+            <Button onClick={fetchSchools} variant="outline">
               Refresh
             </Button>
           </div>
@@ -171,7 +226,7 @@ const SchoolsPage = () => {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="font-semibold text-lg">
-                            {school.schoolName || school.name}
+                            {school.schoolName}
                           </h3>
                           <Badge variant={school.status === 'active' ? 'default' : 'secondary'}>
                             {school.status}
@@ -183,7 +238,7 @@ const SchoolsPage = () => {
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                           <div>
-                            <span className="font-medium">UDISE:</span> {school.udiseCode}
+                            <span className="font-medium">UDISE:</span> {school.udiseCode || 'N/A'}
                           </div>
                           <div>
                             <span className="font-medium">District:</span> {school.districtName}
@@ -192,7 +247,7 @@ const SchoolsPage = () => {
                             <span className="font-medium">State:</span> {school.stateName}
                           </div>
                           <div>
-                            <span className="font-medium">Management:</span> {school.management}
+                            <span className="font-medium">Management:</span> {school.management || 'N/A'}
                           </div>
                         </div>
 
@@ -208,9 +263,27 @@ const SchoolsPage = () => {
                         </div>
                       </div>
                       
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditSchool(school)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteSchool(String(school.id), school.schoolName)}
+                            disabled={deleteLoading === String(school.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {deleteLoading === String(school.id) ? 'Deleting...' : 'Delete'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))
@@ -219,6 +292,15 @@ const SchoolsPage = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* School Management Modal */}
+      <SchoolFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        school={selectedSchool}
+        mode={modalMode}
+      />
     </div>
   );
 };
