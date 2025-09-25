@@ -18,6 +18,7 @@ import Health from "@/pages/Health";
 import SchoolsTest from "@/pages/SchoolsTest";
 import SchoolsAPIDebug from "@/pages/SchoolsAPIDebug";
 import APITestLab from "@/pages/APITestLab";
+import APIIntegrationTest from "@/pages/APIIntegrationTest";
 
 // Production Dashboard Layout and Pages
 import { ProductionDashboardLayout } from "@/components/layout/ProductionDashboardLayout";
@@ -64,6 +65,7 @@ function App() {
                <Route path="/schools-test" element={<SchoolsTest />} />
                <Route path="/schools-debug" element={<SchoolsAPIDebug />} />
                <Route path="/api-test" element={<APITestLab />} />
+               <Route path="/api-integration-test" element={<APIIntegrationTest />} />
 
               {/* Production Dashboard Routes with Nested Layout */}
               <Route 

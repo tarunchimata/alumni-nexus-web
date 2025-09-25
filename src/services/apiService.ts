@@ -35,17 +35,52 @@ interface ApiResponse<T = any> {
 }
 
 class ApiService {
-  private getAuthHeaders(includeContentType = true): Record<string, string> {
+  private async getAuthHeaders(includeContentType = true): Promise<Record<string, string>> {
     const apiKey =
       (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
       (import.meta.env.VITE_API_KEY as string) ||
       (import.meta.env.VITE_SCHOOLS_API_KEY as string);
+    
     const headers: Record<string, string> = {};
     if (apiKey) headers['x-api-key'] = apiKey;
+    
+    // Add Bearer token if available
+    try {
+      const { authService } = await import('@/lib/auth');
+      const token = localStorage.getItem('auth_access_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('[ApiService] Could not load auth service:', error);
+    }
+    
     if (includeContentType) {
       headers['Content-Type'] = 'application/json';
     }
     return headers;
+  }
+
+  // Global API error handler
+  private handleAPIError(error: any): never {
+    console.error('[ApiService] API Error:', error);
+    
+    if (error.response?.status === 401) {
+      // Token expired or invalid - logout user
+      localStorage.removeItem('auth_access_token');
+      localStorage.removeItem('auth_refresh_token');
+      localStorage.removeItem('auth_expires_at');
+      window.location.href = '/login';
+      throw new Error('Authentication required. Please log in again.');
+    } else if (error.response?.status === 403) {
+      throw new Error('You do not have permission to perform this action.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    } else if (error.message?.includes('NetworkError') || error.message?.includes('Failed to fetch')) {
+      throw new Error('Network error. Please check your connection.');
+    } else {
+      throw new Error(error.message || 'An unexpected error occurred.');
+    }
   }
 
   private unwrapSchoolsResponse(response: any): { schools: any[], summary?: any } {
@@ -168,84 +203,103 @@ class ApiService {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    const base = buildApiUrl(endpoint);
-    const url = new URL(base);
-    // Cache-buster to avoid 304/opaque caching issues
-    url.searchParams.set('_ts', String(Date.now()));
-    const finalUrl = url.toString();
-    console.log(`[ApiService] GET ${finalUrl}`);
-    
-    return this.makeProxyRequest<T>(finalUrl, {
-      method: 'GET',
-      headers: this.getAuthHeaders(false), // No Content-Type for GET requests
-    });
+    try {
+      const base = buildApiUrl(endpoint);
+      const url = new URL(base);
+      // Cache-buster to avoid 304/opaque caching issues
+      url.searchParams.set('_ts', String(Date.now()));
+      const finalUrl = url.toString();
+      console.log(`[ApiService] GET ${finalUrl}`);
+      
+      return await this.makeProxyRequest<T>(finalUrl, {
+        method: 'GET',
+        headers: await this.getAuthHeaders(false), // No Content-Type for GET requests
+      });
+    } catch (error) {
+      this.handleAPIError(error);
+    }
   }
 
   async getWithParams<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined | null>): Promise<T> {
-    const base = buildApiUrl(endpoint);
-    const url = new URL(base);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        const val = typeof value === 'string' ? value : String(value);
-        if (val && val !== 'undefined' && val !== 'null' && val !== '[object Object]') {
-          url.searchParams.append(key, val);
-        }
+    try {
+      const base = buildApiUrl(endpoint);
+      const url = new URL(base);
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value === undefined || value === null) return;
+          const val = typeof value === 'string' ? value : String(value);
+          if (val && val !== 'undefined' && val !== 'null' && val !== '[object Object]') {
+            url.searchParams.append(key, val);
+          }
+        });
+      }
+      // Cache-buster
+      url.searchParams.set('_ts', String(Date.now()));
+      const finalUrl = url.toString();
+      console.log(`[ApiService] GET ${finalUrl}`);
+      
+      return await this.makeProxyRequest<T>(finalUrl, {
+        method: 'GET',
+        headers: await this.getAuthHeaders(false), // No Content-Type for GET requests
       });
+    } catch (error) {
+      this.handleAPIError(error);
     }
-    // Cache-buster
-    url.searchParams.set('_ts', String(Date.now()));
-    const finalUrl = url.toString();
-    console.log(`[ApiService] GET ${finalUrl}`);
-    
-    return this.makeProxyRequest<T>(finalUrl, {
-      method: 'GET',
-      headers: this.getAuthHeaders(false), // No Content-Type for GET requests
-    });
   }
 
   async post<T>(endpoint: string, data: any): Promise<T> {
-    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    try {
+      return await this.makeProxyRequest<T>(buildApiUrl(endpoint), {
+        method: 'POST',
+        headers: await this.getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      this.handleAPIError(error);
+    }
   }
 
   async put<T>(endpoint: string, data: any): Promise<T> {
-    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
-      method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    try {
+      return await this.makeProxyRequest<T>(buildApiUrl(endpoint), {
+        method: 'PUT',
+        headers: await this.getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      this.handleAPIError(error);
+    }
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    return this.makeProxyRequest<T>(buildApiUrl(endpoint), {
-      method: 'DELETE',
-      headers: this.getAuthHeaders(),
-    });
+    try {
+      return await this.makeProxyRequest<T>(buildApiUrl(endpoint), {
+        method: 'DELETE',
+        headers: await this.getAuthHeaders(),
+      });
+    } catch (error) {
+      this.handleAPIError(error);
+    }
   }
 
   async uploadFile<T>(endpoint: string, file: File): Promise<T> {
-    const formData = new FormData();
-    formData.append('file', file);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    const apiKey =
-      (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
-      (import.meta.env.VITE_API_KEY as string) ||
-      (import.meta.env.VITE_SCHOOLS_API_KEY as string);
+      const headers = await this.getAuthHeaders(false); // No Content-Type for FormData
+      delete headers['Content-Type']; // Let browser set Content-Type for FormData
 
-    const headers: Record<string, string> = {};
-    if (apiKey) headers['x-api-key'] = apiKey;
+      const response = await fetch(buildApiUrl(endpoint), {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-    const response = await fetch(buildApiUrl(endpoint), {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-
-    return this.handleResponse<T>(response);
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      this.handleAPIError(error);
+    }
   }
 
   // Dashboard API methods
@@ -386,6 +440,46 @@ class ApiService {
 
   async getUserProfile(userId: string) {
     return this.get(`/users/${userId}`);
+  }
+
+  // Health Check
+  async checkHealth() {
+    return this.get('/health');
+  }
+
+  // Enhanced Search Methods
+  async searchSchools(searchTerm: string, filters?: { 
+    state?: string; 
+    district?: string; 
+    status?: string; 
+    limit?: number; 
+  }) {
+    console.log(`[ApiService] searchSchools called with term:`, searchTerm, 'filters:', filters);
+    const params: any = { search: searchTerm };
+    if (filters) {
+      Object.assign(params, filters);
+    }
+    const result = await this.getWithParams<any>('/schools', params);
+    const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
+    const normalizedSchools = schoolsArray.map(school => this.normalizeSchool(school));
+    console.log(`[ApiService] searchSchools returning ${normalizedSchools.length} normalized schools`);
+    return { schools: normalizedSchools, summary, pagination: result.pagination };
+  }
+
+  // Filter schools by state
+  async getSchoolsByState(state: string, additionalFilters?: any) {
+    return this.getSchools({ state, ...additionalFilters });
+  }
+
+  // Filter schools by status  
+  async getSchoolsByStatus(status: string, additionalFilters?: any) {
+    return this.getSchools({ status, ...additionalFilters });
+  }
+
+  // Get schools with pagination
+  async getSchoolsPaginated(page = 1, limit = 10, filters?: any) {
+    const offset = (page - 1) * limit;
+    return this.getSchools({ limit: limit.toString(), offset: offset.toString(), ...filters });
   }
 }
 

@@ -45,6 +45,11 @@ export const Navigation = () => {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center space-x-4">
+            <Link to="/api-integration-test">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                API Test
+              </Button>
+            </Link>
             <Link to="/login">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
                 Login
@@ -84,6 +89,11 @@ export const Navigation = () => {
 
                 {/* Mobile CTAs */}
                 <div className="flex flex-col space-y-3 pt-6">
+                  <Link to="/api-integration-test" onClick={() => setIsOpen(false)}>
+                    <Button variant="ghost" className="w-full text-sm text-muted-foreground">
+                      API Integration Test
+                    </Button>
+                  </Link>
                   <Link to="/login" onClick={() => setIsOpen(false)}>
                     <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-white">
                       Login
