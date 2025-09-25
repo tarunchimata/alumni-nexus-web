@@ -12,10 +12,16 @@ function trimTrailingSlash(url: string) {
 
 function buildApiUrl(endpoint: string): string {
   const baseRaw = trimTrailingSlash(RAW_BASE_URL);
-  const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${baseRaw}${ep}`;
-  const cleanUrl = url.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes
-  console.log(`[buildApiUrl] Base: "${baseRaw}", Endpoint: "${ep}", Final: "${cleanUrl}"`);
+  let ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // If base already ends with /api and endpoint starts with /api, drop one to avoid /api/api
+  const baseHasApi = /\/api$/i.test(baseRaw);
+  const epStartsWithApi = /^\/api(\/|$)/i.test(ep);
+  const base = baseHasApi && epStartsWithApi ? baseRaw.replace(/\/api$/i, '') : baseRaw;
+
+  const url = `${base}${ep}`;
+  const cleanUrl = url.replace(/([^:]\/)\/+/g, '$1'); // Remove duplicate slashes
+  console.log(`[buildApiUrl] BaseRaw: "${baseRaw}", NormalizedBase: "${base}", Endpoint: "${ep}", Final: "${cleanUrl}"`);
   return cleanUrl;
 }
 
