@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Settings, LogOut, Bell } from "lucide-react";
+import { Users, User, Settings, LogOut, Bell, TestTube } from "lucide-react";
 
 export const Header = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -135,6 +135,12 @@ export const Header = () => {
                   <Link to="/dashboard/settings" className="flex items-center">
                     <Settings className="w-4 h-4 mr-2" />
                     Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/api-test-lab" className="flex items-center">
+                    <TestTube className="w-4 h-4 mr-2" />
+                    API Test Lab
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

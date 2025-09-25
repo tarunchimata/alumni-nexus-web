@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiService } from '@/services/apiService';
 import { Search, School, Users, Calendar, MoreVertical, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -32,28 +33,38 @@ const SchoolsPage = () => {
   const [schools, setSchools] = useState<ApiSchool[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stateFilter, setStateFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<ApiSchool | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSchools();
   }, []);
 
-  const fetchSchools = async () => {
+  const fetchSchools = async (filters?: { search?: string; state?: string; status?: string }) => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('[SchoolsPage] Fetching schools from external API...');
-      const schoolsResponse = await apiService.getSchools();
-      const schoolsArray = (schoolsResponse as any).schools || (Array.isArray(schoolsResponse) ? schoolsResponse : []);
+      console.log('[SchoolsPage] Fetching schools with filters:', filters);
+      const params = {
+        limit: '25',
+        ...filters
+      };
+      
+      const schoolsResponse = await apiService.getSchools(params);
+      const schoolsArray = schoolsResponse.schools || [];
+      const total = schoolsResponse.pagination?.total || schoolsArray.length;
+      
       console.log('[SchoolsPage] Received schools:', schoolsArray?.length || 0);
-      console.log('[SchoolsPage] Sample school data:', schoolsArray?.[0]);
       setSchools(schoolsArray);
+      setTotalCount(total);
       
     } catch (error: any) {
       console.error('[SchoolsPage] Failed to fetch schools:', error);
@@ -93,8 +104,13 @@ const SchoolsPage = () => {
         title: "Success",
         description: "School deleted successfully"
       });
-      // Refresh the schools list
-      await fetchSchools();
+      // Refresh the schools list with current filters
+      const currentFilters = {
+        search: searchTerm || undefined,
+        state: stateFilter || undefined,
+        status: statusFilter || undefined
+      };
+      await fetchSchools(currentFilters);
     } catch (error) {
       console.error('Delete school error:', error);
       toast({
@@ -108,15 +124,23 @@ const SchoolsPage = () => {
   };
 
   const handleModalSuccess = async () => {
-    // Refresh the schools list
-    await fetchSchools();
+    // Refresh the schools list with current filters
+    const currentFilters = {
+      search: searchTerm || undefined,
+      state: stateFilter || undefined,
+      status: statusFilter || undefined
+    };
+    await fetchSchools(currentFilters);
   };
 
-  const filteredSchools = schools.filter(school =>
-    school.schoolName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    school.udiseCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    school.districtName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleFilterChange = () => {
+    const filters = {
+      search: searchTerm || undefined,
+      state: stateFilter || undefined,
+      status: statusFilter || undefined
+    };
+    fetchSchools(filters);
+  };
 
   if (loading) {
     return (
@@ -141,23 +165,68 @@ const SchoolsPage = () => {
       {/* Search and Controls */}
       <Card className="mb-6">
         <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search schools by name, UDISE code, or location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search schools by name, UDISE code, or location..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button onClick={handleCreateSchool} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add School
+              </Button>
+              <Button onClick={() => fetchSchools()} variant="outline">
+                Refresh
+              </Button>
             </div>
-            <Button onClick={handleCreateSchool} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add School
-            </Button>
-            <Button onClick={fetchSchools} variant="outline">
-              Refresh
-            </Button>
+            
+            <div className="flex items-center space-x-4">
+              <Select value={stateFilter} onValueChange={setStateFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All States</SelectItem>
+                  <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
+                  <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                  <SelectItem value="Karnataka">Karnataka</SelectItem>
+                  <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button onClick={handleFilterChange} variant="default">
+                Apply Filters
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  setSearchTerm('');
+                  setStateFilter('');
+                  setStatusFilter('');
+                  fetchSchools();
+                }} 
+                variant="outline"
+              >
+                Clear Filters
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -170,7 +239,7 @@ const SchoolsPage = () => {
             <School className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{schools.length}</div>
+            <div className="text-2xl font-bold">{totalCount}</div>
           </CardContent>
         </Card>
 
@@ -200,7 +269,7 @@ const SchoolsPage = () => {
         <Card>
           <CardContent className="p-6 text-center">
             <p className="text-red-600">{error}</p>
-            <Button onClick={fetchSchools} className="mt-4">
+            <Button onClick={() => fetchSchools()} className="mt-4">
               Try Again
             </Button>
           </CardContent>
@@ -208,19 +277,19 @@ const SchoolsPage = () => {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Schools ({filteredSchools.length})</CardTitle>
+            <CardTitle>Schools ({schools.length} of {totalCount})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredSchools.length === 0 ? (
+              {schools.length === 0 ? (
                 <div className="text-center py-8">
                   <School className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">
-                    {searchTerm ? 'No schools match your search criteria' : 'No schools found'}
+                    {searchTerm || stateFilter || statusFilter ? 'No schools match your filters' : 'No schools found'}
                   </p>
                 </div>
               ) : (
-                filteredSchools.map((school) => (
+                schools.map((school) => (
                   <div key={school.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

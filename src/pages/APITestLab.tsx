@@ -3,7 +3,7 @@
  * Complete school directory with CRUD operations and API testing
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +44,11 @@ export default function APITestLab() {
     totalResults,
     hasResults
   } = useSchoolSearch();
+
+  // Auto-load schools on mount
+  useEffect(() => {
+    fetchAll(25);
+  }, [fetchAll]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
