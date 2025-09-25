@@ -4,7 +4,7 @@ const RAW_BASE_URL =
   (import.meta.env.VITE_SCHOOLS_API_URL as string) ||
   (import.meta.env.VITE_API_BASE_URL as string) ||
   (import.meta.env.VITE_API_URL as string) ||
-  'https://schoolapi.hostingmanager.in/api';
+  'https://schoolapi.hostingmanager.in';
 
 function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, '');
@@ -13,19 +13,10 @@ function trimTrailingSlash(url: string) {
 function buildApiUrl(endpoint: string): string {
   const baseRaw = trimTrailingSlash(RAW_BASE_URL);
   const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  try {
-    const u = new URL(baseRaw);
-    const pathHasApi = /\/api(\/|$)/.test(u.pathname);
-    const basePath = trimTrailingSlash(u.pathname || '');
-    const finalPath = pathHasApi ? ep : (ep.startsWith('/api') ? ep : `/api${ep}`);
-    const url = `${u.origin}${basePath}${finalPath}`;
-    return url.replace(/([^:]\/)\/+?/g, '$1');
-  } catch {
-    const pathHasApi = /\/api(\/|$)/.test(baseRaw);
-    const finalPath = pathHasApi ? ep : (ep.startsWith('/api') ? ep : `/api${ep}`);
-    const url = `${baseRaw}${finalPath}`;
-    return url.replace(/([^:]\/)\/+?/g, '$1');
-  }
+  const url = `${baseRaw}${ep}`;
+  const cleanUrl = url.replace(/([^:]\/)\/+/g, '$1'); // Remove double slashes
+  console.log(`[buildApiUrl] Base: "${baseRaw}", Endpoint: "${ep}", Final: "${cleanUrl}"`);
+  return cleanUrl;
 }
 
 interface ApiResponse<T = any> {
@@ -376,45 +367,45 @@ class ApiService {
 
   // Dashboard API methods
   async getDashboardData(role: string) {
-    return this.get(`/dashboard/${role}`);
+    return this.get(`/api/dashboard/${role}`);
   }
 
   // CSV Import methods
   async uploadCSV(file: File, type: 'users' | 'schools') {
-    return this.uploadFile(`/csv/upload/${type}`, file);
+    return this.uploadFile(`/api/csv/upload/${type}`, file);
   }
 
   async validateCSV(data: any[], type: 'users' | 'schools') {
-    return this.post(`/csv/validate/${type}`, { data });
+    return this.post(`/api/csv/validate/${type}`, { data });
   }
 
   async importCSV(data: any[], type: 'users' | 'schools') {
-    return this.post(`/csv/import/${type}`, { data });
+    return this.post(`/api/csv/import/${type}`, { data });
   }
 
   // PR2 CSV Jobs API
   async uploadUsersCSV(file: File) {
-    return this.uploadFile(`/csv/upload/users`, file);
+    return this.uploadFile(`/api/csv/upload/users`, file);
   }
 
   async getCsvJobs() {
-    return this.get(`/csv/jobs`);
+    return this.get(`/api/csv/jobs`);
   }
 
   async getCsvJob(id: number) {
-    return this.get(`/csv/jobs/${id}`);
+    return this.get(`/api/csv/jobs/${id}`);
   }
 
   async approveCsvJob(id: number) {
-    return this.post(`/csv/jobs/${id}/approve`, {});
+    return this.post(`/api/csv/jobs/${id}/approve`, {});
   }
 
   async activateCsvJob(id: number) {
-    return this.post(`/csv/jobs/${id}/activate`, {});
+    return this.post(`/api/csv/jobs/${id}/activate`, {});
   }
 
   async getCsvJobLogs(id: number) {
-    return this.get(`/csv/jobs/${id}/logs`);
+    return this.get(`/api/csv/jobs/${id}/logs`);
   }
 
   async exportFailedCsvRows(id: number): Promise<Blob> {
@@ -422,7 +413,7 @@ class ApiService {
       (import.meta.env.VITE_SCHOOL_API_KEY as string) ||
       (import.meta.env.VITE_API_KEY as string) ||
       (import.meta.env.VITE_SCHOOLS_API_KEY as string);
-    const url = buildApiUrl(`/csv/jobs/${id}/export-failed`);
+    const url = buildApiUrl(`/api/csv/jobs/${id}/export-failed`);
     const headers: Record<string, string> = {};
     if (apiKey) headers['x-api-key'] = apiKey;
     const resp = await fetch(url, {
@@ -438,7 +429,7 @@ class ApiService {
   // People/Users methods
   async getUsers(filters?: any) {
     const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : '';
-    return this.get(`/users${queryParams}`);
+    return this.get(`/api/users${queryParams}`);
   }
 
   // Schools CRUD methods
@@ -453,7 +444,7 @@ class ApiService {
     school_type?: string;
   }) {
     console.log(`[ApiService] getSchools (direct) called with filters:`, filters);
-    const result = await this.getWithParams<any>('/schools', filters ?? {});
+    const result = await this.getWithParams<any>('/api/schools', filters ?? {});
     const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
     // Normalize and dedupe
     const normalizedSchools = this.dedupeSchools(
@@ -466,59 +457,59 @@ class ApiService {
   // Statistics endpoints for real data
   async getSchoolsStatistics() {
     console.log('[ApiService] Fetching schools statistics');
-    return this.get('/schools/statistics/status');
+    return this.get('/api/schools/statistics/status');
   }
 
   async getStateWiseStats() {
     console.log('[ApiService] Fetching state-wise statistics');
-    return this.get('/schools/statistics/states');
+    return this.get('/api/schools/statistics/states');
   }
 
   async getDistrictWiseStats() {
     console.log('[ApiService] Fetching district-wise statistics');
-    return this.get('/schools/statistics/districts');
+    return this.get('/api/schools/statistics/districts');
   }
 
   async getManagementStats() {
     console.log('[ApiService] Fetching management-wise statistics');
-    return this.get('/schools/statistics/management');
+    return this.get('/api/schools/statistics/management');
   }
 
   async getSchool(id: string | number) {
-    return this.get(`/schools/${id}`);
+    return this.get(`/api/schools/${id}`);
   }
 
   async createSchool(data: any) {
-    return this.post('/schools', data);
+    return this.post('/api/schools', data);
   }
 
   async updateSchool(id: string | number, data: any) {
-    return this.put(`/schools/${id}`, data);
+    return this.put(`/api/schools/${id}`, data);
   }
 
   async deleteSchool(id: string | number) {
-    return this.delete(`/schools/${id}`);
+    return this.delete(`/api/schools/${id}`);
   }
 
   async approveSchool(id: string | number) {
-    return this.post(`/schools/${id}/approve`, {});
+    return this.post(`/api/schools/${id}/approve`, {});
   }
 
   async validateSchool(id: string | number) {
-    return this.post(`/schools/${id}/validate`, {});
+    return this.post(`/api/schools/${id}/validate`, {});
   }
 
   async connectUser(userId: string) {
-    return this.post(`/connections/request`, { userId });
+    return this.post(`/api/connections/request`, { userId });
   }
 
   async getUserProfile(userId: string) {
-    return this.get(`/users/${userId}`);
+    return this.get(`/api/users/${userId}`);
   }
 
   // Health Check
   async checkHealth() {
-    return this.get('/health');
+    return this.get('/api/health');
   }
 
   // Enhanced Search Methods
@@ -533,7 +524,7 @@ class ApiService {
     if (filters) {
       Object.assign(params, filters);
     }
-    const result = await this.getWithParams<any>('/schools', params);
+    const result = await this.getWithParams<any>('/api/schools', params);
     const { schools: schoolsArray, summary } = this.unwrapSchoolsResponse(result);
     const normalizedSchools = this.dedupeSchools(
       (schoolsArray || []).map((school) => this.normalizeSchool(school))
