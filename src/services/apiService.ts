@@ -164,13 +164,21 @@ class ApiService {
         throw new Error(`Proxy request failed: ${error.message}`);
       }
 
-      if (!data.ok) {
+      if (!data || !data.ok) {
         console.error(`[ApiService] API returned error:`, data);
-        throw new Error(`API Error ${data.status}: ${data.statusText}`);
+        throw new Error(`API Error ${data?.status || 'Unknown'}: ${data?.statusText || 'Unknown error'}`);
       }
 
       console.log(`[ApiService] Proxy response success:`, data);
-      return data.bodyJson || data.bodyText;
+      
+      // Return the response body, ensuring we don't return null
+      const responseBody = data.bodyJson || data.bodyText;
+      if (responseBody === null || responseBody === undefined) {
+        console.warn(`[ApiService] Response body is null, returning empty object`);
+        return {} as T;
+      }
+      
+      return responseBody;
     } catch (error) {
       console.error(`[ApiService] Proxy request failed:`, error);
       throw error;

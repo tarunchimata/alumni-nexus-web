@@ -1,25 +1,17 @@
-import React, { useState } from 'react';
+/**
+ * School Form Modal Component
+ * Provides create and edit functionality for schools
+ */
+
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { apiService } from '@/services/apiService';
-
-interface School {
-  id?: number | string;
-  schoolName: string;
-  udiseCode?: string;
-  stateName: string;
-  districtName: string;
-  blockName?: string;
-  institutionId?: string;
-  schoolType?: string;
-  managementType?: string;
-  status?: string;
-}
+import { School } from '@/lib/apiTransforms';
 
 interface SchoolFormModalProps {
   isOpen: boolean;
@@ -37,182 +29,226 @@ export const SchoolFormModal: React.FC<SchoolFormModalProps> = ({
   mode
 }) => {
   const [formData, setFormData] = useState<School>({
-    schoolName: school?.schoolName || '',
-    udiseCode: school?.udiseCode || '',
-    stateName: school?.stateName || '',
-    districtName: school?.districtName || '',
-    blockName: school?.blockName || '',
-    institutionId: school?.institutionId || '',
-    schoolType: school?.schoolType || '',
-    managementType: school?.managementType || '',
-    status: school?.status || 'pending'
+    id: '',
+    schoolName: '',
+    udiseCode: null,
+    stateName: '',
+    districtName: '',
+    blockName: null,
+    institutionId: '',
+    schoolType: null,
+    management: null,
+    status: 'active',
+    createdAt: '',
+    updatedAt: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (school && mode === 'edit') {
+      setFormData(school);
+    } else {
+      setFormData({
+        id: '',
+        schoolName: '',
+        udiseCode: null,
+        stateName: '',
+        districtName: '',
+        blockName: null,
+        institutionId: '',
+        schoolType: null,
+        management: null,
+        status: 'active',
+        createdAt: '',
+        updatedAt: ''
+      });
+    }
+  }, [school, mode, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.schoolName.trim() || !formData.stateName.trim()) {
+    if (!formData.schoolName || !formData.stateName || !formData.districtName) {
       toast.error('Please fill in all required fields');
-      return;
-    }
-    
-    if (mode === 'create' && !formData.institutionId?.trim()) {
-      toast.error('Institution ID is required for new schools');
       return;
     }
 
     setIsLoading(true);
+    
     try {
       if (mode === 'create') {
-        const payload = {
-          institutionId: formData.institutionId,
-          schoolName: formData.schoolName,
-          stateName: formData.stateName,
-          districtName: formData.districtName || undefined,
-          udiseCode: formData.udiseCode || undefined, // Fixed field name
-          address: formData.blockName || undefined,
-          contactNumber: undefined,
-          schoolType: formData.schoolType || undefined,
-          managementType: formData.managementType || undefined
-        };
-        console.log('[SchoolFormModal] Creating school with payload:', payload);
-        await apiService.createSchool(payload);
-        toast.success('School created successfully and sent for approval');
+        await apiService.createSchool(formData);
+        toast.success('School created successfully');
       } else {
-        const payload = {
-          schoolName: formData.schoolName,
-          stateName: formData.stateName,
-          districtName: formData.districtName || undefined,
-          status: formData.status || undefined
-        };
-        console.log('[SchoolFormModal] Updating school with payload:', payload);
-        await apiService.updateSchool(school!.id!, payload);
+        await apiService.updateSchool(school!.id!, formData);
         toast.success('School updated successfully');
       }
+      
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error saving school:', error);
-      toast.error(mode === 'create' ? 'Failed to create school' : 'Failed to update school');
+      console.error('School operation failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Operation failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof School, value: string) => {
+  const handleInputChange = (field: keyof School, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Add New School' : 'Edit School'}
+            {mode === 'create' ? 'Create New School' : 'Edit School'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="schoolName">School Name *</Label>
-            <Input
-              id="schoolName"
-              value={formData.schoolName}
-              onChange={(e) => handleInputChange('schoolName', e.target.value)}
-              placeholder="Enter school name"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="schoolName">School Name *</Label>
+              <Input
+                id="schoolName"
+                value={formData.schoolName}
+                onChange={(e) => handleInputChange('schoolName', e.target.value)}
+                placeholder="Enter school name"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="udiseCode">UDISE Code</Label>
+              <Input
+                id="udiseCode"
+                value={formData.udiseCode || ''}
+                onChange={(e) => handleInputChange('udiseCode', e.target.value || null)}
+                placeholder="Enter UDISE code"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="blockName">Block</Label>
+              <Input
+                id="blockName"
+                value={formData.blockName || ''}
+                onChange={(e) => handleInputChange('blockName', e.target.value || null)}
+                placeholder="Enter block name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="stateName">State *</Label>
+              <Select
+                value={formData.stateName}
+                onValueChange={(value) => handleInputChange('stateName', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
+                  <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
+                  <SelectItem value="Delhi">Delhi</SelectItem>
+                  <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                  <SelectItem value="Karnataka">Karnataka</SelectItem>
+                  <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="districtName">District *</Label>
+              <Input
+                id="districtName"
+                value={formData.districtName}
+                onChange={(e) => handleInputChange('districtName', e.target.value)}
+                placeholder="Enter district name"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="blockName">Block</Label>
+              <Input
+                id="blockName"
+                value={formData.blockName || ''}
+                onChange={(e) => handleInputChange('blockName', e.target.value || null)}
+                placeholder="Enter block name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="institutionId">Institution ID</Label>
+              <Input
+                id="institutionId"
+                value={formData.institutionId}
+                onChange={(e) => handleInputChange('institutionId', e.target.value)}
+                placeholder="Enter institution ID"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="schoolType">School Type</Label>
+              <Select
+                value={formData.schoolType || ''}
+                onValueChange={(value) => handleInputChange('schoolType', value || null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select school type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Primary">Primary</SelectItem>
+                  <SelectItem value="Upper Primary">Upper Primary</SelectItem>
+                  <SelectItem value="Secondary">Secondary</SelectItem>
+                  <SelectItem value="Higher Secondary">Higher Secondary</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="management">Management Type</Label>
+              <Select
+                value={formData.management || ''}
+                onValueChange={(value) => handleInputChange('management', value || null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select management type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Government">Government</SelectItem>
+                  <SelectItem value="Private">Private</SelectItem>
+                  <SelectItem value="Aided">Aided</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="status">Status *</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => handleInputChange('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="udiseCode">UDISE Code</Label>
-            <Input
-              id="udiseCode"
-              value={formData.udiseCode}
-              onChange={(e) => handleInputChange('udiseCode', e.target.value)}
-              placeholder="Enter UDISE code"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="stateName">State *</Label>
-            <Input
-              id="stateName"
-              value={formData.stateName}
-              onChange={(e) => handleInputChange('stateName', e.target.value)}
-              placeholder="Enter state name"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="districtName">District *</Label>
-            <Input
-              id="districtName"
-              value={formData.districtName}
-              onChange={(e) => handleInputChange('districtName', e.target.value)}
-              placeholder="Enter district name"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="institutionId">Institution ID {mode === 'create' ? '*' : ''}</Label>
-            <Input
-              id="institutionId"
-              value={formData.institutionId}
-              onChange={(e) => handleInputChange('institutionId', e.target.value)}
-              placeholder="Enter institution ID"
-              required={mode === 'create'}
-              disabled={mode === 'edit'}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="blockName">Block</Label>
-            <Input
-              id="blockName"
-              value={formData.blockName}
-              onChange={(e) => handleInputChange('blockName', e.target.value)}
-              placeholder="Enter block name"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="schoolType">School Type</Label>
-            <Select value={formData.schoolType} onValueChange={(value) => handleInputChange('schoolType', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select school type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="primary">Primary</SelectItem>
-                <SelectItem value="secondary">Secondary</SelectItem>
-                <SelectItem value="higher_secondary">Higher Secondary</SelectItem>
-                <SelectItem value="combined">Combined</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="managementType">Management Type</Label>
-            <Select value={formData.managementType} onValueChange={(value) => handleInputChange('managementType', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select management type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="government">Government</SelectItem>
-                <SelectItem value="private">Private</SelectItem>
-                <SelectItem value="aided">Aided</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? 'Saving...' : mode === 'create' ? 'Create School' : 'Update School'}
             </Button>
           </div>
