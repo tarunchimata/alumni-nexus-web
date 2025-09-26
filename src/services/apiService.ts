@@ -400,6 +400,70 @@ class ApiService {
     return this.get(`/api/dashboard/${role}`);
   }
 
+  // =========================
+  // New High-Performance School Endpoints
+  // =========================
+
+  // Get all hierarchical data (states, districts, schools) in one call
+  async getHierarchicalData(): Promise<any> {
+    return this.get('/api/hierarchical');
+  }
+
+  // Get all states with school counts
+  async getStates(): Promise<any> {
+    return this.get('/api/states');
+  }
+
+  // Get comprehensive statistics
+  async getComprehensiveStats(): Promise<any> {
+    return this.get('/api/comprehensive-stats');
+  }
+
+  // Get top states by school count
+  async getTopStates(limit: number = 10): Promise<any> {
+    return this.getWithParams('/api/top-states', { limit });
+  }
+
+  // Get schools by category
+  async getSchoolsByCategory(): Promise<any> {
+    return this.get('/api/schools-by-category');
+  }
+
+  // Get schools by management type
+  async getSchoolsByManagement(): Promise<any> {
+    return this.get('/api/schools-by-management');
+  }
+
+  // Get schools by type
+  async getSchoolsByType(): Promise<any> {
+    return this.get('/api/schools-by-type');
+  }
+
+  // Search states
+  async searchStates(query: string): Promise<any> {
+    return this.getWithParams('/api/search-states', { q: query });
+  }
+
+  // Get state details
+  async getStateDetails(stateName: string): Promise<any> {
+    return this.get(`/api/state/${encodeURIComponent(stateName)}/details`);
+  }
+
+  // Get districts for a specific state
+  async getStateDistricts(state: string): Promise<any> {
+    return this.get(`/api/states/${encodeURIComponent(state)}/districts`);
+  }
+
+  // Get districts with school counts for a specific state
+  async getDistrictsWithSchools(state: string): Promise<any> {
+    return this.get(`/api/states/${encodeURIComponent(state)}/districts-with-schools`);
+  }
+
+  // Get schools for a specific state and district
+  async getSchoolsByStateDistrict(state: string, district: string): Promise<any> {
+    return this.get(`/api/states/${encodeURIComponent(state)}/districts/${encodeURIComponent(district)}/schools`);
+  }
+
   // CSV Import methods
   async uploadCSV(file: File, type: 'users' | 'schools') {
     return this.uploadFile(`/api/csv/upload/${type}`, file);

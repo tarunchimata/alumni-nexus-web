@@ -24,6 +24,8 @@ import { SchoolsDataGrid } from './SchoolsDataGrid';
 import { SchoolsAnalytics } from './SchoolsAnalytics';
 import { SchoolFormModal } from './SchoolFormModal';
 import { useSchoolsQuery, useSchoolsStats, useStatesOptions, useInvalidateSchools, SchoolFilters } from '@/hooks/useSchoolsQuery';
+import { useDistrictsOptions, useManagementOptions, useSchoolTypeOptions, useStatusOptions } from '@/hooks/useDistrictsOptions';
+import { DynamicSchoolFilters } from './DynamicSchoolFilters';
 import { type School } from '@/lib/apiTransforms';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiService } from '@/services/apiService';
@@ -71,16 +73,32 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
   const schoolsQuery = useSchoolsQuery(filters);
   const statsQuery = useSchoolsStats();
   const statesQuery = useStatesOptions();
+  
+  // Dynamic filter options based on selected state
+  const districtsQuery = useDistrictsOptions(filters.state);
+  const managementQuery = useManagementOptions();
+  const schoolTypeQuery = useSchoolTypeOptions();
+  const statusQuery = useStatusOptions();
 
   const schools = schoolsQuery.data?.schools || [];
   const pagination = schoolsQuery.data?.pagination || { page: 1, limit: 50, total: 0, pages: 0 };
   const totalCount = pagination.total;
   const stats = statsQuery.data;
 
-  // Handlers
   const handleFilterChange = (key: keyof SchoolFilters, value: any) => {
     if (key === 'search') {
       setSearchInput(value);
+      return;
+    }
+    
+    // Clear district when state changes
+    if (key === 'state') {
+      setFilters(prev => ({
+        ...prev,
+        state: value,
+        district: undefined, // Clear district when state changes
+        page: 1
+      }));
       return;
     }
     
@@ -89,6 +107,11 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
       [key]: value,
       page: key === 'page' ? value : 1 // Reset to page 1 when filters change
     }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ page: 1, limit: 50 });
+    setSearchInput('');
   };
 
   const handleApproveSchool = async (schoolId: number) => {
@@ -177,7 +200,25 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
+            className="space-y-6"
           >
+            {/* Dynamic Filters */}
+            <DynamicSchoolFilters
+              filters={filters}
+              searchInput={searchInput}
+              onFilterChange={handleFilterChange}
+              onSearchChange={setSearchInput}
+              onClearFilters={handleClearFilters}
+              onRefresh={handleRefresh}
+              statesOptions={statesQuery.data || []}
+              districtsOptions={districtsQuery.data || []}
+              managementOptions={managementQuery.data || []}
+              schoolTypeOptions={schoolTypeQuery.data || []}
+              statusOptions={statusQuery.data || []}
+              loading={schoolsQuery.isLoading}
+            />
+            
+            {/* Schools Data Grid */}
             <SchoolsDataGrid
               schools={schools}
               loading={schoolsQuery.isLoading}

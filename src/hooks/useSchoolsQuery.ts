@@ -102,54 +102,64 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
   });
 };
 
-// Schools statistics (counts only)
+// Schools statistics using comprehensive stats endpoint
 export const useSchoolsStats = () => {
   return useQuery({
     queryKey: ['schools-stats'],
     queryFn: async () => {
-      console.log('[useSchoolsStats] Fetching real statistics from API endpoints...');
+      console.log('[useSchoolsStats] Fetching comprehensive statistics...');
       
       try {
-        // Get real statistics from dedicated endpoints
-        const [statusResponse, statesResponse] = await Promise.all([
-          apiService.getSchoolsStatistics(),
-          apiService.getStateWiseStats(),
+        // Use the new comprehensive stats endpoint
+        const [comprehensiveStats, managementStats, categoryStats] = await Promise.all([
+          apiService.getComprehensiveStats(),
+          apiService.getSchoolsByManagement(),
+          apiService.getSchoolsByCategory(),
         ]);
         
-        console.log('[useSchoolsStats] Status response:', statusResponse);
-        console.log('[useSchoolsStats] States response:', statesResponse);
+        console.log('[useSchoolsStats] Comprehensive stats:', comprehensiveStats);
+        console.log('[useSchoolsStats] Management stats:', managementStats);
         
-        // Extract real total count with proper typing
-        const statusData = statusResponse as any;
-        const statesData = statesResponse as any;
+        const statsData = comprehensiveStats as any;
         
-        const totalCount = statusData?.summary?.totalSchools || 
-                          parseInt(statusData?.data?.[0]?.count) || 0;
+        // Extract total count
+        const totalCount = statsData?.totalSchools || 
+                          statsData?.summary?.totalSchools ||
+                          statsData?.data?.totalSchools || 0;
         
-        // For now, assume most schools are active (based on your API showing only active status)
-        const activeCount = totalCount;
-        const pendingCount = 0;
-        const rejectedCount = 0;
+        // Extract status breakdown
+        const activeCount = statsData?.activeSchools || 
+                           statsData?.byStatus?.active || 
+                           totalCount; // Fallback to total if no breakdown
+        const pendingCount = statsData?.pendingSchools || 
+                            statsData?.byStatus?.pending || 0;
+        const rejectedCount = statsData?.rejectedSchools || 
+                             statsData?.byStatus?.rejected || 0;
         
-        // Extract real state data
+        // Extract state data
         const byState: Record<string, number> = {};
-        if (statesData?.data && Array.isArray(statesData.data)) {
-          statesData.data.forEach((item: any) => {
-            const stateName = item.state_name || item.stateName;
-            const count = parseInt(item.count) || 0;
-            if (stateName && count > 0) {
-              byState[stateName] = count;
-            }
+        if (statsData?.byState) {
+          Object.entries(statsData.byState).forEach(([state, count]) => {
+            byState[state] = parseInt(String(count)) || 0;
           });
         }
         
-        // Get management stats (placeholder - will be replaced when endpoint is available)
-        const byManagement: Record<string, number> = {
-          'Government': Math.round(totalCount * 0.75),
-          'Private': Math.round(totalCount * 0.15),
-          'Aided': Math.round(totalCount * 0.08),
-          'Others': Math.round(totalCount * 0.02)
-        };
+        // Extract management data from dedicated endpoint
+        const byManagement: Record<string, number> = {};
+        const managementData = managementStats as any;
+        if (managementData?.data && Array.isArray(managementData.data)) {
+          managementData.data.forEach((item: any) => {
+            const type = item.management_type || item.managementType || item.type;
+            const count = parseInt(item.count) || 0;
+            if (type && count > 0) {
+              byManagement[type] = count;
+            }
+          });
+        } else if (statsData?.byManagement) {
+          Object.entries(statsData.byManagement).forEach(([type, count]) => {
+            byManagement[type] = parseInt(String(count)) || 0;
+          });
+        }
         
         const stats = {
           total: totalCount,
@@ -160,10 +170,10 @@ export const useSchoolsStats = () => {
           byManagement,
         };
         
-        console.log('[useSchoolsStats] Real stats calculated:', stats);
+        console.log('[useSchoolsStats] Comprehensive stats calculated:', stats);
         return stats;
       } catch (error) {
-        console.error('[useSchoolsStats] Error fetching real stats:', error);
+        console.error('[useSchoolsStats] Error fetching comprehensive stats:', error);
         return {
           total: 0,
           active: 0,
@@ -179,19 +189,29 @@ export const useSchoolsStats = () => {
   });
 };
 
-// Hook for real state options (for filters)
+// Hook for state options using new states endpoint
 export const useStatesOptions = () => {
   return useQuery({
     queryKey: ['states-options'],
     queryFn: async () => {
-      const response = await apiService.getStateWiseStats();
+      const response = await apiService.getStates();
       const responseData = response as any;
-      if (responseData?.data && Array.isArray(responseData.data)) {
-        return responseData.data
+      
+      if (responseData?.states && Array.isArray(responseData.states)) {
+        return responseData.states
           .map((item: any) => ({
-            value: item.state_name || item.stateName,
-            label: item.state_name || item.stateName,
-            count: parseInt(item.count) || 0
+            value: item.name || item.state_name || item.stateName,
+            label: item.name || item.state_name || item.stateName,
+            count: parseInt(item.school_count || item.schoolCount || item.count) || 0
+          }))
+          .filter((item: any) => item.value && item.count > 0)
+          .sort((a: any, b: any) => b.count - a.count);
+      } else if (Array.isArray(responseData)) {
+        return responseData
+          .map((item: any) => ({
+            value: item.name || item.state_name || item.stateName,
+            label: item.name || item.state_name || item.stateName,
+            count: parseInt(item.school_count || item.schoolCount || item.count) || 0
           }))
           .filter((item: any) => item.value && item.count > 0)
           .sort((a: any, b: any) => b.count - a.count);
