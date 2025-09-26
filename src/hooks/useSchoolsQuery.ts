@@ -33,24 +33,112 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
     queryFn: async (): Promise<SchoolsResponse> => {
       console.log('[useSchoolsQuery] Fetching with filters:', filters);
       
-      const apiFilters: any = {};
-      if (filters.search) apiFilters.search = filters.search;
-      if (filters.status && filters.status !== 'all') apiFilters.status = filters.status;
-      if (filters.management && filters.management !== 'all') apiFilters.management = filters.management;
-      if (filters.state && filters.state !== 'all') apiFilters.state = filters.state;
-      if (filters.district && filters.district !== 'all') apiFilters.district = filters.district;
-      if (filters.schoolType && filters.schoolType !== 'all') apiFilters.school_type = filters.schoolType;
-      if (filters.establishment && filters.establishment !== 'all') apiFilters.establishment = filters.establishment;
-      if (filters.limit) apiFilters.limit = filters.limit.toString();
-      if (filters.page) {
-        const offset = ((filters.page - 1) * (filters.limit || 50));
-        apiFilters.offset = offset.toString();
+      let response: any;
+      
+      // Use high-performance endpoints based on filter selection
+      if (filters.state && filters.state !== 'all' && filters.district && filters.district !== 'all') {
+        // Most specific: state + district - use direct endpoint
+        console.log(`[useSchoolsQuery] Using state+district endpoint: /api/states/${filters.state}/districts/${filters.district}/schools`);
+        response = await apiService.getSchoolsByStateDistrict(filters.state, filters.district);
+        
+        // Apply client-side filters for responsiveness
+        if (response && Array.isArray(response)) {
+          let filteredSchools = response;
+          
+          if (filters.search) {
+            const searchTerm = filters.search.toLowerCase();
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.school_name || school.name || '').toLowerCase().includes(searchTerm) ||
+              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm)
+            );
+          }
+          
+          if (filters.status && filters.status !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.status || '').toLowerCase() === filters.status.toLowerCase()
+            );
+          }
+          
+          if (filters.management && filters.management !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.management || school.management_type || '').toLowerCase() === filters.management.toLowerCase()
+            );
+          }
+          
+          if (filters.schoolType && filters.schoolType !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.school_type || school.schoolType || '').toLowerCase() === filters.schoolType.toLowerCase()
+            );
+          }
+          
+          response = filteredSchools;
+        }
+      } else if (filters.state && filters.state !== 'all') {
+        // State only: use hierarchical data and filter client-side for speed
+        console.log('[useSchoolsQuery] Using hierarchical data filtered by state:', filters.state);
+        const hierarchicalData = await apiService.getHierarchicalData();
+        
+        if (hierarchicalData?.schools && Array.isArray(hierarchicalData.schools)) {
+          let filteredSchools = hierarchicalData.schools.filter((school: any) => 
+            (school.state_name || school.stateName || '').toLowerCase() === filters.state.toLowerCase()
+          );
+          
+          // Apply other filters client-side
+          if (filters.search) {
+            const searchTerm = filters.search.toLowerCase();
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.school_name || school.name || '').toLowerCase().includes(searchTerm) ||
+              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm)
+            );
+          }
+          
+          if (filters.status && filters.status !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.status || '').toLowerCase() === filters.status.toLowerCase()
+            );
+          }
+          
+          if (filters.management && filters.management !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.management || school.management_type || '').toLowerCase() === filters.management.toLowerCase()
+            );
+          }
+          
+          if (filters.schoolType && filters.schoolType !== 'all') {
+            filteredSchools = filteredSchools.filter((school: any) => 
+              (school.school_type || school.schoolType || '').toLowerCase() === filters.schoolType.toLowerCase()
+            );
+          }
+          
+          response = filteredSchools;
+        }
+      } else {
+        // No specific state/district: try /api/schools with fallback to hierarchical
+        console.log('[useSchoolsQuery] Using general schools endpoint with filters');
+        try {
+          const apiFilters: any = {};
+          if (filters.search) apiFilters.search = filters.search;
+          if (filters.status && filters.status !== 'all') apiFilters.status = filters.status;
+          if (filters.management && filters.management !== 'all') apiFilters.management = filters.management;
+          if (filters.schoolType && filters.schoolType !== 'all') apiFilters.school_type = filters.schoolType;
+          if (filters.establishment && filters.establishment !== 'all') apiFilters.establishment = filters.establishment;
+          if (filters.limit) apiFilters.limit = filters.limit.toString();
+          if (filters.page) {
+            const offset = ((filters.page - 1) * (filters.limit || 50));
+            apiFilters.offset = offset.toString();
+          }
+          
+          response = await apiService.getSchools(apiFilters);
+        } catch (error) {
+          console.warn('[useSchoolsQuery] General schools endpoint failed, falling back to hierarchical data');
+          const hierarchicalData = await apiService.getHierarchicalData();
+          response = hierarchicalData?.schools || [];
+        }
       }
       
-      const response = await apiService.getSchools(apiFilters);
-      console.log('[useSchoolsQuery] API response:', response);
+      console.log('[useSchoolsQuery] Final API response:', response);
       
-      // Handle the new response format from updated API service
+      // Handle the response format and transform schools
       let schools, pagination;
       
       if ((response as any).schools) {
@@ -61,9 +149,9 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
         let totalCount = (response as any).summary?.totalSchools || (response as any).summary?.total;
         if (!totalCount) {
           try {
-            const statsResponse = await apiService.getSchoolsStatistics();
+            const statsResponse = await apiService.getComprehensiveStats();
             const statsData = statsResponse as any;
-            totalCount = statsData?.summary?.totalSchools || parseInt(statsData?.data?.[0]?.count) || 0;
+            totalCount = statsData?.totalSchools || 0;
           } catch (error) {
             console.warn('[useSchoolsQuery] Could not get total count from statistics');
             totalCount = (response as any).schools.length;
@@ -77,14 +165,25 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
           pages: Math.ceil(totalCount / (filters.limit || 50))
         };
       } else if (Array.isArray(response)) {
-        // Fallback for direct array response
+        // Direct array response from high-performance endpoints
         schools = transformSchools(response);
+        
+        // For client-side filtering, use actual array length
+        const totalCount = schools.length;
+        
+        // Apply pagination client-side for filtered results
+        const startIndex = ((filters.page || 1) - 1) * (filters.limit || 50);
+        const endIndex = startIndex + (filters.limit || 50);
+        const paginatedSchools = schools.slice(startIndex, endIndex);
+        
         pagination = {
           page: filters.page || 1,
           limit: filters.limit || 50,
-          total: response.length,
-          pages: 1
+          total: totalCount,
+          pages: Math.ceil(totalCount / (filters.limit || 50))
         };
+        
+        schools = paginatedSchools;
       } else {
         schools = [];
         pagination = {
