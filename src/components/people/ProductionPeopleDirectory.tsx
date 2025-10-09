@@ -62,137 +62,43 @@ export const ProductionPeopleDirectory = () => {
   const fetchPeople = async () => {
     setIsLoading(true);
     try {
-      console.log('[PeopleDirectory] Fetching users from external API');
+      console.log('[PeopleDirectory] Fetching users from Keycloak with authentication...');
       
-      try {
-        // Fetch from external API - expects direct array response (snake_case)
-        const apiResponse = await apiService.get<ApiUser[]>('/users');
+      // Use apiService which includes proper Keycloak authentication headers
+      const apiResponse = await apiService.get<ApiUser[]>('/api/users');
+      
+      if (Array.isArray(apiResponse)) {
+        console.log('[PeopleDirectory] Keycloak users received:', apiResponse.length);
         
-        if (Array.isArray(apiResponse)) {
-          console.log('[PeopleDirectory] API Response (direct array):', apiResponse.slice(0, 2));
-          
-          // Transform snake_case API response to camelCase frontend format
-          const transformedUsers = transformUsers(apiResponse);
-          
-          // Convert to Person format for the component
-          const realPeople: Person[] = transformedUsers.map((user) => ({
-            id: user.id.toString(),
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            role: user.role,
-            avatar: '',
-            status: 'offline' as const,
-            school: user.schoolName || '',
-            department: '',
-            graduationYear: undefined,
-            connections: 0,
-            isConnected: false,
-            isPendingConnection: false
-          }));
-          
-          setPeople(realPeople);
-          console.log('[PeopleDirectory] Successfully loaded', realPeople.length, 'users from external API');
-        } else {
-          throw new Error('Expected array response from external API');
-        }
-      } catch (apiError) {
-        console.warn('[PeopleDirectory] External API failed, using fallback data:', apiError);
+        // Transform snake_case API response to camelCase frontend format
+        const transformedUsers = transformUsers(apiResponse);
         
-        // Fallback to sample data if API fails
-        const samplePeople: Person[] = [
-          {
-            id: '1',
-            firstName: 'Sarah',
-            lastName: 'Chen',
-            email: 'sarah.chen@school.edu',
-            role: 'alumni',
-            avatar: '',
-            status: 'online',
-            school: 'Lincoln High School',
-            graduationYear: 2019,
-            connections: 45,
-            isConnected: false,
-            isPendingConnection: false
-          },
-          {
-            id: '2',
-            firstName: 'Michael',
-            lastName: 'Rodriguez',
-            email: 'michael.r@school.edu',
-            role: 'teacher',
-            avatar: '',
-            status: 'online',
-            school: 'Lincoln High School',
-            department: 'Mathematics',
-            connections: 78,
-            isConnected: true,
-            isPendingConnection: false
-          },
-          {
-            id: '3',
-            firstName: 'Emma',
-            lastName: 'Wilson',
-            email: 'emma.wilson@school.edu',
-            role: 'student',
-            avatar: '',
-            status: 'away',
-            school: 'Lincoln High School',
-            connections: 23,
-            isConnected: false,
-            isPendingConnection: true
-          },
-          {
-            id: '4',
-            firstName: 'David',
-            lastName: 'Kim',
-            email: 'david.kim@school.edu',
-            role: 'alumni',
-            avatar: '',
-            status: 'offline',
-            school: 'Lincoln High School',
-            graduationYear: 2018,
-            connections: 67,
-            isConnected: false,
-            isPendingConnection: false
-          },
-          {
-            id: '5',
-            firstName: 'Lisa',
-            lastName: 'Johnson',
-            email: 'lisa.j@school.edu',
-            role: 'school_admin',
-            avatar: '',
-            status: 'online',
-            school: 'Lincoln High School',
-            connections: 156,
-            isConnected: true,
-            isPendingConnection: false
-          }
-        ];
-        
-        setPeople(samplePeople);
-      }
-    } catch (error) {
-      toast.error('Failed to load people directory');
-      console.error('Failed to fetch people:', error);
-      // Set sample data on error
-      const samplePeople: Person[] = [
-        {
-          id: '1',
-          firstName: 'Sample',
-          lastName: 'User',
-          email: 'sample@school.edu',
-          role: 'student',
+        // Convert to Person format for the component
+        const realPeople: Person[] = transformedUsers.map((user) => ({
+          id: user.id.toString(),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
           avatar: '',
-          status: 'offline',
-          school: 'Sample School',
+          status: 'offline' as const,
+          school: user.schoolName || '',
+          department: '',
+          graduationYear: undefined,
           connections: 0,
           isConnected: false,
           isPendingConnection: false
-        }
-      ];
-      setPeople(samplePeople);
+        }));
+        
+        setPeople(realPeople);
+        console.log('[PeopleDirectory] Successfully loaded', realPeople.length, 'users from Keycloak');
+      } else {
+        throw new Error('Expected array response from users API');
+      }
+    } catch (error) {
+      console.error('[PeopleDirectory] Error fetching users from Keycloak:', error);
+      toast.error('Failed to load users from Keycloak. Please ensure you are logged in.');
+      setPeople([]);
     } finally {
       setIsLoading(false);
     }

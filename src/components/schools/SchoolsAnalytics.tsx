@@ -1,6 +1,8 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { apiService } from '@/services/apiService';
 import { 
   School, 
   Users, 
@@ -27,7 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 
 interface SchoolsAnalyticsProps {
-  stats: {
+  stats?: {
     total: number;
     active: number;
     pending: number;
@@ -50,7 +52,50 @@ const COLORS = {
   unknown: 'hsl(215, 16%, 47%)',     // Muted for unknown
 };
 
-export const SchoolsAnalytics: React.FC<SchoolsAnalyticsProps> = ({ stats, loading }) => {
+export const SchoolsAnalytics: React.FC<SchoolsAnalyticsProps> = ({ stats: propStats, loading: propLoading }) => {
+  // Fetch fresh comprehensive stats data
+  const { data: apiStats, isLoading: queryLoading } = useQuery({
+    queryKey: ['schools-comprehensive-stats'],
+    queryFn: async () => {
+      try {
+        const response = await apiService.getComprehensiveStats();
+        console.log('[SchoolsAnalytics] Comprehensive stats from API:', response);
+        
+        // Transform API response to match expected format
+        return {
+          total: response?.totalSchools || 0,
+          active: response?.statusBreakdown?.active || response?.statusBreakdown?.approved || 0,
+          pending: response?.statusBreakdown?.pending || 0,
+          rejected: response?.statusBreakdown?.rejected || response?.statusBreakdown?.inactive || 0,
+          byState: response?.topStates || {},
+          byManagement: response?.managementBreakdown || {},
+        };
+      } catch (error) {
+        console.error('[SchoolsAnalytics] Error fetching comprehensive stats:', error);
+        return {
+          total: 0,
+          active: 0,
+          pending: 0,
+          rejected: 0,
+          byState: {},
+          byManagement: {},
+        };
+      }
+    },
+  });
+
+  // Use API stats if available, otherwise fall back to props
+  const stats = apiStats || propStats || {
+    total: 0,
+    active: 0,
+    pending: 0,
+    rejected: 0,
+    byState: {},
+    byManagement: {},
+  };
+  
+  const loading = queryLoading || propLoading;
+
   const statusData = [
     { name: 'Active', value: stats.active, color: COLORS.active },
     { name: 'Pending', value: stats.pending, color: COLORS.pending },
@@ -60,19 +105,19 @@ export const SchoolsAnalytics: React.FC<SchoolsAnalyticsProps> = ({ stats, loadi
   const managementData = Object.entries(stats.byManagement)
     .map(([name, value]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      value,
+      value: Number(value) || 0,
       color: COLORS[name as keyof typeof COLORS] || COLORS.government
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
   const topStates = Object.entries(stats.byState)
-    .map(([state, count]) => ({ state, count }))
+    .map(([state, count]) => ({ state, count: Number(count) || 0 }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
   const activePercentage = stats.total > 0 ? ((stats.active / stats.total) * 100) : 0;
-  const pendingPercentage = stats.total > 0 ? ((stats.pending / stats.pending) * 100) : 0;
+  const pendingPercentage = stats.total > 0 ? ((stats.pending / stats.total) * 100) : 0;
 
   if (loading) {
     return (

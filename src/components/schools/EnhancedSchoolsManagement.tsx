@@ -23,6 +23,7 @@ import { SchoolsTabs, type SchoolTab } from './SchoolsTabs';
 import { SchoolsDataGrid } from './SchoolsDataGrid';
 import { SchoolsAnalytics } from './SchoolsAnalytics';
 import { SchoolFormModal } from './SchoolFormModal';
+import { SchoolsExportModal } from './SchoolsExportModal';
 import { useSchoolsQuery, useSchoolsStats, useStatesOptions, useInvalidateSchools, SchoolFilters } from '@/hooks/useSchoolsQuery';
 import { useDistrictsOptions, useManagementOptions, useSchoolTypeOptions, useStatusOptions } from '@/hooks/useDistrictsOptions';
 import { DynamicSchoolFilters } from './DynamicSchoolFilters';
@@ -55,6 +56,7 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   // Debounce search input
   useEffect(() => {
@@ -370,6 +372,16 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
             Refresh
           </Button>
           
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+          
           {permissions.canCreateSchools() && (
             <Button 
               onClick={handleCreateSchool}
@@ -411,6 +423,13 @@ const EnhancedSchoolsManagementContent: React.FC = () => {
         onSuccess={handleModalSuccess}
         school={selectedSchool}
         mode={modalMode}
+      />
+
+      {/* Schools Export Modal */}
+      <SchoolsExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        currentFilters={filters}
       />
     </div>
   );

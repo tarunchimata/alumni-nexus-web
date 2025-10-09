@@ -48,9 +48,13 @@ const AnalyticsPage = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Use the proper apiClient which handles authentication
-      const response = await apiService.get<any>('/analytics');
+      // Use apiService which includes proper Keycloak authentication headers
+      const { apiService } = await import('@/services/apiService');
+      const response = await apiService.get<any>('/api/analytics');
+      
+      console.log('[Analytics] API response:', response);
       
       // Map the API response to our expected format
       setAnalyticsData({
@@ -63,11 +67,11 @@ const AnalyticsPage = () => {
       });
       
     } catch (err: any) {
-      console.error('Analytics API error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to load analytics data';
+      console.error('[Analytics] API error:', err);
+      const errorMessage = err.message || 'Failed to load analytics data';
       setError(errorMessage);
       
-      // Show zero data instead of fake sample data
+      // Show zero data on error
       setAnalyticsData({
         totalUsers: 0,
         totalSchools: 0,

@@ -193,9 +193,9 @@ export const endpoints = {
     health: '/api/admin/health',
   },
   analytics: {
-    data: '/analytics',
-    platform: '/analytics/platform',
-    school: '/analytics/school',
+    data: '/api/analytics',
+    platform: '/api/analytics/platform',
+    school: '/api/analytics/school',
   },
   dashboards: {
     platformAdmin: '/api/dashboards/platform-admin',

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { CheckCircle, Users, MessageSquare, Calendar, Settings, ArrowRight, Sparkles } from "lucide-react";
 
 interface WelcomeStep {
@@ -161,8 +162,20 @@ const WelcomePage = () => {
   };
 
   const completeOnboarding = () => {
-    localStorage.setItem(`welcome_completed_${user?.id}`, 'true');
-    navigate('/dashboard');
+    if (user?.id) {
+      localStorage.setItem(`welcome_completed_${user.id}`, 'true');
+      console.log('[Welcome] Onboarding completed for user:', user.id);
+      toast.success('Welcome! Let\'s get started.');
+      navigate('/dashboard');
+    }
+  };
+
+  const skipOnboarding = () => {
+    if (user?.id) {
+      localStorage.setItem(`welcome_completed_${user.id}`, 'true');
+      console.log('[Welcome] Onboarding skipped for user:', user.id);
+      navigate('/dashboard');
+    }
   };
 
   const getRoleDisplayName = (role: string) => {
@@ -270,7 +283,7 @@ const WelcomePage = () => {
           {/* Skip Option */}
           {progress < 100 && (
             <div className="text-center">
-              <Button variant="ghost" onClick={completeOnboarding}>
+              <Button variant="ghost" onClick={skipOnboarding}>
                 Skip for now
               </Button>
             </div>

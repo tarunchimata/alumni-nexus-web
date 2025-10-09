@@ -214,9 +214,21 @@ const OAuth2Callback = () => {
           // Clean URL AFTER successful processing to prevent race condition
           window.history.replaceState({}, document.title, window.location.pathname);
           
-          // Small delay to show success message
+          // Check if user has completed welcome screen
+          const userInfo = await authService.getUserInfo();
+          const hasCompletedWelcome = userInfo?.id 
+            ? localStorage.getItem(`welcome_completed_${userInfo.id}`)
+            : null;
+          
+          // Redirect to welcome screen for new users, otherwise dashboard
           setTimeout(() => {
-            navigate('/dashboard');
+            if (!hasCompletedWelcome && userInfo?.id) {
+              console.log('[OAuth2] New user, redirecting to welcome screen');
+              navigate('/dashboard/welcome');
+            } else {
+              console.log('[OAuth2] Returning user, redirecting to dashboard');
+              navigate('/dashboard');
+            }
           }, 1500);
         } else {
           console.error('[OAuth2Callback] ❌ Token exchange returned false');

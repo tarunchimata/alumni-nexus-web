@@ -449,4 +449,79 @@ router.post('/bulk',
   }
 );
 
+// Export schools data as CSV
+router.get('/export', requireRole(['platform_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { state, district, status, management, type, search, format = 'csv' } = req.query;
+    
+    // Build where clause based on filters
+    const where: any = {};
+    if (state) where.stateName = state;
+    if (district) where.districtName = district;
+    if (status) where.status = status;
+    if (management) where.managementType = management;
+    if (type) where.schoolTypeLegacy = type;
+    if (search) {
+      where.OR = [
+        { schoolName: { contains: search as string, mode: 'insensitive' } },
+        { udiseSchoolCode: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+
+    const schools = await prisma.school.findMany({
+      where,
+      orderBy: { schoolName: 'asc' },
+    });
+
+    // Generate CSV content
+    const headers = [
+      'Institution ID',
+      'School Name',
+      'UDISE Code',
+      'State',
+      'District',
+      'Address',
+      'Contact Number',
+      'Status',
+      'Management Type',
+      'School Type',
+      'Created At'
+    ];
+
+    const csvRows = [headers.join(',')];
+    
+    schools.forEach(school => {
+      const row = [
+        school.institutionId || '',
+        `"${school.schoolName?.replace(/"/g, '""') || ''}"`,
+        school.udiseSchoolCode || '',
+        school.stateName || '',
+        school.districtName || '',
+        `"${school.address?.replace(/"/g, '""') || ''}"`,
+        school.contactNumber || '',
+        school.status || '',
+        school.managementType || '',
+        school.schoolTypeLegacy || '',
+        school.createdAt?.toISOString() || ''
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+    const filename = `schools-export-${Date.now()}.${format}`;
+
+    logger.info(`Schools export by ${req.user!.email}: ${schools.length} schools`);
+    
+    res.json({
+      success: true,
+      data: csvContent,
+      filename,
+      count: schools.length
+    });
+  } catch (error) {
+    logger.error('Schools export error:', error);
+    res.status(500).json({ error: 'Failed to export schools' });
+  }
+});
+
 export default router;
