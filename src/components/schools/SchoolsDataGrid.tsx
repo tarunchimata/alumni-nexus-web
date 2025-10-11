@@ -307,43 +307,6 @@ export const SchoolsDataGrid: React.FC<SchoolsDataGridProps> = ({
           </div>
         </div>
 
-        {/* Quick Filters */}
-        <div className="flex flex-wrap gap-2">
-          <Select
-            value={(table.getColumn('status')?.getFilterValue() as string) ?? 'all'}
-            onValueChange={(value) => 
-              table.getColumn('status')?.setFilterValue(value === 'all' ? '' : value)
-            }
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={(table.getColumn('management')?.getFilterValue() as string) ?? 'all'}
-            onValueChange={(value) =>
-              table.getColumn('management')?.setFilterValue(value === 'all' ? '' : value)
-            }
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="government">Government</SelectItem>
-              <SelectItem value="private">Private</SelectItem>
-              <SelectItem value="aided">Aided</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </CardHeader>
 
       <CardContent className="p-0">
@@ -411,7 +374,7 @@ export const SchoolsDataGrid: React.FC<SchoolsDataGridProps> = ({
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
-              <SelectContent side="top">
+              <SelectContent side="top" className="z-50 bg-white dark:bg-gray-900 shadow-lg border">
                 {[25, 50, 100, 200].map((size) => (
                   <SelectItem key={size} value={`${size}`}>
                     {size}

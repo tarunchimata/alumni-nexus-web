@@ -49,7 +49,9 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
             const searchTerm = filters.search.toLowerCase();
             filteredSchools = filteredSchools.filter((school: any) => 
               (school.school_name || school.name || '').toLowerCase().includes(searchTerm) ||
-              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm)
+              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm) ||
+              (school.district_name || school.districtName || '').toLowerCase().includes(searchTerm) ||
+              (school.state_name || school.stateName || '').toLowerCase().includes(searchTerm)
             );
           }
           
@@ -88,7 +90,9 @@ export const useSchoolsQuery = (filters: SchoolFilters = {}) => {
             const searchTerm = filters.search.toLowerCase();
             filteredSchools = filteredSchools.filter((school: any) => 
               (school.school_name || school.name || '').toLowerCase().includes(searchTerm) ||
-              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm)
+              (school.udise_code || school.udiseCode || '').toLowerCase().includes(searchTerm) ||
+              (school.district_name || school.districtName || '').toLowerCase().includes(searchTerm) ||
+              (school.state_name || school.stateName || '').toLowerCase().includes(searchTerm)
             );
           }
           

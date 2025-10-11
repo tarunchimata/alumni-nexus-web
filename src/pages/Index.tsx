@@ -323,6 +323,16 @@ const Index = () => {
             >
               Register Your School
             </Button>
+            <Link to="/dashboard/schools">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-3 border-white text-white hover:bg-white hover:text-gray-900 px-16 py-6 text-xl font-bold rounded-2xl hover:scale-105 transition-all duration-300 backdrop-blur-sm w-full sm:w-auto"
+              >
+                <School className="mr-2 h-6 w-6" />
+                Browse Schools
+              </Button>
+            </Link>
           </div>
           
           <div className="mt-12 text-lg text-white/80">

@@ -48,7 +48,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Search schools by name, UDISE code, or district..."
+                placeholder="Search schools by name, UDISE, location (state/district)..."
                 value={searchInput}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="pl-10"
@@ -76,7 +76,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="All States" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border shadow-md max-h-[300px] overflow-y-auto">
+                <SelectContent className="z-50 bg-white dark:bg-gray-900 border shadow-lg max-h-[300px] overflow-y-auto">
                   <SelectItem value="all">All States</SelectItem>
                   {statesOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
@@ -107,7 +107,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
                       : "All Districts"
                   } />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border shadow-md max-h-[300px] overflow-y-auto">
+                <SelectContent className="z-50 bg-white dark:bg-gray-900 border shadow-lg max-h-[300px] overflow-y-auto">
                   <SelectItem value="all">All Districts</SelectItem>
                   {districtsOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
@@ -133,7 +133,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border shadow-md">
+                <SelectContent className="z-50 bg-white dark:bg-gray-900 border shadow-lg">
                   <SelectItem value="all">All Status</SelectItem>
                   {statusOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
@@ -159,7 +159,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="All Management" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border shadow-md max-h-[300px] overflow-y-auto">
+                <SelectContent className="z-50 bg-white dark:bg-gray-900 border shadow-lg max-h-[300px] overflow-y-auto">
                   <SelectItem value="all">All Management</SelectItem>
                   {managementOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
@@ -185,7 +185,7 @@ export const DynamicSchoolFilters: React.FC<DynamicSchoolFiltersProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border shadow-md max-h-[300px] overflow-y-auto">
+                <SelectContent className="z-50 bg-white dark:bg-gray-900 border shadow-lg max-h-[300px] overflow-y-auto">
                   <SelectItem value="all">All Types</SelectItem>
                   {schoolTypeOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
