@@ -8,6 +8,14 @@ CREATE INDEX IF NOT EXISTS idx_schools_location ON schools (state_name, district
 CREATE INDEX IF NOT EXISTS idx_schools_status ON schools (status);
 CREATE INDEX IF NOT EXISTS idx_schools_institution_id ON schools (institution_id);
 
+-- Aggregation query optimization indexes
+CREATE INDEX IF NOT EXISTS idx_schools_state_name ON schools (state_name) WHERE state_name IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_schools_district_name ON schools (district_name) WHERE district_name IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_schools_management ON schools (management) WHERE management IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_schools_management_type ON schools (management_type) WHERE management_type IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_schools_school_type ON schools (school_type) WHERE school_type IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_schools_school_type_legacy ON schools (school_type_legacy) WHERE school_type_legacy IS NOT NULL;
+
 -- Composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_schools_status_name ON schools (status, school_name);
 CREATE INDEX IF NOT EXISTS idx_schools_location_status ON schools (state_name, district_name, status);
