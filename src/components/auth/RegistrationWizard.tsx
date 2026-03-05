@@ -1,45 +1,42 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { RegistrationStep1 } from './RegistrationStep1';
 import { RegistrationStep2 } from './RegistrationStep2';
 import { RegistrationStep3 } from './RegistrationStep3';
 import { RegistrationStep4 } from './RegistrationStep4';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/shared/Logo';
+import { Button } from '@/components/ui/button';
 import registrationBg from "@/assets/registration-bg.jpg";
 
 interface RegistrationData {
-  // Step 1
   firstName?: string;
   lastName?: string;
   email?: string;
   phone?: string;
   dateOfBirth?: string;
-  
-  // Step 2
   institutionId?: number;
   institutionName?: string;
-  
-  // Step 3
   username?: string;
   password?: string;
   confirmPassword?: string;
-  
-  // Step 4
   role?: string;
   termsAccepted?: boolean;
 }
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
 
 export const RegistrationWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [registrationData, setRegistrationData] = useState<RegistrationData>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionInitialized, setSessionInitialized] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const steps = [
     { number: 1, title: 'Basic Info', description: 'Personal information' },
@@ -48,139 +45,49 @@ export const RegistrationWizard = () => {
     { number: 4, title: 'Confirmation', description: 'Role and terms' },
   ];
 
-  // Initialize registration session
-  useEffect(() => {
-    const initRegistration = async () => {
-      try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${API_BASE_URL}/registration/init`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentStep(data.currentStep || 1);
-          setSessionInitialized(true);
-          console.log('Registration session initialized:', data);
-        } else {
-          throw new Error('Failed to initialize registration session');
-        }
-      } catch (error) {
-        console.error('Failed to initialize registration:', error);
-        toast({
-          title: "Initialization Error",
-          description: "Failed to start registration. Please refresh the page.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    initRegistration();
-  }, [toast]);
-
   const updateRegistrationData = (stepData: Partial<RegistrationData>) => {
     setRegistrationData(prev => ({ ...prev, ...stepData }));
   };
 
+  // Client-side step progression — no backend call needed until final submit
   const handleNext = async (stepData: Partial<RegistrationData>) => {
-    if (!sessionInitialized) {
-      toast({
-        title: "Session Error",
-        description: "Registration session not initialized. Please refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-      updateRegistrationData(stepData);
-      
-      // Determine API endpoint based on current step
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      let endpoint = '';
-      switch (currentStep) {
-        case 1:
-          endpoint = `${API_BASE_URL}/registration/basic`;
-          break;
-        case 2:
-          endpoint = `${API_BASE_URL}/registration/school`;
-          break;
-        case 3:
-          endpoint = `${API_BASE_URL}/registration/account`;
-          break;
-        default:
-          throw new Error('Invalid step');
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(stepData),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setCurrentStep(result.currentStep);
-        toast({
-          title: "Step Completed",
-          description: result.message,
-        });
-      } else {
-        // Handle specific field errors
-        if (result.errors && Array.isArray(result.errors)) {
-          const errorMessage = result.errors.map((err: any) => err.msg).join(', ');
-          throw new Error(errorMessage);
-        } else if (result.error) {
-          throw new Error(result.error);
-        } else {
-          throw new Error('Step validation failed');
-        }
-      }
-    } catch (error) {
-      console.error(`Step ${currentStep} failed:`, error);
-      toast({
-        title: "Validation Error",
-        description: error instanceof Error ? error.message : 'Please check your information and try again.',
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    updateRegistrationData(stepData);
+    setCurrentStep(prev => prev + 1);
+    setSubmitError(null);
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      setSubmitError(null);
     }
   };
 
   const handleComplete = async (stepData: Partial<RegistrationData>) => {
-    if (!sessionInitialized) {
-      toast({
-        title: "Session Error",
-        description: "Registration session not initialized. Please refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
-    
+    setSubmitError(null);
+
+    const finalData = { ...registrationData, ...stepData };
+    updateRegistrationData(stepData);
+
     try {
-      updateRegistrationData(stepData);
-      
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const response = await fetch(`${API_BASE_URL}/registration/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(stepData),
+        body: JSON.stringify({
+          firstName: finalData.firstName,
+          lastName: finalData.lastName,
+          email: finalData.email,
+          phone: finalData.phone,
+          dateOfBirth: finalData.dateOfBirth,
+          institutionId: finalData.institutionId,
+          institutionName: finalData.institutionName,
+          username: finalData.username,
+          password: finalData.password,
+          role: finalData.role,
+          termsAccepted: finalData.termsAccepted,
+        }),
       });
 
       const result = await response.json();
@@ -188,28 +95,22 @@ export const RegistrationWizard = () => {
       if (response.ok) {
         toast({
           title: "Registration Successful!",
-          description: result.message,
+          description: result.message || "Your account has been submitted for approval.",
         });
-        
-        // Redirect to pending approval page after a short delay
-        setTimeout(() => {
-          window.location.href = '/pending-approval';
-        }, 2000);
+        setTimeout(() => navigate('/auth/pending-approval'), 1500);
       } else {
-        if (result.errors && Array.isArray(result.errors)) {
-          const errorMessage = result.errors.map((err: any) => err.msg).join(', ');
-          throw new Error(errorMessage);
-        } else if (result.error) {
-          throw new Error(result.error);
-        } else {
-          throw new Error('Registration failed');
-        }
+        const msg = result.errors
+          ? result.errors.map((e: any) => e.msg).join(', ')
+          : result.error || 'Registration failed';
+        throw new Error(msg);
       }
     } catch (error) {
-      console.error('Registration completion failed:', error);
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      console.error('Registration failed:', error);
+      setSubmitError(message);
       toast({
         title: "Registration Failed",
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -220,40 +121,13 @@ export const RegistrationWizard = () => {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <RegistrationStep1
-            data={registrationData}
-            onNext={handleNext}
-            isLoading={isLoading}
-          />
-        );
+        return <RegistrationStep1 data={registrationData} onNext={handleNext} isLoading={isLoading} />;
       case 2:
-        return (
-          <RegistrationStep2
-            data={registrationData}
-            onNext={handleNext}
-            onBack={handleBack}
-            isLoading={isLoading}
-          />
-        );
+        return <RegistrationStep2 data={registrationData} onNext={handleNext} onBack={handleBack} isLoading={isLoading} />;
       case 3:
-        return (
-          <RegistrationStep3
-            data={registrationData}
-            onNext={handleNext}
-            onBack={handleBack}
-            isLoading={isLoading}
-          />
-        );
+        return <RegistrationStep3 data={registrationData} onNext={handleNext} onBack={handleBack} isLoading={isLoading} />;
       case 4:
-        return (
-          <RegistrationStep4
-            data={registrationData}
-            onComplete={handleComplete}
-            onBack={handleBack}
-            isLoading={isLoading}
-          />
-        );
+        return <RegistrationStep4 data={registrationData} onComplete={handleComplete} onBack={handleBack} isLoading={isLoading} />;
       default:
         return null;
     }
@@ -261,28 +135,15 @@ export const RegistrationWizard = () => {
 
   const progressPercentage = (currentStep / steps.length) * 100;
 
-  if (!sessionInitialized) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
-      {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${registrationBg})` }}
       />
-      
-      {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/70" />
-      
-      {/* Content */}
+
       <div className="relative w-full max-w-2xl">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Logo size="lg" />
           <p className="text-white/90 mt-4 text-lg font-medium">Join your school community today</p>
@@ -297,7 +158,6 @@ export const RegistrationWizard = () => {
               </CardDescription>
             </div>
 
-            {/* Progress Bar */}
             <div className="space-y-2">
               <Progress value={progressPercentage} className="h-2" />
               <div className="flex justify-between text-sm text-muted-foreground">
@@ -323,15 +183,23 @@ export const RegistrationWizard = () => {
           </CardHeader>
 
           <CardContent>
+            {submitError && currentStep === 4 && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <div className="flex-1 text-sm text-destructive">{submitError}</div>
+                <Button variant="ghost" size="sm" onClick={() => handleComplete(registrationData)} disabled={isLoading}>
+                  <RefreshCw className="w-3 h-3 mr-1" /> Retry
+                </Button>
+              </div>
+            )}
             {renderCurrentStep()}
           </CardContent>
         </Card>
 
-        {/* Login Link */}
         <div className="mt-6 text-center">
-          <p className="text-muted-foreground">
+          <p className="text-white/80">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:text-primary/80 font-medium">
+            <Link to="/login" className="text-white font-medium hover:underline">
               Sign in
             </Link>
           </p>
