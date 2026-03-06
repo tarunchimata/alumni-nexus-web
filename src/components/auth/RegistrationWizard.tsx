@@ -11,6 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
+import { proxyPost } from '@/lib/apiProxy';
 import registrationBg from "@/assets/registration-bg.jpg";
 
 interface RegistrationData {
@@ -27,8 +28,6 @@ interface RegistrationData {
   role?: string;
   termsAccepted?: boolean;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
 
 export const RegistrationWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -71,39 +70,25 @@ export const RegistrationWizard = () => {
     updateRegistrationData(stepData);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/registration/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          firstName: finalData.firstName,
-          lastName: finalData.lastName,
-          email: finalData.email,
-          phone: finalData.phone,
-          dateOfBirth: finalData.dateOfBirth,
-          institutionId: finalData.institutionId,
-          institutionName: finalData.institutionName,
-          username: finalData.username,
-          password: finalData.password,
-          role: finalData.role,
-          termsAccepted: finalData.termsAccepted,
-        }),
+      const result = await proxyPost('/registration/complete', {
+        firstName: finalData.firstName,
+        lastName: finalData.lastName,
+        email: finalData.email,
+        phone: finalData.phone,
+        dateOfBirth: finalData.dateOfBirth,
+        institutionId: finalData.institutionId,
+        institutionName: finalData.institutionName,
+        username: finalData.username,
+        password: finalData.password,
+        role: finalData.role,
+        termsAccepted: finalData.termsAccepted,
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
-        toast({
-          title: "Registration Successful!",
-          description: result.message || "Your account has been submitted for approval.",
-        });
-        setTimeout(() => navigate('/auth/pending-approval'), 1500);
-      } else {
-        const msg = result.errors
-          ? result.errors.map((e: any) => e.msg).join(', ')
-          : result.error || 'Registration failed';
-        throw new Error(msg);
-      }
+      toast({
+        title: "Registration Successful!",
+        description: result.message || "Your account has been submitted for approval.",
+      });
+      setTimeout(() => navigate('/auth/pending-approval'), 1500);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
       console.error('Registration failed:', error);
