@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { proxyGet, proxyPost } from '@/lib/apiProxy';
 
 interface Institution {
   id: number;
@@ -27,8 +28,6 @@ interface RegistrationStep2Props {
   onBack: () => void;
   isLoading: boolean;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://schoolapi.hostingmanager.in/api';
 
 export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: RegistrationStep2Props) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,16 +71,9 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     setIsSearching(true);
     setSearchError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/institutions/search?q=${encodeURIComponent(query)}&limit=20`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        setInstitutions(result.institutions || []);
-        setShowResults(true);
-      } else {
-        throw new Error('Search failed');
-      }
+      const result = await proxyGet('/institutions/search', { q: query, limit: '20' });
+      setInstitutions(result.institutions || result.data || []);
+      setShowResults(true);
     } catch (error) {
       console.error('Institution search failed:', error);
       setSearchError('Could not search institutions. You can enter your school name manually below.');
@@ -105,23 +97,15 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     }
     setIsSubmittingRequest(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/institutions/request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ ...newSchoolForm, requestedBy: data.email || 'unknown@example.com' }),
+      const result = await proxyPost('/institutions/request', {
+        ...newSchoolForm,
+        requestedBy: data.email || 'unknown@example.com',
       });
-      const result = await response.json();
-      if (response.ok) {
-        toast({ title: "Request Submitted", description: result.message });
-        setShowAddSchoolModal(false);
-        // Use the requested school name to proceed
-        setManualSchoolName(newSchoolForm.institutionName);
-        setSelectedInstitution(null);
-        setNewSchoolForm({ institutionName: '', city: '', state: '', contactInfo: '', additionalDetails: '', institutionType: 'School', managementType: 'Private' });
-      } else {
-        throw new Error(result.error || 'Failed to submit request');
-      }
+      toast({ title: "Request Submitted", description: result.message });
+      setShowAddSchoolModal(false);
+      setManualSchoolName(newSchoolForm.institutionName);
+      setSelectedInstitution(null);
+      setNewSchoolForm({ institutionName: '', city: '', state: '', contactInfo: '', additionalDetails: '', institutionType: 'School', managementType: 'Private' });
     } catch (error) {
       console.error('New school request failed:', error);
       // Still allow proceeding with manual name
