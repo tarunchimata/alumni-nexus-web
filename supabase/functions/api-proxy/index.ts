@@ -45,7 +45,22 @@ serve(async (req) => {
       };
     }
 
-    const upstream = await fetch(url, init);
+    // Add a 25-second timeout via AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    init.signal = controller.signal;
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(url, init);
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      if (fetchErr.name === "AbortError") {
+        return json({ ok: false, status: 504, statusText: "Gateway Timeout", bodyJson: { error: "The backend server took too long to respond. Please try again." } });
+      }
+      return json({ ok: false, status: 502, statusText: "Bad Gateway", bodyJson: { error: `Could not reach the backend server: ${fetchErr.message}` } });
+    }
+    clearTimeout(timeoutId);
     const text = await upstream.text();
     let parsed: any = null;
     try { parsed = JSON.parse(text); } catch {}
