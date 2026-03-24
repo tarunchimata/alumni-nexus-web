@@ -39,9 +39,14 @@ export async function proxyRequest<T = any>(
   }
 
   if (!data?.ok) {
-    const msg = data?.bodyJson?.error || data?.bodyJson?.message || data?.statusText || 'Request failed';
+    const status = data?.status;
+    let msg = data?.bodyJson?.error || data?.bodyJson?.message || data?.statusText || 'Request failed';
+    // Provide user-friendly messages for common HTTP errors
+    if (status === 502) msg = 'The backend server is currently unavailable. Please try again in a moment.';
+    if (status === 504) msg = 'The backend server took too long to respond. Please try again.';
+    if (status === 404) msg = 'The requested endpoint was not found on the server. Please contact support.';
     const err = new Error(msg) as any;
-    err.status = data?.status;
+    err.status = status;
     err.response = data?.bodyJson;
     throw err;
   }
