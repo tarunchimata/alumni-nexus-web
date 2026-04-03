@@ -24,6 +24,7 @@ serve(async (req) => {
     const target = new URL(url);
     const allowlist = [
       "schoolapi.hostingmanager.in",
+      "api.hostingmanager.in",
       "hostingmanager.in",
     ];
 
