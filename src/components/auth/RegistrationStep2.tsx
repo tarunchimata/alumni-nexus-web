@@ -8,10 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
+import { proxyGet, proxyPost } from '@/lib/apiProxy';
 
 interface Institution {
-  id: string;
+  id: string | number;
   institution_name: string;
   city: string;
   district: string;
@@ -71,18 +71,15 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     setIsSearching(true);
     setSearchError(null);
     try {
-      const { data: results, error } = await supabase
-        .from('schools')
-        .select('*')
-        .or(`institution_name.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%`)
-        .eq('status', 'active')
-        .limit(20);
+      // Use the external API: GET /api/schools/dropdown-search?q=query
+      const results = await proxyGet<any>('/schools/dropdown-search', { q: query });
 
-      if (error) throw error;
+      // The API may return { schools: [...] } or an array directly
+      const schoolsList = Array.isArray(results) ? results : (results?.schools || results?.data || []);
 
-      setInstitutions((results || []).map(r => ({
+      setInstitutions(schoolsList.map((r: any) => ({
         id: r.id,
-        institution_name: r.institution_name,
+        institution_name: r.institution_name || r.name || '',
         city: r.city || '',
         district: r.district || '',
         state: r.state || '',
@@ -115,20 +112,18 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     }
     setIsSubmittingRequest(true);
     try {
-      const { error } = await supabase.from('school_requests').insert({
+      // Use the external API: POST /api/schools
+      await proxyPost('/schools', {
         institution_name: newSchoolForm.institutionName,
         city: newSchoolForm.city,
         state: newSchoolForm.state,
-        contact_info: newSchoolForm.contactInfo,
-        additional_details: newSchoolForm.additionalDetails,
         institution_type: newSchoolForm.institutionType,
         management_type: newSchoolForm.managementType,
+        additional_details: newSchoolForm.additionalDetails,
         requested_by: data.email || 'unknown@example.com',
       });
 
-      if (error) throw error;
-
-      toast({ title: "Request Submitted", description: "Your school request has been submitted for review." });
+      toast({ title: "School Added", description: "Your school has been submitted successfully." });
       setShowAddSchoolModal(false);
       setManualSchoolName(newSchoolForm.institutionName);
       setSelectedInstitution(null);
