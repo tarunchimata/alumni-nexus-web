@@ -8,10 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { proxyGet, proxyPost } from '@/lib/apiProxy';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Institution {
-  id: number;
+  id: string;
   institution_name: string;
   city: string;
   district: string;
@@ -71,8 +71,26 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     setIsSearching(true);
     setSearchError(null);
     try {
-      const result = await proxyGet('/institutions/search', { q: query, limit: '20' });
-      setInstitutions(result.institutions || result.data || []);
+      const { data: results, error } = await supabase
+        .from('schools')
+        .select('*')
+        .or(`institution_name.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%`)
+        .eq('status', 'active')
+        .limit(20);
+
+      if (error) throw error;
+
+      setInstitutions((results || []).map(r => ({
+        id: r.id,
+        institution_name: r.institution_name,
+        city: r.city || '',
+        district: r.district || '',
+        state: r.state || '',
+        udise_code: r.udise_code || '',
+        institution_type: r.institution_type || '',
+        institution_category: r.institution_category || '',
+        management_type: r.management_type || '',
+      })));
       setShowResults(true);
     } catch (error) {
       console.error('Institution search failed:', error);
@@ -97,18 +115,26 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     }
     setIsSubmittingRequest(true);
     try {
-      const result = await proxyPost('/institutions/request', {
-        ...newSchoolForm,
-        requestedBy: data.email || 'unknown@example.com',
+      const { error } = await supabase.from('school_requests').insert({
+        institution_name: newSchoolForm.institutionName,
+        city: newSchoolForm.city,
+        state: newSchoolForm.state,
+        contact_info: newSchoolForm.contactInfo,
+        additional_details: newSchoolForm.additionalDetails,
+        institution_type: newSchoolForm.institutionType,
+        management_type: newSchoolForm.managementType,
+        requested_by: data.email || 'unknown@example.com',
       });
-      toast({ title: "Request Submitted", description: result.message });
+
+      if (error) throw error;
+
+      toast({ title: "Request Submitted", description: "Your school request has been submitted for review." });
       setShowAddSchoolModal(false);
       setManualSchoolName(newSchoolForm.institutionName);
       setSelectedInstitution(null);
       setNewSchoolForm({ institutionName: '', city: '', state: '', contactInfo: '', additionalDetails: '', institutionType: 'School', managementType: 'Private' });
     } catch (error) {
       console.error('New school request failed:', error);
-      // Still allow proceeding with manual name
       setManualSchoolName(newSchoolForm.institutionName);
       toast({ title: "Request couldn't be sent", description: "You can still proceed with registration.", variant: "default" });
       setShowAddSchoolModal(false);
@@ -142,7 +168,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         <p className="text-muted-foreground">Search for your school, college, or university below</p>
       </div>
 
-      {/* Search Input */}
       <div className="space-y-2">
         <Label htmlFor="search" className="flex items-center space-x-2">
           <Search className="w-4 h-4" /><span>Search Institution</span>
@@ -162,14 +187,12 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         )}
       </div>
 
-      {/* Search Error — fallback to manual entry */}
       {searchError && (
         <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
           {searchError}
         </div>
       )}
 
-      {/* Manual school name entry (shown when search fails or no results) */}
       {(searchError || (showResults && institutions.length === 0 && !isSearching)) && (
         <div className="space-y-2">
           <Label htmlFor="manualSchool">Enter School Name Manually</Label>
@@ -182,7 +205,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         </div>
       )}
 
-      {/* Selected Institution */}
       {selectedInstitution && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4">
@@ -201,7 +223,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         </Card>
       )}
 
-      {/* Search Results */}
       {showResults && institutions.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           <Label className="text-sm font-medium">Search Results</Label>
@@ -219,7 +240,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         </div>
       )}
 
-      {/* No Results — show add school option */}
       {showResults && institutions.length === 0 && !isSearching && !searchError && (
         <Card className="border-dashed">
           <CardContent className="p-6 text-center">
@@ -264,7 +284,6 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
         </Card>
       )}
 
-      {/* Navigation */}
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
           <ArrowLeft className="w-4 h-4 mr-2" />Back
