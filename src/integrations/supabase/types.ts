@@ -29,6 +29,93 @@ export type Database = {
         }
         Relationships: []
       }
+      school_requests: {
+        Row: {
+          additional_details: string | null
+          city: string | null
+          contact_info: string | null
+          created_at: string
+          id: string
+          institution_name: string
+          institution_type: string | null
+          management_type: string | null
+          requested_by: string | null
+          state: string | null
+          status: string | null
+        }
+        Insert: {
+          additional_details?: string | null
+          city?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          institution_name: string
+          institution_type?: string | null
+          management_type?: string | null
+          requested_by?: string | null
+          state?: string | null
+          status?: string | null
+        }
+        Update: {
+          additional_details?: string | null
+          city?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          institution_name?: string
+          institution_type?: string | null
+          management_type?: string | null
+          requested_by?: string | null
+          state?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      schools: {
+        Row: {
+          city: string | null
+          created_at: string
+          district: string | null
+          id: string
+          institution_category: string | null
+          institution_name: string
+          institution_type: string | null
+          management_type: string | null
+          state: string | null
+          status: string | null
+          udise_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          district?: string | null
+          id?: string
+          institution_category?: string | null
+          institution_name: string
+          institution_type?: string | null
+          management_type?: string | null
+          state?: string | null
+          status?: string | null
+          udise_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          district?: string | null
+          id?: string
+          institution_category?: string | null
+          institution_name?: string
+          institution_type?: string | null
+          management_type?: string | null
+          state?: string | null
+          status?: string | null
+          udise_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
