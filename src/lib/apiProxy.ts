@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string) ||
   (import.meta.env.VITE_API_BASE_URL as string) ||
-  'https://schoolapi.hostingmanager.in/api';
+  'https://api.hostingmanager.in/api';
 
 function resolveUrl(endpoint: string): string {
   const base = API_BASE_URL.replace(/\/+$/, '');

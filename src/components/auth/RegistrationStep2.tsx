@@ -12,14 +12,11 @@ import { proxyGet, proxyPost } from '@/lib/apiProxy';
 
 interface Institution {
   id: string | number;
-  institution_name: string;
-  city: string;
-  district: string;
-  state: string;
-  udise_code: string;
-  institution_type: string;
-  institution_category: string;
-  management_type: string;
+  school_name: string;
+  village_name: string;
+  district_name: string;
+  state_name: string;
+  institution_id: string;
 }
 
 interface RegistrationStep2Props {
@@ -37,9 +34,8 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(
     data.institutionId ? {
       id: data.institutionId,
-      institution_name: data.institutionName || '',
-      city: '', district: '', state: '', udise_code: '',
-      institution_type: '', institution_category: '', management_type: ''
+      school_name: data.institutionName || '',
+      village_name: '', district_name: '', state_name: '', institution_id: ''
     } : null
   );
   const [showResults, setShowResults] = useState(false);
@@ -51,7 +47,7 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
   const { toast } = useToast();
 
   const [newSchoolForm, setNewSchoolForm] = useState({
-    institutionName: '', city: '', state: '', contactInfo: '',
+    institutionName: '', city: '', state: '',
     additionalDetails: '', institutionType: 'School', managementType: 'Private'
   });
 
@@ -71,22 +67,30 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     setIsSearching(true);
     setSearchError(null);
     try {
-      // Use the external API: GET /api/schools/dropdown-search?q=query
       const results = await proxyGet<any>('/schools/dropdown-search', { q: query });
+      console.log('[RegistrationStep2] API response:', results);
 
-      // The API may return { schools: [...] } or an array directly
-      const schoolsList = Array.isArray(results) ? results : (results?.schools || results?.data || []);
+      // API returns { success: true, data: [...] }
+      let schoolsList: any[] = [];
+      if (results?.success && Array.isArray(results.data)) {
+        schoolsList = results.data;
+      } else if (Array.isArray(results)) {
+        schoolsList = results;
+      } else if (results?.schools) {
+        schoolsList = results.schools;
+      } else if (results?.data?.schools) {
+        schoolsList = results.data.schools;
+      }
+
+      console.log('[RegistrationStep2] Parsed schools:', schoolsList.length);
 
       setInstitutions(schoolsList.map((r: any) => ({
         id: r.id,
-        institution_name: r.institution_name || r.name || '',
-        city: r.city || '',
-        district: r.district || '',
-        state: r.state || '',
-        udise_code: r.udise_code || '',
-        institution_type: r.institution_type || '',
-        institution_category: r.institution_category || '',
-        management_type: r.management_type || '',
+        school_name: r.school_name || r.institution_name || r.name || '',
+        village_name: r.village_name || r.city || '',
+        district_name: r.district_name || r.district || '',
+        state_name: r.state_name || r.state || '',
+        institution_id: r.institution_id || '',
       })));
       setShowResults(true);
     } catch (error) {
@@ -100,7 +104,7 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
 
   const handleInstitutionSelect = (institution: Institution) => {
     setSelectedInstitution(institution);
-    setSearchQuery(institution.institution_name);
+    setSearchQuery(institution.school_name);
     setManualSchoolName('');
     setShowResults(false);
   };
@@ -112,9 +116,8 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
     }
     setIsSubmittingRequest(true);
     try {
-      // Use the external API: POST /api/schools
       await proxyPost('/schools', {
-        institution_name: newSchoolForm.institutionName,
+        school_name: newSchoolForm.institutionName,
         city: newSchoolForm.city,
         state: newSchoolForm.state,
         institution_type: newSchoolForm.institutionType,
@@ -127,7 +130,7 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
       setShowAddSchoolModal(false);
       setManualSchoolName(newSchoolForm.institutionName);
       setSelectedInstitution(null);
-      setNewSchoolForm({ institutionName: '', city: '', state: '', contactInfo: '', additionalDetails: '', institutionType: 'School', managementType: 'Private' });
+      setNewSchoolForm({ institutionName: '', city: '', state: '', additionalDetails: '', institutionType: 'School', managementType: 'Private' });
     } catch (error) {
       console.error('New school request failed:', error);
       setManualSchoolName(newSchoolForm.institutionName);
@@ -140,7 +143,7 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
 
   const handleNext = () => {
     if (selectedInstitution) {
-      onNext({ institutionId: selectedInstitution.id, institutionName: selectedInstitution.institution_name });
+      onNext({ institutionId: selectedInstitution.id, institutionName: selectedInstitution.school_name });
     } else if (manualSchoolName.trim()) {
       onNext({ institutionId: null, institutionName: manualSchoolName.trim() });
     } else {
@@ -206,11 +209,11 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
             <div className="flex items-start space-x-3">
               <Building className="w-5 h-5 text-primary mt-1" />
               <div className="flex-1">
-                <h4 className="font-semibold">{selectedInstitution.institution_name}</h4>
+                <h4 className="font-semibold">{selectedInstitution.school_name}</h4>
                 <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
                   <MapPin className="w-3 h-3" />
-                  <span>{selectedInstitution.city}</span>
-                  {selectedInstitution.state && <span>, {selectedInstitution.state}</span>}
+                  <span>{selectedInstitution.village_name || selectedInstitution.district_name}</span>
+                  {selectedInstitution.state_name && <span>, {selectedInstitution.state_name}</span>}
                 </div>
               </div>
             </div>
@@ -220,14 +223,14 @@ export const RegistrationStep2 = ({ data, onNext, onBack, isLoading }: Registrat
 
       {showResults && institutions.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          <Label className="text-sm font-medium">Search Results</Label>
+          <Label className="text-sm font-medium">Search Results ({institutions.length})</Label>
           {institutions.map((institution) => (
             <Card key={institution.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleInstitutionSelect(institution)}>
               <CardContent className="p-3">
-                <h4 className="font-medium text-sm">{institution.institution_name}</h4>
+                <h4 className="font-medium text-sm">{institution.school_name}</h4>
                 <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
                   <MapPin className="w-3 h-3" />
-                  <span>{institution.city}, {institution.state}</span>
+                  <span>{institution.village_name || institution.district_name}{institution.state_name ? `, ${institution.state_name}` : ''}</span>
                 </div>
               </CardContent>
             </Card>
