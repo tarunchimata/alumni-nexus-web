@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 const PendingApproval = () => {
-  return (
+  const { logout, isAuthenticated } = useAuth();
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
