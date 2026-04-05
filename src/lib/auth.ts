@@ -232,10 +232,17 @@ class AuthService {
       
       // Determine primary role
       let role = 'student';
-      if (roles.includes('platform_admin')) role = 'platform_admin';
+      if (roles.includes('platform_admin') || roles.includes('super_admin')) role = 'platform_admin';
       else if (roles.includes('school_admin')) role = 'school_admin';
       else if (roles.includes('teacher')) role = 'teacher';
       else if (roles.includes('alumni')) role = 'alumni';
+
+      // Extract approval status from token attributes
+      const statusAttr = decodedToken?.status;
+      const status = Array.isArray(statusAttr) ? statusAttr[0] : (statusAttr || 'pending_approval');
+      // If user is enabled in Keycloak, treat as approved (admin approved them)
+      const isEnabled = decodedToken?.enabled !== false;
+      const resolvedStatus = isEnabled && status === 'pending_approval' ? 'pending_approval' : status;
 
       return {
         id: userInfo.sub,
@@ -245,6 +252,7 @@ class AuthService {
         role,
         schoolId: decodedToken?.school_id ? parseInt(decodedToken.school_id) : undefined,
         avatar: userInfo.picture,
+        status: resolvedStatus || 'pending_approval',
       };
     } catch (error) {
       console.error('[Auth] Error getting user info:', error);

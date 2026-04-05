@@ -214,20 +214,24 @@ const OAuth2Callback = () => {
           // Clean URL AFTER successful processing to prevent race condition
           window.history.replaceState({}, document.title, window.location.pathname);
           
-          // Check if user has completed welcome screen
+          // Check user approval status
           const userInfo = await authService.getUserInfo();
-          const hasCompletedWelcome = userInfo?.id 
-            ? localStorage.getItem(`welcome_completed_${userInfo.id}`)
-            : null;
-          
-          // Redirect to welcome screen for new users, otherwise dashboard
+          const isAdmin = userInfo?.role === 'platform_admin' || userInfo?.role === 'super_admin' || userInfo?.role === 'school_admin';
+          const isApproved = isAdmin || userInfo?.status === 'approved' || userInfo?.status === 'active';
+
           setTimeout(() => {
-            if (!hasCompletedWelcome && userInfo?.id) {
-              console.log('[OAuth2] New user, redirecting to welcome screen');
-              navigate('/dashboard/welcome');
+            if (!isApproved) {
+              console.log('[OAuth2] User not approved, redirecting to pending page');
+              navigate('/auth/pending-approval');
             } else {
-              console.log('[OAuth2] Returning user, redirecting to dashboard');
-              navigate('/dashboard');
+              const hasCompletedWelcome = userInfo?.id 
+                ? localStorage.getItem(`welcome_completed_${userInfo.id}`)
+                : null;
+              if (!hasCompletedWelcome && userInfo?.id) {
+                navigate('/dashboard/welcome');
+              } else {
+                navigate('/dashboard');
+              }
             }
           }, 1500);
         } else {
