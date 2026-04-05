@@ -97,11 +97,16 @@ const PendingApproval = () => {
                     Back to Home
                   </Link>
                 </Button>
-                <Button asChild className="flex-1">
-                  <Link to="/login">
-                    Try Login
-                  </Link>
-                </Button>
+                {isAuthenticated ? (
+                  <Button variant="destructive" onClick={logout} className="flex-1">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                ) : (
+                  <Button asChild className="flex-1">
+                    <Link to="/login">Try Login</Link>
+                  </Button>
+                )}
               </div>
             </div>
 
