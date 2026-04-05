@@ -1,10 +1,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Mail, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Clock, Mail, ArrowLeft, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 const PendingApproval = () => {
+  const { logout, isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -94,11 +97,16 @@ const PendingApproval = () => {
                     Back to Home
                   </Link>
                 </Button>
-                <Button asChild className="flex-1">
-                  <Link to="/login">
-                    Try Login
-                  </Link>
-                </Button>
+                {isAuthenticated ? (
+                  <Button variant="destructive" onClick={logout} className="flex-1">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                ) : (
+                  <Button asChild className="flex-1">
+                    <Link to="/login">Try Login</Link>
+                  </Button>
+                )}
               </div>
             </div>
 
