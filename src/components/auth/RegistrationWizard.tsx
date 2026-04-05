@@ -70,19 +70,24 @@ export const RegistrationWizard = () => {
     updateRegistrationData(stepData);
 
     try {
-      const result = await proxyPost('/registration/complete', {
-        firstName: finalData.firstName,
-        lastName: finalData.lastName,
-        email: finalData.email,
-        phone: finalData.phone,
-        dateOfBirth: finalData.dateOfBirth,
-        institutionId: finalData.institutionId,
-        institutionName: finalData.institutionName,
-        username: finalData.username,
-        password: finalData.password,
-        role: finalData.role,
-        termsAccepted: finalData.termsAccepted,
+      const { data: result, error } = await supabase.functions.invoke('register-user', {
+        body: {
+          firstName: finalData.firstName,
+          lastName: finalData.lastName,
+          email: finalData.email,
+          phone: finalData.phone,
+          dateOfBirth: finalData.dateOfBirth,
+          institutionId: finalData.institutionId,
+          institutionName: finalData.institutionName,
+          username: finalData.username,
+          password: finalData.password,
+          role: finalData.role,
+          termsAccepted: finalData.termsAccepted,
+        },
       });
+
+      if (error) throw new Error(error.message || 'Registration failed');
+      if (result?.error) throw new Error(result.error);
 
       toast({
         title: "Registration Successful!",
