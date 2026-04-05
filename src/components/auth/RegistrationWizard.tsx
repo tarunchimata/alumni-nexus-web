@@ -11,7 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
-import { proxyPost } from '@/lib/apiProxy';
+import { supabase } from '@/integrations/supabase/client';
 import registrationBg from "@/assets/registration-bg.jpg";
 
 interface RegistrationData {
