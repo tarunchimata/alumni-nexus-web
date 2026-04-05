@@ -18,7 +18,7 @@ interface UserInfo {
   role: string;
   schoolId?: string | number;
   avatar?: string;
-  status?: string;
+  status: string;
 }
 
 class AuthService {
