@@ -26,9 +26,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Block unapproved users — only platform_admin and school_admin bypass
-  const isAdmin = user?.role === 'platform_admin' || user?.role === 'super_admin';
-  if (!isAdmin && user?.status && user.status !== 'approved' && user.status !== 'active') {
+  // Block unapproved users — admin-created roles should not get trapped by missing status claims
+  const isAdmin = ['platform_admin', 'super_admin', 'school_admin'].includes(user?.role || '');
+  const normalizedStatus = user?.status?.toLowerCase();
+  if (!isAdmin && normalizedStatus && normalizedStatus !== 'approved' && normalizedStatus !== 'active') {
     return <Navigate to="/auth/pending-approval" replace />;
   }
 
