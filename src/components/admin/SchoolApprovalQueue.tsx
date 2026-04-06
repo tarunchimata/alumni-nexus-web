@@ -62,12 +62,15 @@ const SchoolApprovalQueue = ({ onApprovalAction }: SchoolApprovalQueueProps) => 
   const fetchPendingSchools = async () => {
     try {
       setLoading(true);
-      const schoolsArray = await apiService.getSchools();
+      const response = await apiService.getSchools();
+      const schoolsArray = Array.isArray(response)
+        ? response
+        : response?.schools ?? [];
       
-      // Filter for pending schools - now response is direct array
+      // Filter for schools that still need admin action
       const pending = Array.isArray(schoolsArray) 
         ? schoolsArray.filter((school: PendingSchool) => 
-            school.status === 'pending' || school.status === 'pending_approval'
+            ['pending', 'pending_approval', 'inactive'].includes((school.status || '').toLowerCase())
           )
         : [];
       
@@ -88,7 +91,7 @@ const SchoolApprovalQueue = ({ onApprovalAction }: SchoolApprovalQueueProps) => 
     setProcessingIds(prev => new Set(prev).add(schoolId));
     
     try {
-      await apiService.post(`/schools/${schoolId}/approve`, {});
+      await apiService.approveSchool(schoolId);
       
       toast({
         title: "School Approved",

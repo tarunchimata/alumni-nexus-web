@@ -22,9 +22,9 @@ interface UserInfo {
 }
 
 class AuthService {
-  private readonly keycloakUrl = 'https://login.hostingmanager.in';
-  private readonly realm = 'myschoolbuddies-realm';
-  private readonly clientId = 'myschoolbuddies-client';
+  private readonly keycloakUrl = (import.meta.env.VITE_KEYCLOAK_URL as string) || 'https://login.hostingmanager.in';
+  private readonly realm = (import.meta.env.VITE_KEYCLOAK_REALM as string) || 'myschoolbuddies-realm';
+  private readonly clientId = (import.meta.env.VITE_KEYCLOAK_CLIENT_ID as string) || 'myschoolbuddies-client';
   private readonly redirectUri = `${window.location.protocol}//${window.location.host}/auth/callback`;
 
   // Generate PKCE parameters
@@ -238,11 +238,9 @@ class AuthService {
       else if (roles.includes('alumni')) role = 'alumni';
 
       // Extract approval status from token attributes
-      const statusAttr = decodedToken?.status;
-      const status = Array.isArray(statusAttr) ? statusAttr[0] : (statusAttr || 'pending_approval');
-      // If user is enabled in Keycloak, treat as approved (admin approved them)
-      const isEnabled = decodedToken?.enabled !== false;
-      const resolvedStatus = isEnabled && status === 'pending_approval' ? 'pending_approval' : status;
+      const statusAttr = decodedToken?.status ?? decodedToken?.attributes?.status;
+      const status = Array.isArray(statusAttr) ? statusAttr[0] : statusAttr;
+      const resolvedStatus = status || 'active';
 
       return {
         id: userInfo.sub,
@@ -329,8 +327,10 @@ class AuthService {
 
   async logout(): Promise<void> {
     this.clearTokens();
-    const logoutUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(window.location.origin)}`;
-    window.location.href = logoutUrl;
+    const logoutUrl = new URL(`${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout`);
+    logoutUrl.searchParams.set('client_id', this.clientId);
+    logoutUrl.searchParams.set('post_logout_redirect_uri', window.location.origin);
+    window.location.replace(logoutUrl.toString());
   }
 
   private clearTokens(): void {
