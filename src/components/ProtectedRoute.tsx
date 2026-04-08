@@ -26,12 +26,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Block unapproved users — admin-created roles should not get trapped by missing status claims
-  const isAdmin = ['platform_admin', 'super_admin', 'school_admin'].includes(user?.role || '');
-  const normalizedStatus = user?.status?.toLowerCase();
-  if (!isAdmin && normalizedStatus && normalizedStatus !== 'approved' && normalizedStatus !== 'active') {
-    return <Navigate to="/auth/pending-approval" replace />;
-  }
+  // NOTE: Keycloak creates pending users with enabled=false, so they CANNOT
+  // authenticate at all. If a user reaches this point, they are already
+  // approved/enabled in Keycloak. No additional status check needed.
 
   if (requiredRole && user?.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
