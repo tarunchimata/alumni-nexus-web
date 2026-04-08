@@ -1,70 +1,20 @@
 
+## Root Cause Analysis
 
-# Comprehensive Project Stabilization Plan
+1. **Pending approval blocking all users**: Since Keycloak creates users with `enabled: false`, disabled users literally CANNOT authenticate. So any user who successfully logs in via Keycloak is already approved. The current status check in ProtectedRoute is incorrectly blocking authenticated users.
 
-This is a large project with an external backend (Express/Prisma), external PostgreSQL database, and Keycloak authentication. The Lovable preview only runs the frontend -- your backend at `schoolapi.hostingmanager.in` must be running for most features to work. Here is a prioritized, phased plan.
+2. **Logout URL**: Missing `id_token_hint` parameter for clean Keycloak logout.
 
----
+3. **Super Admin dashboard errors**: It fetches from external API (`schoolapi.hostingmanager.in`) which returns 404. Dashboards should use Supabase data (schools table has real data).
 
-## Phase 1: Fix Registration Page ✅ DONE
+4. **School Admin dashboard**: Uses all hardcoded/mock data instead of real data.
 
-- Removed blocking `/registration/init` session call on mount
-- Registration wizard now works fully client-side (collects all data across 4 steps)
-- Only submits to backend on final step via `/registration/complete`
-- Added error display with retry button on step 4
-- Step 2 (school search) gracefully handles API failures with manual school name entry
-- Step 3 (username) removed blocking username availability check — validates client-side only
-- No more infinite spinner when backend is unreachable
+## Fixes
 
----
-
-## Phase 2: Sanitize Supabase Usage
-
-**Status:** Pending
-
-**Fix:**
-- Keep the `api-proxy` edge function as-is -- it solves CORS issues for the Lovable preview.
-- Update `src/lib/api.ts` (the `ApiClient` class) to route requests through the edge function proxy when running in the Lovable preview environment, and directly when running locally/Docker.
-- Remove duplicate API service logic in `src/services/apiService.ts` where it overlaps with `src/lib/api.ts`. Consolidate into one API layer.
-- Do NOT remove the Supabase client file or types file (they are auto-generated and required by Lovable Cloud).
-
----
-
-## Phase 3: Fix Dashboard Routing and Navigation
-
-**Status:** Pending
-
----
-
-## Phase 4: Make School Filters Work with Edge Function Proxy
-
-**Status:** Pending
-
----
-
-## Phase 5: UI Polish and Responsiveness
-
-**Status:** Pending
-
----
-
-## Phase 6: Environment Variables and Docker Cleanup
-
-**Status:** Pending
-
----
-
-## Phase 7: Security Audit
-
-**Status:** Pending
-
----
-
-## What Cannot Be Done in Lovable
-
-- **Backend deployment**: Express/Prisma backend must be deployed and maintained on your server.
-- **Database migrations**: Must be run against your external PostgreSQL instance.
-- **Keycloak configuration**: Must be done in your Keycloak admin console.
-- **Docker testing**: Docker builds must be tested on your infrastructure.
-- **Load testing and scalability**: Requires server-side tools.
-- **Backup and recovery**: Must be configured on your database/server infrastructure.
+1. **ProtectedRoute** - Remove approval status check. If user authenticates via Keycloak, they're approved.
+2. **OAuth2Callback** - Always redirect to dashboard on success (no pending check).
+3. **auth.ts** - Store id_token for logout, fix logout URL.
+4. **PlatformAdminDashboard** - Rewrite to fetch schools/school_requests from Supabase directly.
+5. **useDashboardData** - Fetch stats from Supabase instead of external API.
+6. **SchoolAdminDashboard** - Connect to real data.
+7. **Add RLS policies** - Allow admins to read/update school_requests.
