@@ -57,6 +57,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Password validation - broad special character support
+    const passwordErrors: string[] = [];
+    if (password.length < 8) passwordErrors.push("at least 8 characters");
+    if (!/[A-Z]/.test(password)) passwordErrors.push("an uppercase letter");
+    if (!/[a-z]/.test(password)) passwordErrors.push("a lowercase letter");
+    if (!/\d/.test(password)) passwordErrors.push("a number");
+    if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push("a special character");
+    if (passwordErrors.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Password must contain ${passwordErrors.join(", ")}`, field: "password" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!termsAccepted) {
       return new Response(
         JSON.stringify({ error: "Terms and conditions must be accepted" }),
