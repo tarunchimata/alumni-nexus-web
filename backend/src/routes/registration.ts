@@ -16,8 +16,10 @@ router.post('/complete', [
   body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
   body('username').isString().isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('Password must contain uppercase, lowercase, number and special character'),
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain a lowercase letter')
+    .matches(/\d/).withMessage('Password must contain a number')
+    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain a special character'),
   body('role').isIn(['student', 'teacher', 'alumni']).withMessage('Valid role is required'),
   body('termsAccepted').isBoolean().custom((value) => {
     if (!value) throw new Error('Terms and conditions must be accepted');

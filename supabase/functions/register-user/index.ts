@@ -1,4 +1,7 @@
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
 
 const KEYCLOAK_URL = "https://login.hostingmanager.in";
 const REALM = "myschoolbuddies-realm";
@@ -52,6 +55,20 @@ Deno.serve(async (req) => {
     if (!firstName || !lastName || !email || !username || !password || !role) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: firstName, lastName, email, username, password, role" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Password validation - broad special character support
+    const passwordErrors: string[] = [];
+    if (password.length < 8) passwordErrors.push("at least 8 characters");
+    if (!/[A-Z]/.test(password)) passwordErrors.push("an uppercase letter");
+    if (!/[a-z]/.test(password)) passwordErrors.push("a lowercase letter");
+    if (!/\d/.test(password)) passwordErrors.push("a number");
+    if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push("a special character");
+    if (passwordErrors.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Password must contain ${passwordErrors.join(", ")}`, field: "password" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

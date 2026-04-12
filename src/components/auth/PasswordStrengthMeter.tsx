@@ -16,7 +16,7 @@ const criteria: PasswordCriteria[] = [
   { label: 'Contains uppercase letter', test: (p) => /[A-Z]/.test(p) },
   { label: 'Contains lowercase letter', test: (p) => /[a-z]/.test(p) },
   { label: 'Contains number', test: (p) => /\d/.test(p) },
-  { label: 'Contains special character', test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p) },
+  { label: 'Contains special character', test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
 const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ password }) => {
