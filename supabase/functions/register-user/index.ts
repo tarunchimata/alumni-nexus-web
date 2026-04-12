@@ -1,4 +1,5 @@
 import { corsHeaders } from "@supabase/supabase-js/cors";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const KEYCLOAK_URL = "https://login.hostingmanager.in";
 const REALM = "myschoolbuddies-realm";
