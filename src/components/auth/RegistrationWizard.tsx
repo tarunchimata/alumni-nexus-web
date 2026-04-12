@@ -11,8 +11,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import registrationBg from "@/assets/registration-bg.jpg";
+
+// API base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3033/api';
 
 interface RegistrationData {
   firstName?: string;
@@ -70,24 +72,30 @@ export const RegistrationWizard = () => {
     updateRegistrationData(stepData);
 
     try {
-      const { data: result, error } = await supabase.functions.invoke('register-user', {
-        body: {
+      const response = await fetch(`${API_BASE_URL}/registration/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           firstName: finalData.firstName,
           lastName: finalData.lastName,
           email: finalData.email,
           phone: finalData.phone,
           dateOfBirth: finalData.dateOfBirth,
-          institutionId: finalData.institutionId,
-          institutionName: finalData.institutionName,
           username: finalData.username,
           password: finalData.password,
           role: finalData.role,
           termsAccepted: finalData.termsAccepted,
-        },
+        }),
       });
 
-      if (error) throw new Error(error.message || 'Registration failed');
-      if (result?.error) throw new Error(result.error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
+      }
+
+      const result = await response.json();
 
       toast({
         title: "Registration Successful!",

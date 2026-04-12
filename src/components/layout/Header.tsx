@@ -17,7 +17,7 @@ import { Users, User, Settings, LogOut, Bell, TestTube } from "lucide-react";
 export const Header = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [notifications] = useState(3); // Mock notification count
+  const [notifications] = useState(0); // Real notification count - will be fetched from API
 
   const handleLogout = () => {
     logout();

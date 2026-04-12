@@ -3,9 +3,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Users, MessageCircle, Calendar, Briefcase, Heart, Network, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 const AlumniDashboard = () => {
   const { user } = useAuth();
+  const { stats, isLoading, error } = useDashboardData();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-500">Failed to load dashboard data</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -25,7 +46,7 @@ const AlumniDashboard = () => {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">—</div>
+                <div className="text-2xl font-bold">{stats.totalAlumni}</div>
                 <p className="text-xs text-muted-foreground">Alumni connections</p>
               </CardContent>
             </Card>
@@ -36,7 +57,7 @@ const AlumniDashboard = () => {
                 <Heart className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">—</div>
+                <div className="text-2xl font-bold">{stats.totalStudents}</div>
                 <p className="text-xs text-muted-foreground">Current students</p>
               </CardContent>
             </Card>
@@ -47,7 +68,7 @@ const AlumniDashboard = () => {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">—</div>
+                <div className="text-2xl font-bold">0</div>
                 <p className="text-xs text-muted-foreground">Upcoming</p>
               </CardContent>
             </Card>
@@ -58,7 +79,7 @@ const AlumniDashboard = () => {
                 <Trophy className="h-4 w-4 text-yellow-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">—</div>
+                <div className="text-2xl font-bold">{stats.activeConnections}</div>
                 <p className="text-xs text-muted-foreground">Community points</p>
               </CardContent>
             </Card>

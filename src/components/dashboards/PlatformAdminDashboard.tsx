@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 interface SchoolRecord {
   id: string;
@@ -34,24 +34,54 @@ interface SchoolRequest {
   created_at: string;
 }
 
+// API base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3033/api';
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
 const PlatformAdminDashboard = () => {
   const [schools, setSchools] = useState<SchoolRecord[]>([]);
   const [schoolRequests, setSchoolRequests] = useState<SchoolRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const { stats } = useDashboardData();
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [schoolsRes, requestsRes] = await Promise.all([
-        supabase.from('schools').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('school_requests').select('*').order('created_at', { ascending: false }),
-      ]);
+      // Fetch schools from backend API
+      const schoolsResponse = await fetch(`${API_BASE_URL}/schools`, {
+        headers: getAuthHeaders()
+      });
 
-      if (schoolsRes.data) setSchools(schoolsRes.data);
-      if (requestsRes.data) setSchoolRequests(requestsRes.data);
+      if (schoolsResponse.ok) {
+        const schoolsData = await schoolsResponse.json();
+        if (schoolsData.success) {
+          setSchools(schoolsData.data || []);
+        }
+      }
+
+      // Fetch school requests from backend API
+      const requestsResponse = await fetch(`${API_BASE_URL}/schools/requests`, {
+        headers: getAuthHeaders()
+      });
+
+      if (requestsResponse.ok) {
+        const requestsData = await requestsResponse.json();
+        if (requestsData.success) {
+          setSchoolRequests(requestsData.data || []);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -61,24 +91,18 @@ const PlatformAdminDashboard = () => {
 
   const handleApproveRequest = async (request: SchoolRequest) => {
     try {
-      // Add the school to the schools table
-      const { error: insertError } = await supabase.from('schools').insert({
-        institution_name: request.institution_name,
-        city: request.city,
-        state: request.state,
-        status: 'active',
+      // Approve school request via backend API
+      const response = await fetch(`${API_BASE_URL}/schools/requests/${request.id}/approve`, {
+        method: 'POST',
+        headers: getAuthHeaders()
       });
-      if (insertError) throw insertError;
 
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('school_requests')
-        .update({ status: 'approved' })
-        .eq('id', request.id);
-      if (updateError) throw updateError;
-
-      toast.success(`${request.institution_name} approved and added to schools`);
-      fetchData();
+      if (response.ok) {
+        toast.success(`${request.institution_name} approved and added to schools`);
+        fetchData();
+      } else {
+        throw new Error('Failed to approve request');
+      }
     } catch (err) {
       console.error('Approve failed:', err);
       toast.error('Failed to approve school request');
@@ -87,15 +111,20 @@ const PlatformAdminDashboard = () => {
 
   const handleRejectRequest = async (request: SchoolRequest) => {
     try {
-      const { error } = await supabase
-        .from('school_requests')
-        .update({ status: 'rejected' })
-        .eq('id', request.id);
-      if (error) throw error;
+      // Reject school request via backend API
+      const response = await fetch(`${API_BASE_URL}/schools/requests/${request.id}/reject`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
 
-      toast.success(`${request.institution_name} rejected`);
-      fetchData();
+      if (response.ok) {
+        toast.success(`${request.institution_name} rejected`);
+        fetchData();
+      } else {
+        throw new Error('Failed to reject request');
+      }
     } catch (err) {
+      console.error('Reject failed:', err);
       toast.error('Failed to reject request');
     }
   };
@@ -141,46 +170,41 @@ const PlatformAdminDashboard = () => {
             <School className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{schools.length}</div>
+            <div className="text-2xl font-bold">{stats.totalSchools}</div>
             <p className="text-xs text-muted-foreground">{activeSchools.length} active</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingRequests.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingRequests.length > 0 ? 'Action required' : 'All caught up'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">Healthy</div>
-            <div className="flex items-center gap-1 mt-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs text-muted-foreground">All systems operational</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{schoolRequests.length}</div>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">Across all schools</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
+            <p className="text-xs text-muted-foreground">{pendingRequests.length > 0 ? 'Action required' : 'All caught up'}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Connections</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeConnections}</div>
+            <p className="text-xs text-muted-foreground">Platform activity</p>
           </CardContent>
         </Card>
       </div>
@@ -190,121 +214,114 @@ const PlatformAdminDashboard = () => {
         <Card className="border-yellow-200 bg-yellow-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Pending School Requests ({pendingRequests.length})
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Pending School Requests
             </CardTitle>
-            <CardDescription>Review and approve new school registrations</CardDescription>
+            <CardDescription>
+              Review and approve or reject school registration requests
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingRequests.map((request) => (
-              <div key={request.id} className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{request.institution_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {[request.city, request.state].filter(Boolean).join(', ') || 'Location not specified'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Requested: {new Date(request.created_at).toLocaleDateString()}
-                    {request.requested_by && ` by ${request.requested_by}`}
-                  </p>
+          <CardContent>
+            <div className="space-y-4">
+              {pendingRequests.map((request) => (
+                <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{request.institution_name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {request.city}, {request.state}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Requested by: {request.requested_by || 'Unknown'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleApproveRequest(request)}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Approve
+                    </Button>
+                    <Button
+                      onClick={() => handleRejectRequest(request)}
+                      size="sm"
+                      variant="destructive"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Reject
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <Button size="sm" onClick={() => handleApproveRequest(request)}>
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleRejectRequest(request)}>
-                    <XCircle className="w-3 h-3 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Link to="/dashboard/schools" className="block">
-              <Button className="w-full justify-start" variant="outline">
-                <School className="w-4 h-4 mr-2" />
-                Manage Schools
-                <Badge variant="secondary" className="ml-auto">{schools.length}</Badge>
-              </Button>
-            </Link>
-            <Link to="/dashboard/people" className="block">
-              <Button className="w-full justify-start" variant="outline">
-                <Users className="w-4 h-4 mr-2" />
-                People Directory
-              </Button>
-            </Link>
-            <Link to="/dashboard/admin/csv-upload" className="block">
-              <Button className="w-full justify-start" variant="outline">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Bulk Import
-              </Button>
-            </Link>
-            <Link to="/dashboard/analytics" className="block">
-              <Button className="w-full justify-start" variant="outline">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Analytics
-              </Button>
-            </Link>
-            <Link to="/dashboard/settings" className="block">
-              <Button className="w-full justify-start" variant="outline">
-                <Settings className="w-4 h-4 mr-2" />
-                Platform Settings
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* Schools List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Schools Directory</CardTitle>
-            <CardDescription>{schools.length} schools registered</CardDescription>
-            <div className="relative mt-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search schools..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+      {/* Schools List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Registered Schools</span>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search schools..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {filteredSchools.map((school) => (
-                <div key={school.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{school.institution_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {[school.city, school.state].filter(Boolean).join(', ')}
+          </CardTitle>
+          <CardDescription>
+            Manage and monitor all registered schools on platform
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredSchools.length > 0 ? (
+              filteredSchools.map((school) => (
+                <div key={school.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{school.institution_name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {school.city}, {school.state} • {school.district}
                     </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant={school.status === 'active' ? 'default' : 'secondary'}>
+                        {school.status}
+                      </Badge>
+                      {school.institution_type && (
+                        <Badge variant="outline">{school.institution_type}</Badge>
+                      )}
+                    </div>
                   </div>
-                  <Badge variant={school.status === 'active' ? 'default' : 'secondary'} className="text-xs ml-2">
-                    {school.status || 'active'}
-                  </Badge>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => toast.info(`Manage ${school.institution_name} - Feature coming soon`)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Manage
+                    </Button>
+                  </div>
                 </div>
-              ))}
-              {filteredSchools.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <School className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">
                   {searchQuery ? 'No schools match your search' : 'No schools found'}
                 </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

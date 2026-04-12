@@ -166,7 +166,7 @@ const SettingsPage = () => {
                   Your account is secured through Keycloak single sign-on
                 </p>
                 <Button variant="outline">
-                  Change Password in Keycloak
+                  Change Password
                 </Button>
               </div>
               

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,44 +18,62 @@ interface AlumniMember {
   isConnected: boolean;
 }
 
+// API base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3033/api';
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
 const AlumniDirectory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [alumni, setAlumni] = useState<AlumniMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call
-  const [alumni] = useState<AlumniMember[]>([
-    {
-      id: "1",
-      name: "Sarah Johnson",
-      graduationYear: 2018,
-      profession: "Software Engineer",
-      company: "Google",
-      location: "San Francisco, CA",
-      avatar: "",
-      isConnected: false
-    },
-    {
-      id: "2",
-      name: "Michael Chen",
-      graduationYear: 2016,
-      profession: "Product Manager",
-      company: "Microsoft",
-      location: "Seattle, WA",
-      avatar: "",
-      isConnected: true
-    },
-    {
-      id: "3",
-      name: "Emily Rodriguez",
-      graduationYear: 2020,
-      profession: "UX Designer",
-      company: "Apple",
-      location: "Cupertino, CA",
-      avatar: "",
-      isConnected: false
-    },
-  ]);
+  // Fetch alumni data from API
+  useEffect(() => {
+    const fetchAlumni = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/users?role=alumni`, {
+          headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Transform API data to match AlumniMember interface
+          const transformedAlumni = (data.users || []).map((user: any) => ({
+            id: user.id.toString(),
+            name: `${user.firstName} ${user.lastName}`,
+            graduationYear: user.graduationYear || new Date().getFullYear(),
+            profession: user.profession || 'Alumni',
+            company: user.company || 'Not specified',
+            location: user.location || 'Location not specified',
+            avatar: user.avatar || '',
+            isConnected: false // Will be updated from connections API
+          }));
+          setAlumni(transformedAlumni);
+        } else {
+          throw new Error('Failed to fetch alumni data');
+        }
+      } catch (err) {
+        console.error('Failed to fetch alumni:', err);
+        setError('Failed to load alumni directory');
+        setAlumni([]); // Empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlumni();
+  }, []);
 
   const graduationYears = [...new Set(alumni.map(a => a.graduationYear))].sort((a, b) => b - a);
   const locations = [...new Set(alumni.map(a => a.location.split(',')[1]?.trim() || a.location))];
@@ -134,9 +152,31 @@ const AlumniDirectory = () => {
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="ml-2 text-muted-foreground">Loading alumni directory...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-500">{error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-2">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Results */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredAlumni.map((person) => (
+      {!loading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAlumni.length > 0 ? (
+            filteredAlumni.map((person) => (
           <Card key={person.id} className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center space-x-4 mb-4">
@@ -182,13 +222,13 @@ const AlumniDirectory = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
-
-      {filteredAlumni.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No alumni found matching your criteria.</p>
-          <p className="text-gray-400 mt-2">Try adjusting your search filters.</p>
+        ))
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No alumni found matching your criteria.</p>
+              <p className="text-gray-400 mt-2">Try adjusting your search filters.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

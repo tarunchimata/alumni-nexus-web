@@ -772,6 +772,63 @@ router.post('/bulk',
   }
 );
 
+// Get school requests (for dashboard approval workflow)
+router.get('/requests', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { page = 1, limit = 50, status } = req.query;
+    
+    // For now, return empty array since school_requests table doesn't exist yet
+    // This will be implemented when school registration workflow is added
+    const requests = [];
+    
+    res.json({
+      success: true,
+      data: requests,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: 0,
+        totalPages: 0
+      }
+    });
+  } catch (error) {
+    logger.error('School requests fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch school requests' });
+  }
+});
+
+// Approve school request (placeholder for future implementation)
+router.post('/requests/:id/approve', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Placeholder implementation - will be enhanced when school_requests table exists
+    res.json({
+      success: true,
+      message: 'School request approved successfully'
+    });
+  } catch (error) {
+    logger.error('School request approval error:', error);
+    res.status(500).json({ error: 'Failed to approve school request' });
+  }
+});
+
+// Reject school request (placeholder for future implementation)
+router.post('/requests/:id/reject', requireRole(['platform_admin', 'school_admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Placeholder implementation - will be enhanced when school_requests table exists
+    res.json({
+      success: true,
+      message: 'School request rejected successfully'
+    });
+  } catch (error) {
+    logger.error('School request rejection error:', error);
+    res.status(500).json({ error: 'Failed to reject school request' });
+  }
+});
+
 // Export schools data as CSV
 router.get('/export', requireRole(['platform_admin']), async (req: AuthenticatedRequest, res) => {
   try {
