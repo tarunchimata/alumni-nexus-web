@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function ProductionDashboard() {
   const { user } = useAuth();
-  const { stats, userSpecificData, isLoading, error, refresh } = useDashboardData();
+  const { stats, isLoading, error, refresh } = useDashboardData();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -22,9 +22,9 @@ export default function ProductionDashboard() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
+        <AlertCircle className="h-12 w-12 text-destructive" />
         <h2 className="text-xl font-semibold">Error Loading Dashboard</h2>
-        <p className="text-gray-600">{error}</p>
+        <p className="text-muted-foreground">{error}</p>
         <Button onClick={refresh}>Try Again</Button>
       </div>
     );
@@ -53,32 +53,32 @@ export default function ProductionDashboard() {
       case 'platform_admin':
         return [
           { label: 'Manage Schools', href: '/dashboard/schools', icon: School },
-          { label: 'User Management', href: '/dashboard/users', icon: Users },
+          { label: 'User Management', href: '/dashboard/people', icon: Users },
           { label: 'System Analytics', href: '/dashboard/analytics', icon: Network }
         ];
       case 'school_admin':
         return [
-          { label: 'Approve Users', href: '/dashboard/approvals', icon: Users },
-          { label: 'Import Data', href: '/dashboard/import', icon: School },
+          { label: 'Approve Users', href: '/dashboard/people', icon: Users },
+          { label: 'Import Data', href: '/dashboard/admin/csv-upload', icon: School },
           { label: 'School Analytics', href: '/dashboard/analytics', icon: Network }
         ];
       case 'teacher':
         return [
-          { label: 'My Students', href: '/dashboard/students', icon: Users },
+          { label: 'My Students', href: '/dashboard/people', icon: Users },
           { label: 'Create Event', href: '/dashboard/events', icon: Clock },
           { label: 'Messages', href: '/dashboard/messages', icon: Network }
         ];
       case 'student':
         return [
-          { label: 'My Classmates', href: '/dashboard/classmates', icon: Users },
-          { label: 'Find Alumni', href: '/dashboard/alumni', icon: School },
-          { label: 'Activities', href: '/dashboard/activities', icon: Network }
+          { label: 'My Classmates', href: '/dashboard/people', icon: Users },
+          { label: 'Find Alumni', href: '/dashboard/people', icon: School },
+          { label: 'Activities', href: '/dashboard/activity', icon: Network }
         ];
       case 'alumni':
         return [
-          { label: 'Alumni Network', href: '/dashboard/alumni', icon: Network },
-          { label: 'Mentoring', href: '/dashboard/mentoring', icon: School },
-          { label: 'Events', href: '/dashboard/events', icon: Clock }
+          { label: 'Alumni Network', href: '/dashboard/people', icon: Network },
+          { label: 'Events', href: '/dashboard/events', icon: Clock },
+          { label: 'Messages', href: '/dashboard/messages', icon: Users }
         ];
       default:
         return [];
@@ -88,11 +88,11 @@ export default function ProductionDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-lg border">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
           {getWelcomeMessage()}
         </h1>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           {new Date().toLocaleDateString('en-US', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -107,40 +107,40 @@ export default function ProductionDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold">{stats.totalUsers || 0}</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+              <p className="text-2xl font-bold">{stats.totalUsers || '—'}</p>
             </div>
-            <Users className="h-8 w-8 text-blue-600" />
+            <Users className="h-8 w-8 text-primary" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Schools</p>
-              <p className="text-2xl font-bold">{stats.totalSchools || 0}</p>
+              <p className="text-sm font-medium text-muted-foreground">Schools</p>
+              <p className="text-2xl font-bold">{stats.totalSchools || '—'}</p>
             </div>
-            <School className="h-8 w-8 text-green-600" />
+            <School className="h-8 w-8 text-primary" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Connections</p>
-              <p className="text-2xl font-bold">{stats.activeConnections || 0}</p>
+              <p className="text-sm font-medium text-muted-foreground">Active Connections</p>
+              <p className="text-2xl font-bold">{stats.activeConnections || '—'}</p>
             </div>
-            <Network className="h-8 w-8 text-purple-600" />
+            <Network className="h-8 w-8 text-primary" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold">{stats.pendingApprovals || 0}</p>
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-bold">{stats.pendingApprovals || '—'}</p>
             </div>
-            <Clock className="h-8 w-8 text-orange-600" />
+            <Clock className="h-8 w-8 text-primary" />
           </div>
         </Card>
       </div>
@@ -162,25 +162,6 @@ export default function ProductionDashboard() {
           ))}
         </div>
       </Card>
-
-      {/* Recent Activity */}
-      {userSpecificData.recentActivity && userSpecificData.recentActivity.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            {userSpecificData.recentActivity.slice(0, 5).map((activity: any, index: number) => (
-              <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{activity.message}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(activity.timestamp).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
