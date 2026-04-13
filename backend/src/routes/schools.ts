@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import multer from 'multer';
 import csv from 'csv-parser';
 import fs from 'fs';
+import axios from 'axios';
 
 const router: express.Router = Router();
 const upload = multer({ dest: 'uploads/' });
@@ -341,14 +342,65 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
     const { page = 1, limit = 1000, search, schoolType, managementType } = req.query;
     
-    const where: any = {}; // Remove status filter to get all schools
-    
-    // School admins and teachers can only see their own school
-    if (req.user && !req.user.roles.includes('platform_admin')) {
-      if (req.user.schoolId) {
-        where.id = req.user.schoolId;
-      } else {
-        // User has no school access
+    // For platform admins, fetch from external API
+    if (req.user && req.user.roles.includes('platform_admin')) {
+      try {
+        const response = await axios.get(process.env.SCHOOLS_API_URL || 'https://api.hostingmanager.in/api/schools/all', {
+          timeout: parseInt(process.env.API_TIMEOUT || '30000')
+        });
+        let schools = response.data || [];
+        
+        // Apply filters
+        if (search) {
+          schools = schools.filter((school: any) => 
+            school.school_name?.toLowerCase().includes((search as string).toLowerCase()) ||
+            school.udise_school_code?.toLowerCase().includes((search as string).toLowerCase())
+          );
+        }
+        
+        if (schoolType) {
+          schools = schools.filter((school: any) => school.school_type === schoolType);
+        }
+        
+        if (managementType) {
+          schools = schools.filter((school: any) => school.management === managementType);
+        }
+        
+        // Apply pagination
+        const startIndex = (Number(page) - 1) * Number(limit);
+        const endIndex = startIndex + Number(limit);
+        const paginatedSchools = schools.slice(startIndex, endIndex);
+        
+        // Transform to match expected format
+        const transformedSchools = paginatedSchools.map((school: any) => ({
+          id: school.id,
+          schoolName: school.school_name,
+          udiseSchoolCode: school.udise_school_code,
+          schoolCategory: school.school_category,
+          schoolType: school.school_type,
+          management: school.management,
+          stateName: school.state_name,
+          districtName: school.district_name,
+          villageName: school.village_name,
+          pincode: school.pincode,
+          status: school.status === 'Operational' ? 'active' : 'inactive',
+          isActive: school.status === 'Operational',
+          address: `${school.village_name || ''}, ${school.district_name || ''}, ${school.state_name || ''}`,
+          contactNumber: school.contact_number || ''
+        }));
+        
+        return res.json({
+          schools: transformedSchools,
+          pagination: { 
+            page: Number(page), 
+            limit: Number(limit), 
+            total: schools.length, 
+            pages: Math.ceil(schools.length / Number(limit)) 
+          },
+        });
+      } catch (apiError) {
+        logger.error('Failed to fetch schools from external API:', apiError);
+        // Fallback to empty response
         return res.json({
           schools: [],
           pagination: { page: 1, limit: Number(limit), total: 0, pages: 0 },
@@ -356,52 +408,16 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       }
     }
     
-    if (search) {
-      where.OR = [
-        { schoolName: { contains: search as string, mode: 'insensitive' } },
-        { udiseSchoolCode: { contains: search as string, mode: 'insensitive' } },
-      ];
-    }
-    
-    if (schoolType) where.schoolType = schoolType;
-    if (managementType) where.managementType = managementType;
-
-    const schools = await prisma.school.findMany({
-      where,
-      skip: (Number(page) - 1) * Number(limit),
-      take: Number(limit),
-      orderBy: { schoolName: 'asc' },
-      select: {
-        id: true,
-        institutionId: true,
-        schoolName: true,
-        udiseSchoolCode: true,
-        schoolCategory: true,
-        schoolType: true,
-        management: true,
-        stateName: true,
-        districtName: true,
-        locationType: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        // Legacy compatibility fields
-        name: true,
-        udiseCode: true,
-        _count: {
-          select: { users: true, classes: true },
-        },
-      },
+    // For non-platform admins, return empty or limited data
+    return res.json({
+      schools: [],
+      pagination: { page: 1, limit: Number(limit), total: 0, pages: 0 },
     });
-
-    const total = await prisma.school.count({ where });
-
-    logger.info(`Schools fetched: ${schools.length} of ${total} total`);
-
-    res.json({
-      schools: schools.map(school => ({
-        id: school.id,
-        name: school.schoolName || school.name,
+  } catch (error) {
+    logger.error('Schools fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch schools' });
+  }
+});
         schoolName: school.schoolName || school.name,
         udiseCode: school.udiseSchoolCode || school.udiseCode,
         districtName: school.districtName,

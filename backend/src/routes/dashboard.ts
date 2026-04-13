@@ -1,15 +1,30 @@
-import express, { Router } from 'express';
+import express, { Router, Response } from 'express';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+import { keycloakAdminClient } from '../services/keycloakAdmin';
+import axios from 'axios';
 
 const router: Router = express.Router();
 
 // Apply authentication to all dashboard routes
 router.use(authenticateToken);
 
+// Helper function to fetch users from Keycloak
+async function fetchUsersFromKeycloak() {
+  try {
+    await keycloakAdminClient.authenticate();
+    const kcAdmin = await keycloakAdminClient.getAdmin();
+    const users = await kcAdmin.users.find({ realm: process.env.KEYCLOAK_REALM });
+    return { users: users || [] };
+  } catch (error) {
+    logger.error('Failed to fetch users from Keycloak:', error);
+    return { users: [] };
+  }
+}
+
 // GET /api/dashboard/:role - Get dashboard data based on role
-router.get('/:role', async (req: AuthenticatedRequest, res) => {
+router.get('/:role', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { role } = req.params;
     const userId = req.user?.id ? parseInt(req.user.id, 10) : undefined;
@@ -17,13 +32,18 @@ router.get('/:role', async (req: AuthenticatedRequest, res) => {
 
     logger.info(`Fetching dashboard data for role: ${role}, user: ${userId}`);
 
-    // Get base statistics
-    const [totalUsers, totalSchools, totalConnections, pendingApprovals] = await Promise.all([
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.school.count({ where: { isActive: true } }),
-      prisma.connection.count({ where: { status: 'accepted' } }),
-      prisma.user.count({ where: { isActive: false } })
+    // Get base statistics from external APIs
+    const [schoolsResponse, keycloakUsersResponse] = await Promise.all([
+      axios.get(process.env.SCHOOLS_API_URL || 'https://api.hostingmanager.in/api/schools/all', {
+        timeout: parseInt(process.env.API_TIMEOUT || '30000')
+      }).then(res => res.data).catch(() => ({ data: [] })),
+      fetchUsersFromKeycloak().catch(() => ({ users: [] }))
     ]);
+
+    const totalSchools = schoolsResponse.data?.length || 0;
+    const totalUsers = keycloakUsersResponse.users?.length || 0;
+    const totalConnections = 0; // Will be implemented with connections API
+    const pendingApprovals = 0; // Will be implemented with approvals API
 
     const baseStats = {
       totalUsers,
@@ -93,50 +113,43 @@ async function getPlatformAdminStats() {
 }
 
 async function getPlatformAdminData(userId?: number) {
-  const [pendingRegistrations, pendingSchools, recentUsers] = await Promise.all([
-    prisma.user.findMany({
-      where: { isActive: false },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        school: { select: { schoolName: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    }),
-    prisma.school.findMany({
-      where: { isActive: false },
-      select: {
-        id: true,
-        schoolName: true,
-        stateName: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    }),
-    prisma.user.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    })
+  // Fetch data from external APIs
+  const [schoolsResponse, keycloakUsersResponse] = await Promise.all([
+    axios.get(process.env.SCHOOLS_API_URL || 'https://api.hostingmanager.in/api/schools/all', {
+      timeout: parseInt(process.env.API_TIMEOUT || '30000')
+    }).then(res => res.data).catch(() => ({ data: [] })),
+    fetchUsersFromKeycloak().catch(() => ({ users: [] }))
   ]);
 
+  const schools = schoolsResponse.data || [];
+  const users = keycloakUsersResponse.users || [];
+
+  // Transform schools data for dashboard
+  const schoolList = schools.slice(0, 10).map((school: any) => ({
+    id: school.id,
+    schoolName: school.school_name,
+    stateName: school.state_name || 'Unknown',
+    createdAt: new Date().toISOString(), // API doesn't provide creation date
+    isActive: school.status === 'Operational'
+  }));
+
+  // Transform users data for dashboard  
+  const userList = users.slice(0, 10).map((user: any) => ({
+    id: user.id,
+    firstName: user.firstName || user.given_name || 'Unknown',
+    lastName: user.lastName || user.family_name || 'User',
+    email: user.email,
+    role: 'user', // Will be determined from Keycloak attributes
+    createdAt: user.createdTimestamp ? new Date(user.createdTimestamp).toISOString() : new Date().toISOString(),
+    school: null // Will be populated from user attributes
+  }));
+
   return {
-    pendingRegistrations,
-    pendingSchools,
-    recentUsers
+    pendingRegistrations: [], // Will be implemented with registration API
+    pendingSchools: schoolList.filter(school => !school.isActive),
+    recentUsers: userList,
+    schools: schoolList,
+    users: userList
   };
 }
 
