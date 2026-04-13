@@ -1,7 +1,5 @@
-// Unified API proxy layer — routes all external API calls through the edge function
-// to bypass CORS restrictions in the Lovable preview environment.
-
-import { supabase } from '@/integrations/supabase/client';
+// Unified API proxy layer — routes all external API calls directly to your backend.
+// No Supabase dependency.
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string) ||
@@ -11,11 +9,17 @@ const API_BASE_URL =
 function resolveUrl(endpoint: string): string {
   const base = API_BASE_URL.replace(/\/+$/, '');
   const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  // Avoid /api/api duplication
   if (/\/api$/i.test(base) && /^\/api(\/|$)/i.test(ep)) {
     return base.replace(/\/api$/i, '') + ep;
   }
   return base + ep;
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_access_token');
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
 }
 
 export async function proxyRequest<T = any>(
@@ -25,33 +29,34 @@ export async function proxyRequest<T = any>(
   const url = resolveUrl(endpoint);
   const method = options.method || 'GET';
 
-  const { data, error } = await supabase.functions.invoke('api-proxy', {
-    body: {
-      url,
-      method,
-      headers: options.headers || (method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
-      body: options.body,
-    },
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
+    ...options.headers,
+  };
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  if (error) {
-    throw new Error(`Proxy error: ${error.message}`);
-  }
-
-  if (!data?.ok) {
-    const status = data?.status;
-    let msg = data?.bodyJson?.error || data?.bodyJson?.message || data?.statusText || 'Request failed';
-    // Provide user-friendly messages for common HTTP errors
-    if (status === 502) msg = 'The backend server is currently unavailable. Please try again in a moment.';
-    if (status === 504) msg = 'The backend server took too long to respond. Please try again.';
-    if (status === 404) msg = 'The requested endpoint was not found on the server. Please contact support.';
+  if (!response.ok) {
+    const status = response.status;
+    let msg = response.statusText || 'Request failed';
+    try {
+      const errBody = await response.json();
+      msg = errBody.error || errBody.message || msg;
+    } catch {}
+    if (status === 502) msg = 'The backend server is currently unavailable.';
+    if (status === 504) msg = 'The backend server took too long to respond.';
+    if (status === 404) msg = 'The requested endpoint was not found.';
     const err = new Error(msg) as any;
     err.status = status;
-    err.response = data?.bodyJson;
     throw err;
   }
 
-  return data.bodyJson ?? data.bodyText;
+  return response.json();
 }
 
 export async function proxyGet<T = any>(endpoint: string, params?: Record<string, string>): Promise<T> {

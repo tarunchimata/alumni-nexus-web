@@ -224,48 +224,25 @@ class ApiService {
   }
 
   private async makeProxyRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
-    console.log(`[ApiService] Making proxy request to: ${url}`);
-    console.log(`[ApiService] Request headers:`, options.headers);
-    console.log(`[ApiService] Request method:`, options.method || 'GET');
+    console.log(`[ApiService] Making direct request to: ${url}`);
     
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      
-      const requestData = {
-        url,
+      const response = await fetch(url, {
         method: options.method || 'GET',
-        headers: options.headers || {},
-        body: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined
-      };
-      
-      console.log(`[ApiService] Supabase function request:`, requestData);
-      
-      const { data, error } = await supabase.functions.invoke('api-proxy', {
-        body: requestData
+        headers: options.headers as Record<string, string>,
+        body: options.body,
       });
 
-      if (error) {
-        console.error(`[ApiService] Proxy error:`, error);
-        throw new Error(`Proxy request failed: ${error.message}`);
+      if (!response.ok) {
+        console.error(`[ApiService] API returned error: ${response.status}`);
+        throw new Error(`API Error ${response.status}: ${response.statusText}`);
       }
 
-      if (!data || !data.ok) {
-        console.error(`[ApiService] API returned error:`, data);
-        throw new Error(`API Error ${data?.status || 'Unknown'}: ${data?.statusText || 'Unknown error'}`);
-      }
-
-      console.log(`[ApiService] Proxy response success:`, data);
-      
-      // Return the response body, ensuring we don't return null
-      const responseBody = data.bodyJson || data.bodyText;
-      if (responseBody === null || responseBody === undefined) {
-        console.warn(`[ApiService] Response body is null, returning empty object`);
-        return {} as T;
-      }
-      
-      return responseBody;
+      const data = await response.json();
+      console.log(`[ApiService] Response success`);
+      return data;
     } catch (error) {
-      console.error(`[ApiService] Proxy request failed:`, error);
+      console.error(`[ApiService] Request failed:`, error);
       throw error;
     }
   }

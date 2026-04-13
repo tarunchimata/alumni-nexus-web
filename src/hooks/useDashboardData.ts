@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
-import { supabase } from '@/integrations/supabase/client';
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'https://api.hostingmanager.in/api';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_access_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
 
 interface DashboardStats {
   totalUsers: number;
@@ -42,25 +51,34 @@ export const useDashboardData = (): DashboardData => {
     setError(null);
 
     try {
-      // Fetch real counts from Supabase tables
-      const [schoolsResult, requestsResult] = await Promise.all([
-        supabase.from('schools').select('id', { count: 'exact', head: true }),
-        supabase.from('school_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      ]);
-
-      setStats({
-        totalUsers: 0, // No users table yet
-        totalSchools: schoolsResult.count ?? 0,
-        activeConnections: 0,
-        pendingApprovals: requestsResult.count ?? 0,
-        totalPosts: 0,
-        totalAlumni: 0,
-        totalTeachers: 0,
-        totalStudents: 0,
+      // Try fetching stats from your backend API
+      const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+        headers: getAuthHeaders(),
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setStats({
+            totalUsers: data.data.totalUsers ?? 0,
+            totalSchools: data.data.totalSchools ?? 0,
+            activeConnections: data.data.activeConnections ?? 0,
+            pendingApprovals: data.data.pendingApprovals ?? 0,
+            totalPosts: data.data.totalPosts ?? 0,
+            totalAlumni: data.data.totalAlumni ?? 0,
+            totalTeachers: data.data.totalTeachers ?? 0,
+            totalStudents: data.data.totalStudents ?? 0,
+          });
+        } else {
+          setStats(defaultStats);
+        }
+      } else {
+        console.warn('Stats API returned', response.status, '- using defaults');
+        setStats(defaultStats);
+      }
     } catch (err) {
       console.error('Dashboard data fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      // Don't show error to user - just use defaults
       setStats(defaultStats);
     } finally {
       setIsLoading(false);
