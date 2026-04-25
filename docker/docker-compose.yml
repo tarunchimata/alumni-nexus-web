@@ -8,7 +8,7 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - ../.env
+      - .env
     ports:
       - "3033:3033"
     volumes:
@@ -30,11 +30,9 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.frontend
     env_file:
-      - ../.env
+      - .env
     ports:
       - "8080:80"
-    environment:
-      - VITE_API_URL=http://localhost:3033/api
     depends_on:
       backend:
         condition: service_healthy

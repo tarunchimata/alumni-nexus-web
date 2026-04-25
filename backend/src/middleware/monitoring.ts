@@ -39,7 +39,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
   // Override res.end to capture response
   const originalEnd = res.end;
-  res.end = function(this: Response, chunk?: any, encoding?: any) {
+  (res as any).end = function(chunk?: any, encoding?: any, cb?: any) {
     const responseTime = Date.now() - startTime;
     
     const metrics: RequestMetrics = {

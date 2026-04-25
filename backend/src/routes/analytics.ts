@@ -27,10 +27,10 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
         analyticsData = await getSchoolAnalytics(schoolId);
         break;
       case 'teacher':
-        analyticsData = await getTeacherAnalytics(parseInt(userId), schoolId);
+        analyticsData = await getTeacherAnalytics(userId, schoolId);
         break;
       default:
-        analyticsData = await getBasicAnalytics(parseInt(userId));
+        analyticsData = await getBasicAnalytics(userId);
     }
 
     res.json(analyticsData);
@@ -89,7 +89,7 @@ async function getPlatformAnalytics() {
 }
 
 // School admin analytics
-async function getSchoolAnalytics(schoolId: number) {
+async function getSchoolAnalytics(schoolId: string) {
   if (!schoolId) {
     throw new Error('School ID required for school analytics');
   }
@@ -135,7 +135,7 @@ async function getSchoolAnalytics(schoolId: number) {
 }
 
 // Teacher analytics
-async function getTeacherAnalytics(userId: number, schoolId: number) {
+async function getTeacherAnalytics(userId: string, schoolId: string) {
   try {
     // Basic analytics for teachers
     const classStudents = await prisma.user.count({
@@ -157,7 +157,7 @@ async function getTeacherAnalytics(userId: number, schoolId: number) {
 }
 
 // Basic analytics for regular users
-async function getBasicAnalytics(userId: number) {
+async function getBasicAnalytics(userId: string) {
   try {
     return {
       personalStats: true,

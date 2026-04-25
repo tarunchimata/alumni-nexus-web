@@ -379,11 +379,7 @@ export class KeycloakFirstImportService {
             lastName: row.last_name,
             fullName: `${row.first_name} ${row.last_name}`,
             role: row.role as any,
-            schoolId: schoolId,
-            phone: row.phone_number || null,
-            dateOfBirth: row.date_of_birth ? new Date(row.date_of_birth) : null,
             joinYear: row.admission_year ? parseInt(row.admission_year) : new Date().getFullYear(),
-            passOutYear: row.graduation_year ? parseInt(row.graduation_year) : null,
             isActive: false,
             isVerified: false,
             approvalStatus: 'PENDING' as any,
@@ -391,11 +387,29 @@ export class KeycloakFirstImportService {
             updatedAt: new Date()
           };
           
-          await prisma.user.upsert({
-            where: { email: row.email },
-            update: userData,
-            create: userData
-          });
+          // Use raw query to insert user
+          await prisma.$executeRaw`
+            INSERT INTO "User" (
+              id, "keycloakId", email, "firstName", "lastName", "fullName", 
+              role, "joinYear", "isActive", "isVerified", "approvalStatus", 
+              "createdAt", "updatedAt"
+            ) VALUES (
+              gen_random_uuid(), 
+              ${userData.keycloakId}, 
+              ${userData.email}, 
+              ${userData.firstName}, 
+              ${userData.lastName}, 
+              ${userData.fullName}, 
+              ${userData.role}, 
+              ${userData.joinYear}, 
+              ${userData.isActive}, 
+              ${userData.isVerified}, 
+              ${userData.approvalStatus}, 
+              ${userData.createdAt}, 
+              ${userData.updatedAt}
+            )
+            ON CONFLICT (email) DO NOTHING
+          `;
           
           result.synced++;
           
