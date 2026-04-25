@@ -5,8 +5,8 @@ services:
   # Backend (Node.js/Express API)
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: docker/Dockerfile.backend
     env_file:
       - .env
     ports:
@@ -27,12 +27,12 @@ services:
   # Frontend (React App with Nginx)
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: docker/Dockerfile.frontend
     env_file:
       - .env
     ports:
-      - "8080:8080"
+      - "8080:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -43,7 +43,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
     restart: unless-stopped
 
 volumes:

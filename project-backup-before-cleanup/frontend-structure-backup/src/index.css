@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Beautiful Modern Design System - Production Ready
+All colors MUST be HSL. Role-based gradients and modern themes.
+*/
+
+@layer base {
+:root {
+  /* Base Colors */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  
+  /* Primary Colors - Modern Blue */
+  --primary: 217 91% 60%;
+  --primary-foreground: 210 40% 98%;
+  --primary-glow: 217 91% 75%;
+  
+  /* Card System */
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Role-Based Color System */
+  --platform-admin-primary: 262 83% 58%;
+  --platform-admin-secondary: 283 83% 70%;
+  --platform-admin-gradient: linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(283, 83%, 70%) 100%);
+  
+  --school-admin-primary: 142 71% 45%;
+  --school-admin-secondary: 160 71% 55%;
+  --school-admin-gradient: linear-gradient(135deg, hsl(142, 71%, 45%) 0%, hsl(160, 71%, 55%) 100%);
+  
+  --teacher-primary: 217 91% 60%;
+  --teacher-secondary: 234 91% 70%;
+  --teacher-gradient: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(234, 91%, 70%) 100%);
+  
+  --alumni-primary: 25 95% 53%;
+  --alumni-secondary: 35 95% 63%;
+  --alumni-gradient: linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(35, 95%, 63%) 100%);
+  
+  --student-primary: 330 81% 60%;
+  --student-secondary: 320 81% 70%;
+  --student-gradient: linear-gradient(135deg, hsl(330, 81%, 60%) 0%, hsl(320, 81%, 70%) 100%);
+
+  /* Modern Enhanced Gradients for Visual Appeal */
+  --gradient-vibrant: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(283, 83%, 70%) 50%, hsl(330, 81%, 60%) 100%);
+  --gradient-success: linear-gradient(135deg, hsl(142, 71%, 45%) 0%, hsl(160, 71%, 55%) 100%);
+  --gradient-warning: linear-gradient(135deg, hsl(32, 95%, 44%) 0%, hsl(45, 95%, 54%) 100%);
+  --gradient-error: linear-gradient(135deg, hsl(0, 84%, 60%) 0%, hsl(15, 84%, 70%) 100%);
+  
+  /* Interactive Elements */
+  --glow: 0 0 20px hsl(var(--primary) / 0.3);
+  --glow-hover: 0 0 30px hsl(var(--primary) / 0.5);
+  --shimmer: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.1) 50%, transparent 100%);
+
+  /* Animation Utilities */
+  --bounce-subtle: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
+
+  /* Semantic Colors */
+  --success: 142 71% 45%;
+  --success-foreground: 355.7 100% 97.3%;
+  --warning: 32 95% 44%;
+  --warning-foreground: 210 40% 98%;
+  --error: 0 84.2% 60.2%;
+  --error-foreground: 210 40% 98%;
+
+  /* UI Colors */
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 217 91% 60%;
+  --radius: 0.75rem;
+
+  /* Sidebar Modern Design */
+  --sidebar-background: 0 0% 99%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 217 91% 95%;
+  --sidebar-accent-foreground: 217 91% 20%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 217 91% 60%;
+
+  /* Chart Colors - Vibrant and Professional */
+  --chart-1: 217 91% 60%;    /* Primary Blue */
+  --chart-2: 142 71% 45%;    /* Success Green */
+  --chart-3: 25 95% 53%;     /* Warning Orange */
+  --chart-4: 330 81% 60%;    /* Accent Pink */
+  --chart-5: 262 83% 58%;    /* Purple */
+  --chart-6: 160 71% 55%;    /* Teal */
+  --chart-7: 35 95% 63%;     /* Light Orange */
+  --chart-8: 283 83% 70%;    /* Light Purple */
+
+  /* Animations & Transitions */
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-bounce: bounce 1s infinite;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Modern UI Enhancements */
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--shimmer);
+    animation: shimmer 2s infinite;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+  }
+  
+  .gradient-text {
+    background: var(--gradient-vibrant);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: var(--glow); }
+  50% { box-shadow: var(--glow-hover); }
+}

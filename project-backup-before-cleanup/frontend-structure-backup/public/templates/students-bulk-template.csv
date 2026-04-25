@@ -1,0 +1,6 @@
+email,first_name,last_name,role,school_udise_code,phone_number,date_of_birth,admission_year,graduation_year
+"student1@example.com","Ravi","Kumar","student","DPS001","+91-98765-10001","2006-03-15","2021","2025"
+"student2@example.com","Priya","Sharma","student","DPS001","+91-98765-10002","2005-07-22","2020","2024"
+"student3@example.com","Amit","Patel","student","DPS001","+91-98765-10003","2007-11-08","2022","2026"
+"student4@example.com","Sneha","Gupta","student","DPS001","+91-98765-10004","2006-01-30","2021","2025"
+"student5@example.com","Vikram","Singh","student","DPS001","+91-98765-10005","2005-09-12","2020","2024"

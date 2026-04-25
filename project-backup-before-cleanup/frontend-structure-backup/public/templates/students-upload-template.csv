@@ -1,0 +1,7 @@
+
+firstName,lastName,email,phone,dateOfBirth,grade,section,rollNumber,guardianName,guardianPhone,address
+Rahul,Sharma,rahul.sharma@example.com,9876543210,2008-05-15,10,A,101,Suresh Sharma,9876543211,"123 Main Street, Delhi"
+Priya,Patel,priya.patel@example.com,9876543212,2008-08-22,10,B,102,Rajesh Patel,9876543213,"456 Park Road, Mumbai"
+Amit,Kumar,amit.kumar@example.com,9876543214,2007-12-10,11,A,201,Vinod Kumar,9876543215,"789 School Lane, Bangalore"
+Sneha,Singh,sneha.singh@example.com,9876543216,2007-03-18,11,B,202,Prakash Singh,9876543217,"321 College Street, Chennai"
+Arjun,Verma,arjun.verma@example.com,9876543218,2006-07-25,12,A,301,Anil Verma,9876543219,"654 University Road, Pune"

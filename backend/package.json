@@ -4,7 +4,7 @@
   "description": "My School Buddies Platform Backend API",
   "main": "dist/index.js",
   "scripts": {
-    "build": "echo 'Skipping TypeScript build for now' && mkdir -p dist && cp -r src/* dist/",
+    "build": "mkdir -p dist && cp -r src/* dist/ && cp package.json dist/ && cp -r node_modules dist/",
     "start": "ts-node src/index.ts",
     "dev": "ts-node --project ./tsconfig.json --transpile-only src/index.ts",
     "db:generate": "prisma generate",
