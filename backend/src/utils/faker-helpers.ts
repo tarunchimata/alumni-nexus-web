@@ -133,9 +133,9 @@ export class FakerHelpers {
         maxAge = 65; // School admins typically 30-65 years old
         break;
         
-      case 'platform_admin':
+      case 'super_admin':
         minAge = 25; 
-        maxAge = 50; // Platform admins typically 25-50 years old
+        maxAge = 50; // Super admins typically 25-50 years old
         break;
         
       default:

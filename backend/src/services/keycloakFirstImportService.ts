@@ -1,6 +1,8 @@
 import { logger } from '../utils/logger';
 import { keycloakAdminClient } from './keycloakAdmin';
-import { prisma } from '../../db/connection';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface StrictCSVUserRow {
   email: string;
@@ -359,9 +361,9 @@ export class KeycloakFirstImportService {
     try {
       // Get school mapping for UDISE codes
       const schools = await prisma.school.findMany({
-        select: { id: true, udise_code: true }
+        select: { id: true, code: true }
       });
-      const schoolMap = new Map(schools.map(s => [s.udise_code, s.id]));
+      const schoolMap = new Map(schools.map(s => [s.code, s.id]));
       
       for (const row of successfulRows) {
         try {
@@ -371,19 +373,22 @@ export class KeycloakFirstImportService {
           }
           
           const userData = {
-            keycloak_id: row.keycloakId!,
+            keycloakId: row.keycloakId!,
             email: row.email,
-            first_name: row.first_name,
-            last_name: row.last_name,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            fullName: `${row.first_name} ${row.last_name}`,
             role: row.role as any,
-            school_id: schoolId,
-            phone_number: row.phone_number || null,
-            date_of_birth: row.date_of_birth ? new Date(row.date_of_birth) : null,
-            admission_year: row.admission_year ? parseInt(row.admission_year) : null,
-            graduation_year: row.graduation_year ? parseInt(row.graduation_year) : null,
-            status: 'pending_approval',
-            created_at: new Date(),
-            updated_at: new Date()
+            schoolId: schoolId,
+            phone: row.phone_number || null,
+            dateOfBirth: row.date_of_birth ? new Date(row.date_of_birth) : null,
+            joinYear: row.admission_year ? parseInt(row.admission_year) : new Date().getFullYear(),
+            passOutYear: row.graduation_year ? parseInt(row.graduation_year) : null,
+            isActive: false,
+            isVerified: false,
+            approvalStatus: 'PENDING' as any,
+            createdAt: new Date(),
+            updatedAt: new Date()
           };
           
           await prisma.user.upsert({
@@ -474,9 +479,9 @@ export class KeycloakFirstImportService {
 
   private async getExistingSchools(): Promise<Map<string, any>> {
     const schools = await prisma.school.findMany({
-      select: { id: true, udise_code: true, name: true }
+      select: { id: true, code: true, name: true }
     });
-    return new Map(schools.map(s => [s.udise_code, s]));
+    return new Map(schools.map(s => [s.code, s]));
   }
 
   private generateTempPassword(): string {
