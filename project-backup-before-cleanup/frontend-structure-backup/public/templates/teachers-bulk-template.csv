@@ -1,6 +1,0 @@
-email,first_name,last_name,role,school_udise_code,phone_number,date_of_birth,admission_year,graduation_year
-"teacher1@example.com","Dr. Sunita","Verma","teacher","DPS001","+91-98765-20001","1980-05-15","","",
-"teacher2@example.com","Prof. Rajesh","Mehta","teacher","DPS001","+91-98765-20002","1975-12-03","","",
-"teacher3@example.com","Ms. Kavita","Joshi","teacher","DPS001","+91-98765-20003","1982-08-27","","",
-"teacher4@example.com","Mr. Suresh","Pandey","teacher","DPS001","+91-98765-20004","1978-02-14","","",
-"teacher5@example.com","Dr. Meera","Nair","teacher","DPS001","+91-98765-20005","1983-10-09","","",

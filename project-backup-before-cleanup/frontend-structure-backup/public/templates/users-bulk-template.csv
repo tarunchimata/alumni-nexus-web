@@ -1,6 +1,0 @@
-email,first_name,last_name,role,school_udise_code,phone_number,date_of_birth,admission_year,graduation_year
-john.doe@example.com,John,Doe,student,DPS001,+91-98765-43210,2005-05-15,2020,2024
-jane.smith@example.com,Jane,Smith,teacher,DPS001,+91-98765-43211,1985-08-20,,
-alumni.user@example.com,Alumni,User,alumni,DPS001,+91-98765-43212,1990-12-10,2005,2009
-admin.school@example.com,School,Admin,school_admin,DPS001,+91-98765-43213,1980-03-25,,
-platform.admin@example.com,Platform,Admin,platform_admin,DPS001,+91-98765-43214,1975-11-30,,

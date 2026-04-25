@@ -1,9 +1,0 @@
-email,first_name,last_name,role,school_udise_code,phone_number,date_of_birth,username,password
-john.doe@example.com,John,Doe,student,12345678901,9876543210,2005-05-15,johndoe,SecurePass123!
-jane.smith@example.com,Jane,Smith,teacher,12345678901,9876543211,1985-08-20,janesmith,TeacherPass123!
-mike.wilson@example.com,Mike,Wilson,alumni,12345678901,9876543212,1990-03-10,mikewilson,AlumniPass123!
-sarah.admin@example.com,Sarah,Admin,school_admin,12345678901,9876543213,1980-11-25,sarahadmin,AdminPass123!
-david.brown@example.com,David,Brown,student,12345678902,9876543214,2006-03-22,davidbrown,StudentPass123!
-lisa.davis@example.com,Lisa,Davis,teacher,12345678902,9876543215,1988-07-14,lisadavis,TeacherPass123!
-mark.miller@example.com,Mark,Miller,alumni,12345678902,9876543216,1992-11-08,markmiller,AlumniPass123!
-emily.garcia@example.com,Emily,Garcia,school_admin,12345678902,9876543217,1983-04-17,emilygarcia,AdminPass123!

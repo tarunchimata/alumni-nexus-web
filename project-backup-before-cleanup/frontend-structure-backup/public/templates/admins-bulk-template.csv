@@ -1,6 +1,0 @@
-email,first_name,last_name,role,school_udise_code,phone_number,date_of_birth,admission_year,graduation_year
-"principal@example.com","Dr. Ramesh","Gupta","school_admin","DPS001","+91-98765-40001","1970-08-15","","",
-"vice.principal@example.com","Mrs. Sudha","Sharma","school_admin","DPS001","+91-98765-40002","1975-02-28","","",
-"coordinator@example.com","Mr. Ashok","Kumar","school_admin","DPS001","+91-98765-40003","1978-11-12","","",
-"platform.admin@myschoolbuddies.com","System","Administrator","platform_admin","DPS001","+91-98765-50001","1980-01-01","","",
-"superadmin@myschoolbuddies.com","Super","Admin","platform_admin","DPS001","+91-98765-50002","1975-06-15","","",
