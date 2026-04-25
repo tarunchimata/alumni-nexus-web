@@ -3,7 +3,7 @@ import { keycloakMiddleware, requireRole } from '../middleware/keycloak';
 import { keycloakFirstImportService } from '../services/keycloakFirstImportService';
 import { logger } from '../utils/logger';
 
-const router = Router();
+const router: Router = Router();
 
 // Apply authentication to all routes
 router.use(keycloakMiddleware);

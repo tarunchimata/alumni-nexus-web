@@ -1,10 +1,10 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
 import { performDryRun, validateKeycloakConnectivity } from '../services/dryRunService';
 import { handleValidationErrors } from '../middleware/security';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // POST /api/dry-run/:jobId - Perform dry run analysis
 router.post('/:jobId', [

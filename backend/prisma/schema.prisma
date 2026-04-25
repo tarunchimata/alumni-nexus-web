@@ -1,8 +1,6 @@
-// My School Buddies Database Schema
-// Based on the existing PostgreSQL schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -10,403 +8,202 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AlumniProfile {
+  id              String  @id
+  userId          String  @unique
+  graduationYear  Int
+  currentCompany  String?
+  currentPosition String?
+  linkedInUrl     String?
+  User            User    @relation(fields: [userId], references: [id])
+}
+
+model LoginAudit {
+  id        String   @id
+  userId    String
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
 model School {
-  // Primary key for new structure
-  institutionId         String   @id @map("institution_id") @db.VarChar(30)
-  schoolName            String   @map("school_name")
-  udiseSchoolCode       String?  @map("udise_school_code") @db.VarChar(20)
-  schoolCategory        String?  @map("school_category") @db.VarChar(50)
-  schoolType            String?  @map("school_type") @db.VarChar(20)
-  management            String?  @map("management") @db.VarChar(100)
-  yearOfEstablishment   String?  @map("year_of_establishment") @db.VarChar(10)
-  status                String?  @map("status") @db.VarChar(50)
-  locationType          String?  @map("location_type") @db.VarChar(20)
-  classFrom             String?  @map("class_from") @db.VarChar(10)
-  classTo               String?  @map("class_to") @db.VarChar(10)
-  affBoardSec           String?  @map("aff_board_sec") @db.VarChar(100)
-  affBoardHSec          String?  @map("aff_board_h_sec") @db.VarChar(100)
-  stateName             String   @map("state_name") @db.VarChar(100)
-  districtName          String?  @map("district_name") @db.VarChar(100)
-  subDistrictName       String?  @map("sub_district_name") @db.VarChar(100)
-  villageName           String?  @map("village_name") @db.VarChar(100)
-  pincode               String?  @map("pincode") @db.VarChar(10)
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String                @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name                 String
+  code                 String?               @unique
+  establishmentYear    Int?                  @default(2000)
+  email                String?
+  phone                String?
+  website              String?
+  addressLine1         String?
+  addressLine2         String?
+  city                 String?
+  state                String?
+  country              String?
+  postalCode           String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @default(now())
+  affiliationHsec      String?
+  affiliationSec       String?
+  category             String?
+  classFrom            Int?
+  classTo              Int?
+  district             String?
+  management           String?
+  subDistrict          String?
+  type                 String?
+  SchoolApprovalPolicy SchoolApprovalPolicy?
+  User                 User[]
 
-  // Legacy compatibility fields (computed columns)
-  id                    Int      @unique @default(autoincrement())
-  name                  String?  @db.VarChar(255) // Computed from schoolName
-  udiseCode             String?  @map("udise_code") @db.VarChar(50) // Computed from udiseSchoolCode
-  schoolTypeLegacy      String?  @map("school_type_legacy") @db.VarChar(50) // Computed from schoolCategory
-  managementType        String?  @map("management_type") @db.VarChar(50) // Computed from management
-  address               String?  // Computed from location fields
-  contactNumber         String?  @map("contact_number") @db.VarChar(20)
-  isActive              Boolean  @default(true) @map("is_active")
+  @@index([name])
+  @@index([category], map: "idx_school_category")
+  @@index([district], map: "idx_school_district")
+  @@index([name], map: "idx_school_name")
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "idx_school_name_trgm", type: Gin)
+  @@index([state, district, name], map: "idx_school_search")
+  @@index([state], map: "idx_school_state")
+  @@index([state, district], map: "idx_school_state_district")
+  @@index([type], map: "idx_school_type")
+}
 
-  // Relations
-  users                 User[]
-  classes               Class[]
-  groups                Group[]
+model SchoolApprovalPolicy {
+  id                           String  @id
+  schoolId                     String  @unique
+  requireTeacherVerification   Boolean @default(false)
+  requirePrincipalVerification Boolean @default(false)
+  multiStepApprovalEnabled     Boolean @default(false)
+  verificationTimeoutHours     Int     @default(48)
+  School                       School  @relation(fields: [schoolId], references: [id])
+}
 
-  @@map("schools")
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model SchoolSubmission {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  city              String?
+  district          String?
+  state             String?
+  postalCode        String?
+  type              String?
+  management        String?
+  code              String?
+  status            String?   @default("PENDING")
+  submittedBy       String?
+  reviewedBy        String?
+  reviewedAt        DateTime? @db.Timestamp(6)
+  rejectionReason   String?
+  createdAt         DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime? @default(now()) @db.Timestamp(6)
+  establishmentYear Int?
+
+  @@index([createdAt], map: "idx_submission_created_at")
+  @@index([status], map: "idx_submission_status")
+}
+
+model StudentProfile {
+  id          String  @id
+  userId      String  @unique
+  admissionNo String?
+  class       String
+  section     String?
+  rollNumber  String?
+  User        User    @relation(fields: [userId], references: [id])
+}
+
+model TeacherProfile {
+  id          String  @id
+  userId      String  @unique
+  employeeId  String?
+  department  String?
+  designation String?
+  User        User    @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id               Int      @id @default(autoincrement())
-  keycloakId       String?  @map("keycloak_id") @db.VarChar(255)
-  email            String   @unique @db.VarChar(255)
-  firstName        String   @map("first_name") @db.VarChar(100)
-  lastName         String   @map("last_name") @db.VarChar(100)
-  role             UserRole
-  schoolId         Int?     @map("school_id")
-  phoneNumber      String?  @map("phone_number") @db.VarChar(20)
-  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
-  admissionYear    Int?     @map("admission_year")
-  graduationYear   Int?     @map("graduation_year")
-  profilePictureUrl String? @map("profile_picture_url")
-  isActive         Boolean  @default(true) @map("is_active")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  lastImportJobId  Int?     @map("last_import_job_id")
+  id             String          @id
+  keycloakId     String          @unique
+  email          String          @unique
+  firstName      String
+  middleName     String?
+  lastName       String
+  fullName       String
+  phone          String?
+  gender         Gender?
+  dateOfBirth    DateTime?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  country        String?
+  postalCode     String?
+  role           UserRole
+  joinYear       Int
+  passOutYear    Int?
+  isActive       Boolean         @default(false)
+  isVerified     Boolean         @default(false)
+  schoolId       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime
+  approvalStatus ApprovalStatus  @default(PENDING)
+  approvedAt     DateTime?
+  approvedById   String?
+  deletedAt      DateTime?
+  AlumniProfile  AlumniProfile?
+  LoginAudit     LoginAudit[]
+  StudentProfile StudentProfile?
+  TeacherProfile TeacherProfile?
+  User           User?           @relation("UserToUser", fields: [approvedById], references: [id])
+  other_User     User[]          @relation("UserToUser")
+  School         School?         @relation(fields: [schoolId], references: [id])
 
-  // Relations
-  school                School?         @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  adminClasses          Class[]         @relation("ClassAdmin")
-  userClassGroups       UserClassGroup[]
-  sentMessages          Message[]
-  deletedMessages       Message[]       @relation("MessageDeleter")
-  
-  // Social Features Relations
-  profile               UserProfile?
-  directMessagesSent    DirectMessage[] @relation("MessageSender")
-  directMessagesReceived DirectMessage[] @relation("MessageReceiver")
-  groupMemberships      GroupMember[]
-  groupMessagesSent     GroupMessage[]
-  notifications         Notification[]
-  posts                 Post[]
-  postReactions         PostReaction[]
-  postComments          PostComment[]
-  connectionsSent       Connection[]    @relation("ConnectionSender")
-  connectionsReceived   Connection[]    @relation("ConnectionReceiver")
-  importJobs            ImportJob[]
-
-  @@index([lastImportJobId])
-  @@index([keycloakId])
-  @@map("users")
+  @@index([role])
+  @@index([schoolId])
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model schools_api {
+  id             Int       @id @default(autoincrement())
+  institution_id String?   @unique @db.VarChar(50)
+  school_name    String    @db.VarChar(255)
+  village_name   String?   @db.VarChar(255)
+  district_name  String?   @db.VarChar(255)
+  state_name     String?   @db.VarChar(255)
+  pincode        String?   @db.VarChar(10)
+  school_type    String?   @db.VarChar(100)
+  management     String?   @db.VarChar(100)
+  status         String?   @db.VarChar(50)
+  location_type  String?   @db.VarChar(50)
+  is_active      Boolean?  @default(true)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
 
-model UserProfile {
-  id              Int      @id @default(autoincrement())
-  userId          Int      @unique @map("user_id")
-  bio             String?
-  profession      String?  @db.VarChar(255)
-  company         String?  @db.VarChar(255)
-  city            String?  @db.VarChar(100)
-  linkedinUrl     String?  @map("linkedin_url")
-  websiteUrl      String?  @map("website_url")
-  skills          String[] // Array of skills
-  achievements    String[] // Array of achievements
-  isProfilePublic Boolean  @default(true) @map("is_profile_public")
-  showEmail       Boolean  @default(false) @map("show_email")
-  showPhone       Boolean  @default(false) @map("show_phone")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_profiles")
+  @@index([is_active], map: "idx_schools_api_active")
+  @@index([institution_id], map: "idx_schools_api_institution_id")
+  @@index([school_name], map: "idx_schools_api_name")
+  @@index([state_name, district_name], map: "idx_schools_api_state_district")
+  @@index([village_name], map: "idx_schools_api_village")
 }
 
-model Class {
-  id           Int      @id @default(autoincrement())
-  schoolId     Int      @map("school_id")
-  name         String   @db.VarChar(100)
-  section      String?  @db.VarChar(10)
-  academicYear String   @map("academic_year") @db.VarChar(10)
-  classAdminId Int?     @map("class_admin_id")
-  description  String?
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  school          School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  classAdmin      User?  @relation("ClassAdmin", fields: [classAdminId], references: [id], onDelete: SetNull)
-  userClassGroups UserClassGroup[]
-  messages        Message[]
-
-  @@map("classes")
-}
-
-model UserClassGroup {
-  id          Int           @id @default(autoincrement())
-  userId      Int           @map("user_id")
-  classId     Int           @map("class_id")
-  roleInClass ClassRole     @map("role_in_class")
-  joinedAt    DateTime      @default(now()) @map("joined_at")
-
-  // Relations
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class       Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, classId])
-  @@map("user_class_groups")
-}
-
-model Message {
-  id            Int         @id @default(autoincrement())
-  classId       Int         @map("class_id")
-  senderId      Int         @map("sender_id")
-  messageText   String      @map("message_text")
-  messageType   MessageType @default(text) @map("message_type")
-  attachmentUrl String?     @map("attachment_url")
-  isDeleted     Boolean     @default(false) @map("is_deleted")
-  deletedBy     Int?        @map("deleted_by")
-  deletedAt     DateTime?   @map("deleted_at")
-  createdAt     DateTime    @default(now()) @map("created_at")
-
-  // Relations
-  class         Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
-  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  deleter       User?       @relation("MessageDeleter", fields: [deletedBy], references: [id])
-
-  @@map("messages")
-}
-
-// New Social Features Models
-
-model DirectMessage {
-  id          Int         @id @default(autoincrement())
-  senderId    Int         @map("sender_id")
-  receiverId  Int         @map("receiver_id")
-  messageText String      @map("message_text")
-  messageType MessageType @default(text) @map("message_type")
-  attachmentUrl String?   @map("attachment_url")
-  isRead      Boolean     @default(false) @map("is_read")
-  readAt      DateTime?   @map("read_at")
-  isDeleted   Boolean     @default(false) @map("is_deleted")
-  createdAt   DateTime    @default(now()) @map("created_at")
-
-  // Relations
-  sender      User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver    User        @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@map("direct_messages")
-}
-
-model Group {
-  id          Int         @id @default(autoincrement())
-  name        String      @db.VarChar(255)
-  description String?
-  groupType   GroupType   @map("group_type")
-  schoolId    Int?        @map("school_id")
-  isPublic    Boolean     @default(true) @map("is_public")
-  createdBy   Int         @map("created_by")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  // Relations
-  school      School?     @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  members     GroupMember[]
-  messages    GroupMessage[]
-
-  @@map("groups")
-}
-
-model GroupMember {
-  id        Int           @id @default(autoincrement())
-  groupId   Int           @map("group_id")
-  userId    Int           @map("user_id")
-  role      GroupMemberRole @default(member)
-  joinedAt  DateTime      @default(now()) @map("joined_at")
-
-  // Relations
-  group     Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, userId])
-  @@map("group_members")
-}
-
-model GroupMessage {
-  id          Int         @id @default(autoincrement())
-  groupId     Int         @map("group_id")
-  senderId    Int         @map("sender_id")
-  messageText String      @map("message_text")
-  messageType MessageType @default(text) @map("message_type")
-  attachmentUrl String?   @map("attachment_url")
-  isDeleted   Boolean     @default(false) @map("is_deleted")
-  createdAt   DateTime    @default(now()) @map("created_at")
-
-  // Relations
-  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@map("group_messages")
-}
-
-model Notification {
-  id          Int              @id @default(autoincrement())
-  userId      Int              @map("user_id")
-  type        NotificationType
-  title       String           @db.VarChar(255)
-  message     String
-  isRead      Boolean          @default(false) @map("is_read")
-  readAt      DateTime?        @map("read_at")
-  relatedId   Int?             @map("related_id") // ID of related entity (message, post, etc.)
-  relatedType String?          @map("related_type") // Type of related entity
-  createdAt   DateTime         @default(now()) @map("created_at")
-
-  // Relations
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notifications")
-}
-
-model Post {
-  id          Int         @id @default(autoincrement())
-  authorId    Int         @map("author_id")
-  content     String
-  postType    PostType    @default(text) @map("post_type")
-  attachmentUrl String?   @map("attachment_url")
-  visibility  PostVisibility @default(public)
-  isDeleted   Boolean     @default(false) @map("is_deleted")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  // Relations
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  reactions   PostReaction[]
-  comments    PostComment[]
-
-  @@map("posts")
-}
-
-model PostReaction {
-  id        Int          @id @default(autoincrement())
-  postId    Int          @map("post_id")
-  userId    Int          @map("user_id")
-  reaction  ReactionType
-  createdAt DateTime     @default(now()) @map("created_at")
-
-  // Relations
-  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
-  @@map("post_reactions")
-}
-
-model PostComment {
-  id        Int      @id @default(autoincrement())
-  postId    Int      @map("post_id")
-  userId    Int      @map("user_id")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("post_comments")
-}
-
-model Connection {
-  id         Int              @id @default(autoincrement())
-  senderId   Int              @map("sender_id")
-  receiverId Int              @map("receiver_id")
-  status     ConnectionStatus @default(pending)
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  sender     User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@unique([senderId, receiverId])
-  @@map("connections")
-}
-
-model ImportJob {
-  id             Int               @id @default(autoincrement())
-  uploaderId     Int               @map("uploader_id")
-  filename       String
-  status         ImportJobStatus   @default(uploaded)
-  importBatchId  String?           @map("import_batch_id")
-  summary        Json?             @map("summary")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-
-  // Relations
-  uploader       User              @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
-  rows           ImportRow[]
-
-  @@index([status])
-  @@map("import_jobs")
-}
-
-model ImportRow {
-  id               Int               @id @default(autoincrement())
-  importJobId      Int               @map("import_job_id")
-  rowNumber        Int               @map("row_number")
-  rawData          Json              @map("raw_data")
-  validationErrors Json?             @map("validation_errors")
-  status           ImportRowStatus   @default(pending)
-  result           Json?             @map("result")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-
-  // Relations
-  job              ImportJob         @relation(fields: [importJobId], references: [id], onDelete: Cascade)
-
-  @@index([importJobId])
-  @@map("import_rows")
-}
-
-
-// Import job enums
-enum ImportJobStatus {
-  uploaded
-  approved
-  provisioning
-  provisioned
-  activated
-  rolled_back
-  failed
-}
-
-enum ImportRowStatus {
-  pending
-  valid
-  invalid
-  provisioned
-  activated
-  failed
-  skipped
-  will_update
-}
-
-// Existing Enums
 enum SchoolType {
-  Primary @map("Primary")
-  Secondary @map("Secondary")
+  Primary          @map("Primary")
+  Secondary        @map("Secondary")
   Higher_Secondary @map("Higher Secondary")
 }
 
 enum ManagementType {
   Government @map("Government")
-  Private @map("Private")
+  Private    @map("Private")
 }
 
 enum UserRole {
-  platform_admin
+  super_admin
   school_admin
   teacher
-  alumni
   student
+  alumni
+  parent
 }
 
 enum ClassRole {
@@ -422,7 +219,6 @@ enum MessageType {
   file
 }
 
-// New Social Features Enums
 enum GroupType {
   class_alumni
   batch_alumni
@@ -478,4 +274,16 @@ enum ConnectionStatus {
   pending
   accepted
   blocked
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
 }
