@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 // Replace these with your uploaded images
-const heroSlide1 = "/lovable-uploads/c9d5106e-d80f-4665-b2f7-e45d1098b9b0.png"; // Mountain friends
-const heroSlide2 = "/lovable-uploads/91d3c6db-5e0c-495f-88f4-8ae52c566191.png"; // Students walking  
-const heroSlide3 = "/lovable-uploads/552ef61e-d182-4b65-9549-cef89ccd17b6.png"; // Students by water
-const heroSlide4 = "/lovable-uploads/ced088ed-9a27-4806-933a-d020962ead8d.png"; // Students on pier
-const heroSlide5 = "/lovable-uploads/9f3f4de5-d0a4-4026-9573-947e1123d93a.png"; // Students in circle
+const heroSlide1 = "/images/hero-slide-1.jpg"; // Mountain friends
+const heroSlide2 = "/images/hero-slide-2.jpg"; // Students walking  
+const heroSlide3 = "/images/hero-slide-3.jpg"; // Students by water
+const heroSlide4 = "/images/hero-slide-4.jpg"; // Students on pier
+const heroSlide5 = "/images/hero-slide-5.jpg"; // Students in circle
 
 const slides = [
   {

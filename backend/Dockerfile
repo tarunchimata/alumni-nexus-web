@@ -1,40 +1,60 @@
-# Use Node.js 18 Alpine for smaller image size
-FROM node:18-alpine
 
-# Set working directory
+# Multi-stage build for Node.js backend
+FROM node:18-alpine AS builder
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
+COPY backend/package*.json ./
+COPY backend/tsconfig.json ./
+
+# Install ALL dependencies (including dev dependencies for build)
+RUN npm install --no-audit --no-fund && npm cache clean --force
+
+# Copy source code
+COPY backend/src ./src
+COPY backend/prisma ./prisma
+COPY backend/db ./db
+
+# Generate Prisma client with correct binary target
+RUN npx prisma generate
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+WORKDIR /app
 
 # Install dumb-init and OpenSSL for Prisma
 RUN apk add --no-cache dumb-init openssl && \
-    ln -s /usr/lib/libssl.so.3 /usr/lib/libssl.so.1.1 && \
-    npm ci --only=production && npm cache clean --force && \
-    npm install -g ts-node typescript
-RUN npx prisma generate
+    ln -s /usr/lib/libssl.so.3 /usr/lib/libssl.so.1.1
 
-# Copy source code
-COPY . .
-
-# Create non-root user for security
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+RUN adduser -S backend -u 1001
 
-# Set ownership
-RUN chown -R nodejs:nodejs /app
+# Copy built application
+COPY --from=builder --chown=backend:nodejs /app/src ./src
+COPY --from=builder --chown=backend:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=backend:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=backend:nodejs /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=backend:nodejs /app/db ./db
 
-# Switch to non-root user
-USER nodejs
+# Copy environment and configuration files
+COPY backend/.env.production ./.env
+COPY --from=builder --chown=backend:nodejs /app/prisma ./prisma
 
-# Expose port
+# Create logs and uploads directories
+RUN mkdir -p logs uploads && chown -R backend:nodejs logs uploads
+
+USER backend
+
 EXPOSE 3033
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3033/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3033/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Use dumb-init and run the application with ts-node
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["npm", "start"]
+CMD ["dumb-init", "npm", "run", "dev"]

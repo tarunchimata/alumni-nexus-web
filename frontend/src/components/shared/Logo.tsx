@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 
 // Your colorful logo - replace the gradient div below with this:
-const userLogo = "/lovable-uploads/cf04646c-b812-4d64-9f2c-638a08cee4ee.png";
+const userLogo = "/images/logo.png";
 
 // EASY LOGO UPDATE:
 // The logo image is now set to your uploaded colorful logo
