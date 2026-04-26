@@ -5,16 +5,16 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY backend/package*.json ./
-COPY backend/tsconfig.json ./
+COPY package*.json ./
+COPY tsconfig.json ./
 
 # Install ALL dependencies (including dev dependencies for build)
 RUN npm install --no-audit --no-fund && npm cache clean --force
 
 # Copy source code
-COPY backend/src ./src
-COPY backend/prisma ./prisma
-COPY backend/db ./db
+COPY src ./src
+COPY prisma ./prisma
+COPY db ./db
 
 # Generate Prisma client with correct binary target
 RUN npx prisma generate
@@ -36,15 +36,14 @@ RUN addgroup -g 1001 -S nodejs
 RUN adduser -S backend -u 1001
 
 # Copy built application
-COPY --from=builder --chown=backend:nodejs /app/src ./src
+COPY --from=builder --chown=backend:nodejs /app/dist ./dist
 COPY --from=builder --chown=backend:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=backend:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=backend:nodejs /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=backend:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=backend:nodejs /app/db ./db
 
 # Copy environment and configuration files
-COPY backend/.env.production ./.env
-COPY --from=builder --chown=backend:nodejs /app/prisma ./prisma
+COPY .env.production ./.env
 
 # Create logs and uploads directories
 RUN mkdir -p logs uploads && chown -R backend:nodejs logs uploads
@@ -57,4 +56,4 @@ EXPOSE 3033
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3033/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-CMD ["dumb-init", "npm", "run", "dev"]
+CMD ["dumb-init", "node", "dist/index.js"]

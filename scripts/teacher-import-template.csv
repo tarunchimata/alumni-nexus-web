@@ -1,4 +1,0 @@
-firstName,lastName,email,phone,dateOfBirth,subject,qualification,experience,employeeId,department,joiningDate,school_udise_code
-"Dr. Sunita","Sharma","sunita.sharma@school.edu","9876543220","1985-04-12","Mathematics","M.Sc. Mathematics","10","EMP001","Mathematics","2020-07-01","DPS001"
-"Mr. Rajesh","Kumar","rajesh.kumar@school.edu","9876543221","1982-09-18","Physics","M.Sc. Physics","15","EMP002","Science","2018-06-15","DPS001"
-"Mrs. Meera","Patel","meera.patel@school.edu","9876543222","1987-11-25","English","M.A. English","8","EMP003","English","2021-08-10","GSSS002"
