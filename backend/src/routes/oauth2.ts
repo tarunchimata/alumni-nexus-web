@@ -152,9 +152,14 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
 
     const keycloakUser = userInfoResponse.data;
 
-    let decodedToken: any;
+    interface VerifiedTokenPayload {
+      realm_access?: { roles?: string[] };
+      school_id?: string;
+    }
+
+    let decodedToken: VerifiedTokenPayload;
     try {
-      decodedToken = await verifyKeycloakToken(accessToken);
+      decodedToken = await verifyKeycloakToken(accessToken) as VerifiedTokenPayload;
     } catch (verificationError) {
       logger.warn('OAuth2 userinfo: invalid or expired token', verificationError);
       return res.status(401).json({
@@ -163,7 +168,7 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
       });
     }
 
-    const roles = Array.isArray(decodedToken?.realm_access?.roles) ? decodedToken.realm_access.roles : [];
+    const roles = Array.isArray(decodedToken.realm_access?.roles) ? decodedToken.realm_access.roles : [];
     
     // Determine primary role based on hierarchy
     let primaryRole = 'student';

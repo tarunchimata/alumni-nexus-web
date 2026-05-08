@@ -27,7 +27,7 @@ export class SocketServerStub {
 
       socket.on('authenticate', (data: { userId: string }) => {
         this.connectedUsers.set(socket.id, data.userId);
-        (socket as any).userId = data.userId;
+        socket.data.userId = data.userId;
         logger.info(`Socket authenticated: ${socket.id} for user: ${data.userId}`);
       });
 
