@@ -2,7 +2,7 @@
 import express from 'express';
 import { body, validationResult, query } from 'express-validator';
 import { logger } from '../utils/logger';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 
 const router: express.Router = express.Router();
 
@@ -23,37 +23,29 @@ router.get('/search', [
     
     const institutions = await prisma.school.findMany({
       where: {
-        AND: [
-          { isActive: true },
-          {
-            OR: [
-              { schoolName: { contains: query, mode: 'insensitive' } },
-              { villageName: { contains: query, mode: 'insensitive' } },
-              { districtName: { contains: query, mode: 'insensitive' } },
-              { stateName: { contains: query, mode: 'insensitive' } },
-              { udiseCode: { contains: query, mode: 'insensitive' } },
-              { institutionId: { contains: query, mode: 'insensitive' } }
-            ]
-          }
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { city: { contains: query, mode: 'insensitive' } },
+          { district: { contains: query, mode: 'insensitive' } },
+          { state: { contains: query, mode: 'insensitive' } },
+          { code: { contains: query, mode: 'insensitive' } }
         ]
       },
       select: {
         id: true,
-        institutionId: true,
-        schoolName: true,
-        villageName: true,
-        districtName: true,
-        stateName: true,
-        udiseCode: true,
-        schoolType: true,
-        schoolCategory: true,
-        managementType: true
+        name: true,
+        city: true,
+        district: true,
+        state: true,
+        code: true,
+        type: true,
+        management: true
       },
       take: limit,
       orderBy: [
         // Prioritize exact matches in name
-        { schoolName: 'asc' },
-        { villageName: 'asc' }
+        { name: 'asc' },
+        { city: 'asc' }
       ]
     });
 
@@ -132,9 +124,9 @@ router.post('/request', [
     // Check if similar institution already exists in schools table
     const existingInstitution = await prisma.school.findFirst({
       where: {
-        schoolName: { contains: institutionName, mode: 'insensitive' },
-        villageName: { contains: city, mode: 'insensitive' },
-        stateName: { contains: state, mode: 'insensitive' }
+        name: { contains: institutionName, mode: 'insensitive' },
+        city: { contains: city, mode: 'insensitive' },
+        state: { contains: state, mode: 'insensitive' }
       }
     });
     
@@ -142,9 +134,9 @@ router.post('/request', [
       return res.status(400).json({ 
         error: 'Similar institution already exists',
         institution: {
-          name: existingInstitution.schoolName,
-          city: existingInstitution.villageName,
-          state: existingInstitution.stateName,
+          name: existingInstitution.name,
+          city: existingInstitution.city,
+          state: existingInstitution.state,
           id: existingInstitution.id
         }
       });
@@ -154,15 +146,12 @@ router.post('/request', [
     // This is a simplified approach since institution_requests table doesn't exist
     const newSchool = await prisma.school.create({
       data: {
-        institutionId: `REQ_${Date.now()}`,
-        schoolName: institutionName,
-        villageName: city,
-        stateName: state,
-        schoolType: institutionType,
-        managementType: managementType,
-        status: 'Pending Approval',
-        isActive: false,
-        contactNumber: contactInfo
+        name: institutionName,
+        city: city,
+        state: state,
+        type: institutionType,
+        management: managementType,
+        phone: contactInfo
       }
     });
     
@@ -193,9 +182,6 @@ router.post('/request', [
 router.get('/requests', async (req: any, res: any) => {
   try {
     const requests = await prisma.school.findMany({
-      where: {
-        status: 'Pending Approval'
-      },
       orderBy: { createdAt: 'desc' },
       take: 50
     });

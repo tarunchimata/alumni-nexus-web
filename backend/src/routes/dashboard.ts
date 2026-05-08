@@ -1,6 +1,6 @@
 import express, { Router, Response } from 'express';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { keycloakAdminClient } from '../services/keycloakAdmin';
 import axios from 'axios';
@@ -27,8 +27,8 @@ async function fetchUsersFromKeycloak() {
 router.get('/:role', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { role } = req.params;
-    const userId = req.user?.id ? parseInt(req.user.id, 10) : undefined;
-    const schoolId = req.user?.schoolId ? parseInt(req.user.schoolId, 10) : undefined;
+    const userId = req.user?.id; // Keep as string
+    const schoolId = req.user?.schoolId; // Keep as string
 
     logger.info(`Fetching dashboard data for role: ${role}, user: ${userId}`);
 
@@ -66,8 +66,8 @@ router.get('/:role', async (req: AuthenticatedRequest, res: Response) => {
         roleSpecificData = await getSchoolAdminData(schoolId);
         break;
       case 'teacher':
-        roleSpecificStats = await getTeacherStats(userId);
-        roleSpecificData = await getTeacherData(userId);
+        roleSpecificStats = await getTeacherStats(userId, schoolId);
+        roleSpecificData = await getTeacherData(userId, schoolId);
         break;
       case 'student':
         roleSpecificStats = await getStudentStats(userId);
@@ -112,7 +112,7 @@ async function getPlatformAdminStats() {
   };
 }
 
-async function getPlatformAdminData(userId?: number) {
+async function getPlatformAdminData(userId?: string) {
   // Fetch data from external APIs
   const [schoolsResponse, keycloakUsersResponse] = await Promise.all([
     axios.get(process.env.SCHOOLS_API_URL || 'https://api.hostingmanager.in/api/schools/all', {
@@ -154,7 +154,7 @@ async function getPlatformAdminData(userId?: number) {
 }
 
 // School Admin specific functions
-async function getSchoolAdminStats(schoolId?: number) {
+async function getSchoolAdminStats(schoolId?: string) {
   if (!schoolId) return {};
 
   const [studentsCount, alumniCount, teachersCount] = await Promise.all([
@@ -170,16 +170,16 @@ async function getSchoolAdminStats(schoolId?: number) {
   };
 }
 
-async function getSchoolAdminData(schoolId?: number) {
+async function getSchoolAdminData(schoolId?: string) {
   if (!schoolId) return {};
 
   const [school, students, teachers, pendingRegistrations] = await Promise.all([
     prisma.school.findUnique({
       where: { id: schoolId },
       select: {
-        schoolName: true,
-        stateName: true,
-        districtName: true
+        name: true,
+        state: true,
+        district: true
       }
     }),
     prisma.user.findMany({
@@ -189,7 +189,7 @@ async function getSchoolAdminData(schoolId?: number) {
         firstName: true,
         lastName: true,
         email: true,
-        graduationYear: true
+        passOutYear: true
       },
       take: 10
     }),
@@ -226,20 +226,17 @@ async function getSchoolAdminData(schoolId?: number) {
 }
 
 // Teacher specific functions
-async function getTeacherStats(userId?: number) {
-  if (!userId) return {};
+async function getTeacherStats(userId?: string, schoolId?: string) {
+  if (!userId || !schoolId) return {};
 
   const [assignedClasses, activeStudents] = await Promise.all([
-    prisma.class.count({ where: { classAdminId: userId } }),
+    // Count teachers in the same school (assuming teacher role)
+    prisma.user.count({ where: { role: 'teacher', schoolId: schoolId } }),
     prisma.user.count({ 
       where: { 
         role: 'student', 
         isActive: true,
-        userClassGroups: {
-          some: {
-            class: { classAdminId: userId }
-          }
-        }
+        schoolId: schoolId
       } 
     })
   ]);
@@ -250,29 +247,24 @@ async function getTeacherStats(userId?: number) {
   };
 }
 
-async function getTeacherData(userId?: number) {
-  if (!userId) return {};
+async function getTeacherData(userId?: string, schoolId?: string) {
+  if (!userId || !schoolId) return {};
 
   const [classes, students] = await Promise.all([
-    prisma.class.findMany({
-      where: { classAdminId: userId },
+    // Get teacher profile data instead of classes
+    prisma.teacherProfile.findMany({
+      where: { userId },
       select: {
         id: true,
-        name: true,
-        section: true,
-        academicYear: true,
-        _count: { select: { userClassGroups: true } }
+        department: true,
+        designation: true
       }
     }),
     prisma.user.findMany({
       where: {
         role: 'student',
         isActive: true,
-        userClassGroups: {
-          some: {
-            class: { classAdminId: userId }
-          }
-        }
+        schoolId: schoolId
       },
       select: {
         id: true,
@@ -288,12 +280,12 @@ async function getTeacherData(userId?: number) {
 }
 
 // Student specific functions
-async function getStudentStats(userId?: number) {
+async function getStudentStats(userId?: string) {
   if (!userId) return {};
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { school: true }
+    include: { School: true }
   });
 
   if (!user?.schoolId) return {};
@@ -314,7 +306,8 @@ async function getStudentStats(userId?: number) {
         isActive: true 
       } 
     }),
-    prisma.userClassGroup.count({ where: { userId } })
+    // Count student profile instead of userClassGroup
+    prisma.studentProfile.count({ where: { userId } })
   ]);
 
   return {
@@ -324,12 +317,12 @@ async function getStudentStats(userId?: number) {
   };
 }
 
-async function getStudentData(userId?: number) {
+async function getStudentData(userId?: string) {
   if (!userId) return {};
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { school: true }
+    include: { School: true }
   });
 
   if (!user?.schoolId) return {};
@@ -346,7 +339,12 @@ async function getStudentData(userId?: number) {
         id: true,
         firstName: true,
         lastName: true,
-        graduationYear: true
+        AlumniProfile: {
+          select: {
+            graduationYear: true,
+            currentCompany: true
+          }
+        }
       },
       take: 10
     }),
@@ -366,16 +364,16 @@ async function getStudentData(userId?: number) {
     })
   ]);
 
-  return { classmates, teachers, school: user.school };
+  return { classmates, teachers, school: user.School };
 }
 
 // Alumni specific functions
-async function getAlumniStats(userId?: number) {
+async function getAlumniStats(userId?: string) {
   if (!userId) return {};
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { school: true }
+    include: { School: true }
   });
 
   if (!user?.schoolId) return {};
@@ -396,13 +394,12 @@ async function getAlumniStats(userId?: number) {
         isActive: true 
       } 
     }),
-    prisma.connection.count({ 
+    // Count alumni profiles instead of connections
+    prisma.alumniProfile.count({ 
       where: { 
-        OR: [
-          { senderId: userId },
-          { receiverId: userId }
-        ],
-        status: 'accepted' 
+        User: {
+          schoolId: user.schoolId
+        }
       } 
     })
   ]);
@@ -414,12 +411,12 @@ async function getAlumniStats(userId?: number) {
   };
 }
 
-async function getAlumniData(userId?: number) {
+async function getAlumniData(userId?: string) {
   if (!userId) return {};
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { school: true }
+    include: { School: true }
   });
 
   if (!user?.schoolId) return {};
@@ -436,13 +433,7 @@ async function getAlumniData(userId?: number) {
         id: true,
         firstName: true,
         lastName: true,
-        graduationYear: true,
-        profile: {
-          select: {
-            profession: true,
-            company: true
-          }
-        }
+        AlumniProfile: true
       },
       take: 10
     }),
@@ -456,17 +447,22 @@ async function getAlumniData(userId?: number) {
         id: true,
         firstName: true,
         lastName: true,
-        graduationYear: true
+        AlumniProfile: {
+          select: {
+            graduationYear: true,
+            currentPosition: true
+          }
+        }
       },
       take: 10
     })
   ]);
 
-  return { fellowAlumni, students, school: user.school };
+  return { fellowAlumni, students, school: user.School };
 }
 
 // Get recent activity for all roles
-async function getRecentActivity(userId?: number, role?: string) {
+async function getRecentActivity(userId?: string, role?: string) {
   if (!userId) return [];
 
   const activities: Array<{
@@ -477,34 +473,32 @@ async function getRecentActivity(userId?: number, role?: string) {
     user: { name: string; role: string };
   }> = [];
 
-  // Get recent connections
-  const connections = await prisma.connection.findMany({
+  // Get recent login activities instead of connections
+  const loginAudits = await prisma.loginAudit.findMany({
     where: {
-      OR: [
-        { senderId: userId },
-        { receiverId: userId }
-      ]
+      userId: userId
     },
     include: {
-      sender: { select: { firstName: true, lastName: true, role: true } },
-      receiver: { select: { firstName: true, lastName: true, role: true } }
+      User: { select: { firstName: true, lastName: true, role: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 5
   });
 
-  connections.forEach(conn => {
-    const otherUser = conn.senderId === userId ? conn.receiver : conn.sender;
+  loginAudits.forEach(audit => {
+    const user = audit.User;
     activities.push({
-      id: `conn_${conn.id}`,
-      type: 'connection',
-      message: `New connection with ${otherUser.firstName} ${otherUser.lastName}`,
-      timestamp: conn.createdAt.toISOString(),
-      user: { name: `${otherUser.firstName} ${otherUser.lastName}`, role: otherUser.role }
+      id: `login_${audit.id}`,
+      type: 'login',
+      message: `Login from ${audit.ipAddress || 'unknown'}`,
+      timestamp: audit.createdAt.toISOString(),
+      user: { name: `${user.firstName} ${user.lastName}`, role: user.role }
     });
   });
 
   // Get recent direct messages
+  // Get recent direct messages - commented out as model doesn't exist
+  /*
   const messages = await prisma.directMessage.findMany({
     where: {
       OR: [
@@ -530,6 +524,7 @@ async function getRecentActivity(userId?: number, role?: string) {
       user: { name: `${otherUser.firstName} ${otherUser.lastName}`, role: otherUser.role }
     });
   });
+  */
 
   return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10);
 }

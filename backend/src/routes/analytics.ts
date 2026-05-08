@@ -1,17 +1,16 @@
 import { Request, Response, Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
-const prisma = new PrismaClient();
 const router: Router = Router();
 
 // Get analytics data based on user role
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userRole = (req as any).user?.role;
-    const schoolId = (req as any).user?.schoolId;
+    const schoolId = req.user?.schoolId;
+    const userRole = req.user?.roles?.find(role => ['platform_admin', 'school_admin', 'teacher'].includes(role));
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });

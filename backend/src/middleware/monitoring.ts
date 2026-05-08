@@ -27,6 +27,8 @@ export const correlationId = (req: Request, res: Response, next: NextFunction) =
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
   
+  const typedReq = req as Request & { user?: { id?: string } };
+
   // Log request start
   logger.info('Request started', {
     correlationId: req.correlationId,
@@ -34,12 +36,14 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
     path: req.path,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    userId: (req as any).user?.id
+    userId: typedReq.user?.id
   });
 
   // Override res.end to capture response
-  const originalEnd = res.end;
-  (res as any).end = function(chunk?: any, encoding?: any, cb?: any) {
+  type ExpressResponseEnd = (chunk?: any, encoding?: any, cb?: any) => Response;
+  const originalEnd = res.end.bind(res) as ExpressResponseEnd;
+  const typedRes = res as Response & { end: ExpressResponseEnd };
+  typedRes.end = function(chunk?: any, encoding?: any, cb?: any) {
     const responseTime = Date.now() - startTime;
     
     const metrics: RequestMetrics = {
@@ -49,7 +53,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
       responseTime,
       ip: req.ip,
       userAgent: req.get('User-Agent') || 'unknown',
-      userId: (req as any).user?.id,
+      userId: typedReq.user?.id,
       timestamp: new Date()
     };
 
@@ -61,7 +65,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
     });
 
     // Call original end method
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd(chunk, encoding, cb);
   };
 
   next();
@@ -69,12 +73,14 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
 // Error logging middleware
 export const errorLogger = (error: Error, req: Request, res: Response, next: NextFunction) => {
+  const typedReq = req as Request & { user?: { id?: string } };
+
   logger.error('Request error', {
     correlationId: req.correlationId,
     method: req.method,
     path: req.path,
     ip: req.ip,
-    userId: (req as any).user?.id,
+    userId: typedReq.user?.id,
     error: {
       name: error.name,
       message: error.message,

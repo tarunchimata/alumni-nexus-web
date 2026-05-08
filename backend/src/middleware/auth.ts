@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 import { keycloakAdminClient } from '../services/keycloakAdmin';
+import { verifyKeycloakToken } from '../utils/keycloak-jwt';
 import { AuthenticatedUser, hasPermission, hasAnyRole, hasHigherRole, ROLE_HIERARCHY } from '../types/auth';
 
 export interface AuthenticatedRequest extends Request {
@@ -25,29 +26,32 @@ export const authenticateToken = async (
       if (authHeader && authHeader.startsWith('Bearer ')) {
         accessToken = authHeader.substring(7);
       }
-      
+
       if (!accessToken) {
         return res.status(401).json({ error: 'No access token provided' });
       }
 
-      // Decode JWT token
-      decoded = jwt.decode(accessToken) as any;
-      if (!decoded) {
-        return res.status(401).json({ error: 'Invalid token' });
+      // Verify JWT token with Keycloak
+      try {
+        decoded = await verifyKeycloakToken(accessToken);
+      } catch (error) {
+        logger.error('Keycloak token verification failed:', error);
+        return res.status(401).json({ error: 'Invalid or expired token' });
       }
     } else {
       // Fallback to cookie-based authentication
       accessToken = req.cookies.access_token;
-      
+
       if (!accessToken) {
         return res.status(401).json({ error: 'No access token provided' });
       }
 
-      // Decode token to get user info
-      decoded = jwt.decode(accessToken) as any;
-      
-      if (!decoded) {
-        return res.status(401).json({ error: 'Invalid token' });
+      // Verify token with Keycloak (even for cookie-based auth)
+      try {
+        decoded = await verifyKeycloakToken(accessToken);
+      } catch (error) {
+        logger.error('Keycloak token verification failed:', error);
+        return res.status(401).json({ error: 'Invalid or expired token' });
       }
     }
 

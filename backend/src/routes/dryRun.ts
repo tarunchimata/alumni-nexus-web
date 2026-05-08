@@ -1,5 +1,5 @@
-import express, { Router } from 'express';
-import { body, param, validationResult } from 'express-validator';
+import express, { Request, Response, Router } from 'express';
+import { param } from 'express-validator';
 import { logger } from '../utils/logger';
 import { performDryRun, validateKeycloakConnectivity } from '../services/dryRunService';
 import { handleValidationErrors } from '../middleware/security';
@@ -10,7 +10,7 @@ const router: Router = express.Router();
 router.post('/:jobId', [
   param('jobId').isInt({ min: 1 }).withMessage('Valid job ID is required'),
   handleValidationErrors
-], async (req: any, res: any) => {
+], async (req: Request & { user?: { id?: string } }, res: Response) => {
   const jobId = parseInt(req.params.jobId);
   
   try {
@@ -19,7 +19,10 @@ router.post('/:jobId', [
       ip: req.ip
     });
 
-    const result = await performDryRun(jobId);
+    const result = await performDryRun({
+      filename: req.body.filename || `dryrun-${jobId}`,
+      content: Array.isArray(req.body.content) ? req.body.content : []
+    });
     
     res.json({
       success: true,
@@ -37,7 +40,7 @@ router.post('/:jobId', [
 });
 
 // GET /api/dry-run/connectivity - Check Keycloak connectivity
-router.get('/connectivity', async (req: any, res: any) => {
+router.get('/connectivity', async (req: Request, res: Response) => {
   try {
     const isConnected = await validateKeycloakConnectivity();
     

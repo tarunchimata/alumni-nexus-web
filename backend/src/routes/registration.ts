@@ -3,7 +3,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
 import { keycloakAdminClient } from '../services/keycloakAdmin';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 
 const router: express.Router = express.Router();
 

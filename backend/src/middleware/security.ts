@@ -169,9 +169,10 @@ export const preventSQLInjection = (input: string): string => {
     .trim();
 };
 
-// CORS configuration
+// CORS configuration - MOVED TO index.ts to avoid duplication
+// Keeping this export for backward compatibility but it's not used
 export const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
+  origin: process.env.NODE_ENV === 'production'
     ? [process.env.FRONTEND_URL, process.env.KEYCLOAK_URL].filter(Boolean)
     : true,
   credentials: true,

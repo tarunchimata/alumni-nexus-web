@@ -1,7 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
+import { verifyKeycloakToken } from '../utils/keycloak-jwt';
 
 interface KeycloakToken {
   sub: string;
@@ -47,9 +47,7 @@ export const keycloakMiddleware = async (
 
     const token = authHeader.substring(7);
     
-    // For development, we'll decode without verification
-    // In production, you should verify against Keycloak's public key
-    const decoded = jwt.decode(token) as KeycloakToken;
+    const decoded = await verifyKeycloakToken(token) as KeycloakToken;
     
     if (!decoded) {
       return res.status(401).json({ error: 'Invalid token' });

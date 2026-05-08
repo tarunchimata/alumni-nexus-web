@@ -1,37 +1,11 @@
 
 import express from 'express';
 import axios from 'axios';
-import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
+import { verifyKeycloakToken } from '../utils/keycloak-jwt';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router: express.Router = express.Router();
-
-// Enhanced CORS middleware for OAuth2 routes
-router.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:8080',
-    'http://localhost:3033',
-    'http://localhost:5173',
-    process.env.CORS_ORIGIN?.split(',') || []
-  ].flat().filter(Boolean);
-
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
 
 // POST /api/oauth2/token - Exchange authorization code for tokens
 router.post('/token', async (req, res) => {
@@ -177,13 +151,22 @@ router.get('/userinfo', async (req: AuthenticatedRequest, res) => {
     );
 
     const keycloakUser = userInfoResponse.data;
-    
-    // Decode JWT to get roles
-    const decodedToken = jwt.decode(accessToken) as any;
-    const roles = decodedToken?.realm_access?.roles || [];
+
+    let decodedToken: any;
+    try {
+      decodedToken = await verifyKeycloakToken(accessToken);
+    } catch (verificationError) {
+      logger.warn('OAuth2 userinfo: invalid or expired token', verificationError);
+      return res.status(401).json({
+        error: 'invalid_token',
+        message: 'Invalid or expired access token'
+      });
+    }
+
+    const roles = Array.isArray(decodedToken?.realm_access?.roles) ? decodedToken.realm_access.roles : [];
     
     // Determine primary role based on hierarchy
-    let primaryRole = 'student'; // default
+    let primaryRole = 'student';
     if (roles.includes('platform_admin')) {
       primaryRole = 'platform_admin';
     } else if (roles.includes('school_admin')) {

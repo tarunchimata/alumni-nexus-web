@@ -7,7 +7,6 @@ import cookieParser from 'cookie-parser';
 import csurf from 'csurf';
 import session from 'express-session';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -24,32 +23,25 @@ import dashboardRouter from './routes/dashboard';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/users';
 
+// Import singleton Prisma client
+import { prisma } from './lib/prisma';
+
 // Load environment variables
 dotenv.config();
 
-// Validate required OAuth2 environment variables
-const requiredOAuth2Vars = [
-  'KEYCLOAK_URL',
-  'KEYCLOAK_REALM',
-  'KEYCLOAK_FRONTEND_CLIENT_ID'
-];
+// Validate environment variables
+import { validateEnvironment } from './lib/env';
 
-const missingVars = requiredOAuth2Vars.filter(varName => !process.env[varName]);
-if (missingVars.length > 0) {
-  logger.error(`Missing required OAuth2 environment variables: ${missingVars.join(', ')}`);
-  logger.error('Please check your .env file and ensure all OAuth2 variables are configured');
+try {
+  const env = validateEnvironment();
+  logger.info('Environment variables validated successfully');
+} catch (error) {
+  logger.error('Environment validation failed:', error);
   process.exit(1);
 }
 
-logger.info('OAuth2 environment variables validated successfully');
-
 const app = express();
 const PORT = process.env.PORT || 3033;
-
-// Initialize Prisma Client
-export const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
 
 // Security middleware
 app.use(helmet());

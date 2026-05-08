@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AuthenticatedRequest, authenticateToken, requireRole } from '../middleware/auth';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import multer from 'multer';
 import csv from 'csv-parser';
@@ -18,9 +18,9 @@ router.use(authenticateToken);
 router.get('/api/states', async (req: AuthenticatedRequest, res) => {
   try {
     const states = await prisma.school.groupBy({
-      by: ['stateName'],
+      by: ['state'],
       where: {
-        stateName: { not: null },
+        state: { not: null },
       },
       _count: {
         id: true,
@@ -34,7 +34,7 @@ router.get('/api/states', async (req: AuthenticatedRequest, res) => {
 
     res.json({
       states: states.map(s => ({
-        name: s.stateName,
+        name: s.state,
         school_count: s._count.id,
       })),
     });
@@ -50,10 +50,10 @@ router.get('/api/states/:state/districts-with-schools', async (req: Authenticate
     const { state } = req.params;
 
     const districts = await prisma.school.groupBy({
-      by: ['districtName'],
+      by: ['district'],
       where: {
-        stateName: state,
-        districtName: { not: null },
+        state: state,
+        district: { not: null },
       },
       _count: {
         id: true,
@@ -67,7 +67,7 @@ router.get('/api/states/:state/districts-with-schools', async (req: Authenticate
 
     res.json({
       districts: districts.map(d => ({
-        name: d.districtName,
+        name: d.district,
         school_count: d._count.id,
       })),
     });
@@ -81,25 +81,16 @@ router.get('/api/states/:state/districts-with-schools', async (req: Authenticate
 router.get('/api/comprehensive-stats', async (req: AuthenticatedRequest, res) => {
   try {
     const total = await prisma.school.count();
-    
-    const byStatus = await prisma.school.groupBy({
-      by: ['status'],
-      _count: {
-        id: true,
-      },
-    });
 
-    const statusCounts = byStatus.reduce((acc, item) => {
-      acc[item.status || 'unknown'] = item._count.id;
-      return acc;
-    }, {} as Record<string, number>);
+    // Since School model doesn't have status field, return basic stats
+    const statusCounts = { active: total };
 
     res.json({
       total,
       byStatus: statusCounts,
-      activeSchools: statusCounts.active || 0,
-      pendingSchools: statusCounts.pending || 0,
-      rejectedSchools: statusCounts.rejected || 0,
+      activeSchools: total,
+      pendingSchools: 0, // No pending status in School model
+      rejectedSchools: 0, // No rejected status in School model
     });
   } catch (error) {
     logger.error('Comprehensive stats fetch error:', error);
@@ -110,44 +101,22 @@ router.get('/api/comprehensive-stats', async (req: AuthenticatedRequest, res) =>
 // Get schools grouped by management type
 router.get('/api/schools-by-management', async (req: AuthenticatedRequest, res) => {
   try {
-    const byManagement = await prisma.school.groupBy({
-      by: ['management'],
+    // Get all schools with management field
+    const schools = await prisma.school.findMany({
       where: {
         management: { not: null },
       },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
+      select: {
+        management: true,
       },
     });
 
-    // Also check managementType field
-    const byManagementType = await prisma.school.groupBy({
-      by: ['managementType'],
-      where: {
-        managementType: { not: null },
-      },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-    });
-
-    // Merge results
-    const managementMap = new Map();
-    byManagement.forEach(item => {
-      managementMap.set(item.management, (managementMap.get(item.management) || 0) + item._count.id);
-    });
-    byManagementType.forEach(item => {
-      managementMap.set(item.managementType, (managementMap.get(item.managementType) || 0) + item._count.id);
+    // Group by management in JavaScript
+    const managementMap = new Map<string, number>();
+    schools.forEach(school => {
+      if (school.management) {
+        managementMap.set(school.management, (managementMap.get(school.management) || 0) + 1);
+      }
     });
 
     const data = Array.from(managementMap.entries()).map(([type, count]) => ({
@@ -165,44 +134,22 @@ router.get('/api/schools-by-management', async (req: AuthenticatedRequest, res) 
 // Get schools grouped by school type
 router.get('/api/schools-by-type', async (req: AuthenticatedRequest, res) => {
   try {
-    const bySchoolType = await prisma.school.groupBy({
-      by: ['schoolType'],
+    // Get all schools with type field
+    const schools = await prisma.school.findMany({
       where: {
-        schoolType: { not: null },
+        type: { not: null },
       },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
+      select: {
+        type: true,
       },
     });
 
-    // Also check schoolTypeLegacy field
-    const bySchoolTypeLegacy = await prisma.school.groupBy({
-      by: ['schoolTypeLegacy'],
-      where: {
-        schoolTypeLegacy: { not: null },
-      },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-    });
-
-    // Merge results
-    const typeMap = new Map();
-    bySchoolType.forEach(item => {
-      typeMap.set(item.schoolType, (typeMap.get(item.schoolType) || 0) + item._count.id);
-    });
-    bySchoolTypeLegacy.forEach(item => {
-      typeMap.set(item.schoolTypeLegacy, (typeMap.get(item.schoolTypeLegacy) || 0) + item._count.id);
+    // Group by type in JavaScript
+    const typeMap = new Map<string, number>();
+    schools.forEach(school => {
+      if (school.type) {
+        typeMap.set(school.type, (typeMap.get(school.type) || 0) + 1);
+      }
     });
 
     const data = Array.from(typeMap.entries()).map(([type, count]) => ({
@@ -221,50 +168,51 @@ router.get('/api/schools-by-type', async (req: AuthenticatedRequest, res) => {
 router.get('/api/hierarchical', async (req: AuthenticatedRequest, res) => {
   try {
     const schools = await prisma.school.findMany({
-      orderBy: { schoolName: 'asc' },
+      orderBy: { name: 'asc' },
       select: {
         id: true,
-        institutionId: true,
-        schoolName: true,
-        udiseSchoolCode: true,
-        schoolCategory: true,
-        schoolType: true,
+        name: true,
+        code: true,
+        type: true,
         management: true,
-        stateName: true,
-        districtName: true,
-        locationType: true,
-        status: true,
+        state: true,
+        district: true,
         createdAt: true,
         updatedAt: true,
-        name: true,
-        udiseCode: true,
-        _count: {
-          select: { users: true, classes: true },
-        },
       },
     });
 
     const uniqueStates = new Set<string>();
     const uniqueDistricts = new Set<string>();
     
-    schools.forEach(school => {
-      if (school.stateName) uniqueStates.add(school.stateName);
-      if (school.districtName) uniqueDistricts.add(school.districtName);
+    // Get user counts for each school
+    const schoolsWithCounts = await Promise.all(
+      schools.map(async (school) => ({
+        ...school,
+        _count: {
+          User: await prisma.user.count({ where: { schoolId: school.id } })
+        }
+      }))
+    );
+    
+    schoolsWithCounts.forEach(school => {
+      if (school.state) uniqueStates.add(school.state);
+      if (school.district) uniqueDistricts.add(school.district);
     });
 
     res.json({
-      schools: schools.map(school => ({
+      schools: schoolsWithCounts.map(school => ({
         id: school.id,
-        name: school.schoolName || school.name,
-        schoolName: school.schoolName || school.name,
-        udiseCode: school.udiseSchoolCode || school.udiseCode,
-        districtName: school.districtName,
-        stateName: school.stateName,
-        schoolType: school.schoolType,
+        name: school.name,
+        schoolName: school.name,
+        udiseCode: school.code,
+        districtName: school.district,
+        stateName: school.state,
+        schoolType: school.type,
         management: school.management,
-        status: school.status,
-        userCount: school._count.users,
-        classCount: school._count.classes,
+        status: 'active', // Default status since schema doesn't have this field
+        userCount: school._count.User,
+        classCount: 0, // No classes in schema
         createdAt: school.createdAt,
         updatedAt: school.updatedAt,
       })),
@@ -287,45 +235,46 @@ router.get('/api/states/:state/districts/:district/schools', async (req: Authent
 
     const schools = await prisma.school.findMany({
       where: {
-        stateName: state,
-        districtName: district,
+        state,
+        district,
       },
-      orderBy: { schoolName: 'asc' },
+      orderBy: { name: 'asc' },
       select: {
         id: true,
-        institutionId: true,
-        schoolName: true,
-        udiseSchoolCode: true,
-        schoolCategory: true,
-        schoolType: true,
+        name: true,
+        code: true,
+        type: true,
         management: true,
-        stateName: true,
-        districtName: true,
-        locationType: true,
-        status: true,
+        state: true,
+        district: true,
         createdAt: true,
         updatedAt: true,
-        name: true,
-        udiseCode: true,
-        _count: {
-          select: { users: true, classes: true },
-        },
       },
     });
 
+    // Get user counts for each school
+    const schoolsWithCounts = await Promise.all(
+      schools.map(async (school) => ({
+        ...school,
+        _count: {
+          User: await prisma.user.count({ where: { schoolId: school.id } })
+        }
+      }))
+    );
+
     res.json({
-      schools: schools.map(school => ({
+      schools: schoolsWithCounts.map(school => ({
         id: school.id,
-        name: school.schoolName || school.name,
-        schoolName: school.schoolName || school.name,
-        udiseCode: school.udiseSchoolCode || school.udiseCode,
-        districtName: school.districtName,
-        stateName: school.stateName,
-        schoolType: school.schoolType,
+        name: school.name,
+        schoolName: school.name,
+        udiseCode: school.code,
+        districtName: school.district,
+        stateName: school.state,
+        schoolType: school.type,
         management: school.management,
-        status: school.status,
-        userCount: school._count.users,
-        classCount: school._count.classes,
+        status: 'active', // Default status
+        userCount: school._count.User,
+        classCount: 0, // No classes in schema, set to 0
         createdAt: school.createdAt,
         updatedAt: school.updatedAt,
       })),
